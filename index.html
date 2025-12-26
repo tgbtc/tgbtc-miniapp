@@ -21,7 +21,7 @@
       border-radius: 18px;
       background: #020617;
       box-shadow: 0 0 40px rgba(0,0,0,0.4);
-      max-width: 340px;
+      max-width: 360px;
       width: 100%;
     }
     h1 {
@@ -39,14 +39,15 @@
     }
     .hint {
       font-size: 13px;
-      opacity: 0.8;
+      opacity: 0.85;
       margin-top: 6px;
       line-height: 1.4;
     }
     .note {
       font-size: 12px;
       opacity: 0.6;
-      margin-top: 10px;
+      margin-top: 12px;
+      line-height: 1.4;
     }
     .btn {
       margin-top: 14px;
@@ -60,6 +61,9 @@
       font-weight: 600;
       cursor: pointer;
     }
+    .btn.secondary {
+      background: #334155;
+    }
     .btn:active {
       transform: scale(0.98);
     }
@@ -72,16 +76,15 @@
 
   <div id="status" class="status">—</div>
   <div id="timer" class="timer">--:--:--</div>
-
   <div id="hint" class="hint"></div>
 
   <button class="btn" onclick="openTeleport()">
-    Open BTC Teleport
+    Open TON Teleport
   </button>
-  <button class="btn" onclick="notifyMe()">
-  🔔 Notify me
-</button>
 
+  <button class="btn secondary" id="notifyBtn" onclick="toggleNotify()">
+    🔔 Enable notification
+  </button>
 
   <div class="note">
     This app does not perform transactions.<br>
@@ -94,15 +97,60 @@
   tg.ready();
   tg.expand();
 
-  const CYCLE = 4 * 60 * 60;     // 4 hours
-  const WAIT_START = 15 * 60;    // buffer start
-  const WAIT_END = 40 * 60;      // buffer end
+  // ===== CONFIG =====
+  const CYCLE = 4 * 60 * 60;      // 4 hours
+  const WAIT_START = 15 * 60;     // buffer at start
+  const WAIT_END = 40 * 60;       // buffer at end
 
   function formatTime(sec) {
     const h = String(Math.floor(sec / 3600)).padStart(2, '0');
     const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
     const s = String(sec % 60).padStart(2, '0');
     return `${h}:${m}:${s}`;
+  }
+
+  function updateNotifyUI() {
+    const enabled = localStorage.getItem("notify") === "true";
+    const btn = document.getElementById("notifyBtn");
+
+    btn.textContent = enabled
+      ? "🔕 Disable notification"
+      : "🔔 Enable notification";
+  }
+
+  function toggleNotify() {
+    const enabled = localStorage.getItem("notify") === "true";
+
+    if (enabled) {
+      localStorage.removeItem("notify");
+      alert("🔕 Notification disabled.");
+    } else {
+      localStorage.setItem("notify", "true");
+      localStorage.removeItem("notified");
+      alert(
+        "🔔 Notification enabled.\n\n" +
+        "You will be notified once when the safe window opens."
+      );
+    }
+
+    updateNotifyUI();
+  }
+
+  function checkNotification(now, safeStart) {
+    const notifyEnabled = localStorage.getItem("notify") === "true";
+    const alreadyNotified = localStorage.getItem("notified") === "true";
+
+    if (notifyEnabled && !alreadyNotified && now >= safeStart) {
+      alert(
+        "🟢 Safe window is open!\n\n" +
+        "You can send BTC now.\n\n" +
+        "This notification was disabled automatically."
+      );
+
+      localStorage.removeItem("notify");
+      localStorage.setItem("notified", "true");
+      updateNotifyUI();
+    }
   }
 
   function update() {
@@ -113,9 +161,14 @@
     const safeStart = cycleStart + WAIT_START;
     const safeEnd = cycleEnd - WAIT_END;
 
-    const statusEl = document.getElementById('status');
-    const timerEl = document.getElementById('timer');
-    const hintEl = document.getElementById('hint');
+    const statusEl = document.getElementById("status");
+    const timerEl = document.getElementById("timer");
+    const hintEl = document.getElementById("hint");
+
+    // reset notification flag at new cycle
+    if (now < safeStart) {
+      localStorage.removeItem("notified");
+    }
 
     if (now < safeStart) {
       const t = safeStart - now;
@@ -138,26 +191,18 @@
       hintEl.textContent =
         "Жди следующий цикл, чтобы избежать блокировки.";
     }
+
+    checkNotification(now, safeStart);
   }
 
   function openTeleport() {
     window.open("https://sandbox.teleport.tg/app/deposit/new", "_blank");
   }
 
+  updateNotifyUI();
   update();
   setInterval(update, 1000);
 </script>
-<script>
-  function notifyMe() {
-    localStorage.setItem("notify", "true");
-
-    alert(
-      "🔔 Notification enabled.\n\n" +
-      "You will receive a message from the bot when the safe window opens."
-    );
-  }
-</script>
-
 
 </body>
 </html>
