@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>tgBTC Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .box {
+      padding: 24px;
+      border-radius: 16px;
+      background: #020617;
+      box-shadow: 0 0 40px rgba(0,0,0,0.4);
+    }
+    h1 { margin-bottom: 8px; }
+    p { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>✅ Работает!</h1>
+    <p>MVP tgBTC Timing Mini App</p>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+  </script>
+</body>
+</html>
