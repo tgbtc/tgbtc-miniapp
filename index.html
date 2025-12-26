@@ -78,6 +78,10 @@
   <button class="btn" onclick="openTeleport()">
     Open BTC Teleport
   </button>
+  <button class="btn" onclick="notifyMe()">
+  🔔 Notify me
+</button>
+
 
   <div class="note">
     This app does not perform transactions.<br>
@@ -143,6 +147,17 @@
   update();
   setInterval(update, 1000);
 </script>
+<script>
+  function notifyMe() {
+    localStorage.setItem("notify", "true");
+
+    alert(
+      "🔔 Notification enabled.\n\n" +
+      "You will receive a message from the bot when the safe window opens."
+    );
+  }
+</script>
+
 
 </body>
 </html>
