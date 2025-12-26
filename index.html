@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>tgBTC Mini App</title>
+  <title>tgBTC Timing App</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
@@ -17,25 +17,89 @@
       text-align: center;
     }
     .box {
-      padding: 24px;
-      border-radius: 16px;
+      padding: 28px;
+      border-radius: 18px;
       background: #020617;
       box-shadow: 0 0 40px rgba(0,0,0,0.4);
+      max-width: 320px;
+      width: 100%;
     }
-    h1 { margin-bottom: 8px; }
-    p { opacity: 0.7; }
+    h1 {
+      margin-bottom: 8px;
+      font-size: 22px;
+    }
+    .status {
+      font-size: 18px;
+      margin: 12px 0;
+    }
+    .timer {
+      font-size: 28px;
+      font-weight: bold;
+      margin: 16px 0;
+    }
+    .note {
+      font-size: 13px;
+      opacity: 0.7;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>✅ Работает!</h1>
-    <p>MVP tgBTC Timing Mini App</p>
-  </div>
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-  </script>
+<div class="box">
+  <h1>tgBTC Timing</h1>
+
+  <div id="status" class="status">—</div>
+  <div id="timer" class="timer">--:--:--</div>
+
+  <div class="note">
+    4-hour TON TELEPORT cycles<br>
+    BTC → tgBTC
+  </div>
+</div>
+
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+
+  const CYCLE = 4 * 60 * 60;      // 4 hours
+  const WAIT_START = 10 * 60;     // first 10 min
+  const WAIT_END = 30 * 60;       // last 30 min
+
+  function formatTime(sec) {
+    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  function update() {
+    const now = Math.floor(Date.now() / 1000);
+    const cycleStart = now - (now % CYCLE);
+    const cycleEnd = cycleStart + CYCLE;
+
+    const safeStart = cycleStart + WAIT_START;
+    const safeEnd = cycleEnd - WAIT_END;
+
+    const statusEl = document.getElementById('status');
+    const timerEl = document.getElementById('timer');
+
+    if (now < safeStart) {
+      statusEl.textContent = "🟡 Подожди, цикл начался";
+      timerEl.textContent = formatTime(safeStart - now);
+    } else if (now >= safeStart && now <= safeEnd) {
+      statusEl.textContent = "🟢 Можно отправлять BTC";
+      timerEl.textContent = formatTime(safeEnd - now);
+    } else {
+      statusEl.textContent = "🔴 Опасно, жди следующий цикл";
+      timerEl.textContent = formatTime(cycleEnd - now);
+    }
+  }
+
+  update();
+  setInterval(update, 1000);
+</script>
+
 </body>
 </html>
