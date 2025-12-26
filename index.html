@@ -54,15 +54,19 @@
       padding: 12px;
       width: 100%;
       border-radius: 12px;
-      background: #2563eb;
-      color: #fff;
       border: none;
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn.primary {
+      background: #2563eb;
+      color: #fff;
     }
     .btn.secondary {
-      background: #334155;
+      background: #475569;
+      color: #e5e7eb;
     }
     .btn:active {
       transform: scale(0.98);
@@ -78,11 +82,11 @@
   <div id="timer" class="timer">--:--:--</div>
   <div id="hint" class="hint"></div>
 
-  <button class="btn" onclick="openTeleport()">
+  <button class="btn primary" onclick="openTeleport()">
     Open TON Teleport
   </button>
 
-  <button class="btn secondary" id="notifyBtn" onclick="toggleNotify()">
+  <button class="btn primary" id="notifyBtn" onclick="toggleNotify()">
     🔔 Enable notification
   </button>
 
@@ -98,9 +102,11 @@
   tg.expand();
 
   // ===== CONFIG =====
-  const CYCLE = 4 * 60 * 60;      // 4 hours
-  const WAIT_START = 15 * 60;     // buffer at start
-  const WAIT_END = 40 * 60;       // buffer at end
+  const CYCLE = 4 * 60 * 60;   // 4 hours
+  const WAIT_START = 15 * 60;  // buffer start
+  const WAIT_END = 40 * 60;    // buffer end
+
+  let lastNotifiedCycle = null;
 
   function formatTime(sec) {
     const h = String(Math.floor(sec / 3600)).padStart(2, '0');
@@ -109,13 +115,26 @@
     return `${h}:${m}:${s}`;
   }
 
-  function updateNotifyUI() {
-    const enabled = localStorage.getItem("notify") === "true";
+  function updateNotifyUI(show) {
     const btn = document.getElementById("notifyBtn");
+    const enabled = localStorage.getItem("notify") === "true";
 
-    btn.textContent = enabled
-      ? "🔕 Disable notification"
-      : "🔔 Enable notification";
+    if (!show) {
+      btn.style.display = "none";
+      return;
+    }
+
+    btn.style.display = "block";
+
+    if (enabled) {
+      btn.textContent = "🔕 Disable notification";
+      btn.classList.remove("primary");
+      btn.classList.add("secondary");
+    } else {
+      btn.textContent = "🔔 Enable notification";
+      btn.classList.remove("secondary");
+      btn.classList.add("primary");
+    }
   }
 
   function toggleNotify() {
@@ -126,30 +145,29 @@
       alert("🔕 Notification disabled.");
     } else {
       localStorage.setItem("notify", "true");
-      localStorage.removeItem("notified");
       alert(
         "🔔 Notification enabled.\n\n" +
         "You will be notified once when the safe window opens."
       );
     }
-
-    updateNotifyUI();
   }
 
-  function checkNotification(now, safeStart) {
+  function maybeNotify(now, safeStart, cycleId) {
     const notifyEnabled = localStorage.getItem("notify") === "true";
-    const alreadyNotified = localStorage.getItem("notified") === "true";
 
-    if (notifyEnabled && !alreadyNotified && now >= safeStart) {
+    if (
+      notifyEnabled &&
+      now >= safeStart &&
+      lastNotifiedCycle !== cycleId
+    ) {
       alert(
         "🟢 Safe window is open!\n\n" +
         "You can send BTC now.\n\n" +
-        "This notification was disabled automatically."
+        "Notification was disabled automatically."
       );
 
       localStorage.removeItem("notify");
-      localStorage.setItem("notified", "true");
-      updateNotifyUI();
+      lastNotifiedCycle = cycleId;
     }
   }
 
@@ -157,6 +175,7 @@
     const now = Math.floor(Date.now() / 1000);
     const cycleStart = now - (now % CYCLE);
     const cycleEnd = cycleStart + CYCLE;
+    const cycleId = cycleStart;
 
     const safeStart = cycleStart + WAIT_START;
     const safeEnd = cycleEnd - WAIT_END;
@@ -165,41 +184,36 @@
     const timerEl = document.getElementById("timer");
     const hintEl = document.getElementById("hint");
 
-    // reset notification flag at new cycle
-    if (now < safeStart) {
-      localStorage.removeItem("notified");
-    }
+    let showNotifyButton = true;
 
     if (now < safeStart) {
-      const t = safeStart - now;
       statusEl.textContent = "🟡 Подожди — цикл начался";
-      timerEl.textContent = formatTime(t);
+      timerEl.textContent = formatTime(safeStart - now);
       hintEl.textContent =
         "До начала безопасного окна. Не отправляй BTC сейчас.";
     }
-    else if (now >= safeStart && now <= safeEnd) {
-      const t = safeEnd - now;
+    else if (now <= safeEnd) {
       statusEl.textContent = "🟢 Можно отправлять BTC";
-      timerEl.textContent = formatTime(t);
+      timerEl.textContent = formatTime(safeEnd - now);
       hintEl.textContent =
         "Это время, которое осталось для безопасной отправки BTC.";
+      showNotifyButton = false; // 🔑 скрываем кнопку
     }
     else {
-      const t = cycleEnd - now;
       statusEl.textContent = "🔴 Опасно — адрес скоро сменится";
-      timerEl.textContent = formatTime(t);
+      timerEl.textContent = formatTime(cycleEnd - now);
       hintEl.textContent =
         "Жди следующий цикл, чтобы избежать блокировки.";
     }
 
-    checkNotification(now, safeStart);
+    updateNotifyUI(showNotifyButton);
+    maybeNotify(now, safeStart, cycleId);
   }
 
   function openTeleport() {
     window.open("https://sandbox.teleport.tg/app/deposit/new", "_blank");
   }
 
-  updateNotifyUI();
   update();
   setInterval(update, 1000);
 </script>
