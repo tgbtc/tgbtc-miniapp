@@ -17,30 +17,51 @@
       text-align: center;
     }
     .box {
-      padding: 28px;
+      padding: 26px;
       border-radius: 18px;
       background: #020617;
       box-shadow: 0 0 40px rgba(0,0,0,0.4);
-      max-width: 320px;
+      max-width: 340px;
       width: 100%;
     }
     h1 {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-size: 22px;
     }
     .status {
       font-size: 18px;
-      margin: 12px 0;
+      margin: 10px 0;
     }
     .timer {
       font-size: 28px;
       font-weight: bold;
-      margin: 16px 0;
+      margin: 12px 0;
+    }
+    .hint {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-top: 6px;
+      line-height: 1.4;
     }
     .note {
-      font-size: 13px;
-      opacity: 0.7;
-      margin-top: 12px;
+      font-size: 12px;
+      opacity: 0.6;
+      margin-top: 10px;
+    }
+    .btn {
+      margin-top: 14px;
+      padding: 12px;
+      width: 100%;
+      border-radius: 12px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:active {
+      transform: scale(0.98);
     }
   </style>
 </head>
@@ -52,9 +73,15 @@
   <div id="status" class="status">—</div>
   <div id="timer" class="timer">--:--:--</div>
 
+  <div id="hint" class="hint"></div>
+
+  <button class="btn" onclick="openTeleport()">
+    Open BTC Teleport
+  </button>
+
   <div class="note">
-    4-hour TON TELEPORT cycles<br>
-    BTC → tgBTC
+    This app does not perform transactions.<br>
+    Timing is indicative — always confirm on TON Teleport.
   </div>
 </div>
 
@@ -63,9 +90,9 @@
   tg.ready();
   tg.expand();
 
-  const CYCLE = 4 * 60 * 60;      // 4 hours
-  const WAIT_START = 10 * 60;     // first 10 min
-  const WAIT_END = 30 * 60;       // last 30 min
+  const CYCLE = 4 * 60 * 60;     // 4 hours
+  const WAIT_START = 15 * 60;    // buffer start
+  const WAIT_END = 40 * 60;      // buffer end
 
   function formatTime(sec) {
     const h = String(Math.floor(sec / 3600)).padStart(2, '0');
@@ -84,17 +111,33 @@
 
     const statusEl = document.getElementById('status');
     const timerEl = document.getElementById('timer');
+    const hintEl = document.getElementById('hint');
 
     if (now < safeStart) {
-      statusEl.textContent = "🟡 Подожди, цикл начался";
-      timerEl.textContent = formatTime(safeStart - now);
-    } else if (now >= safeStart && now <= safeEnd) {
-      statusEl.textContent = "🟢 Можно отправлять BTC";
-      timerEl.textContent = formatTime(safeEnd - now);
-    } else {
-      statusEl.textContent = "🔴 Опасно, жди следующий цикл";
-      timerEl.textContent = formatTime(cycleEnd - now);
+      const t = safeStart - now;
+      statusEl.textContent = "🟡 Подожди — цикл начался";
+      timerEl.textContent = formatTime(t);
+      hintEl.textContent =
+        "До начала безопасного окна. Не отправляй BTC сейчас.";
     }
+    else if (now >= safeStart && now <= safeEnd) {
+      const t = safeEnd - now;
+      statusEl.textContent = "🟢 Можно отправлять BTC";
+      timerEl.textContent = formatTime(t);
+      hintEl.textContent =
+        "Это время, которое осталось для безопасной отправки BTC.";
+    }
+    else {
+      const t = cycleEnd - now;
+      statusEl.textContent = "🔴 Опасно — адрес скоро сменится";
+      timerEl.textContent = formatTime(t);
+      hintEl.textContent =
+        "Жди следующий цикл, чтобы избежать блокировки.";
+    }
+  }
+
+  function openTeleport() {
+    window.open("https://sandbox.teleport.tg/app/deposit/new", "_blank");
   }
 
   update();
