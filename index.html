@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC Board — Mini App</title>
+  <title>tgBTC Fi — Board</title>
 
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
       --bg:#0b0f17;
-      --panel:#0f172a;
+      --card:#0f172a;
       --text:#e5e7eb;
       --muted:#94a3b8;
       --line:rgba(148,163,184,.18);
@@ -19,12 +19,10 @@
       --warn:#f59e0b;
       --bad:#ef4444;
 
-      --ring1:#22c55e;   /* safe window */
-      --ring2:#f59e0b;   /* price health */
-      --ring3:#60a5fa;   /* supply scale */
+      --btn:#2ea6ff;
+      --btnText:#ffffff;
     }
-
-    *{ box-sizing:border-box; }
+    *{box-sizing:border-box}
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -33,148 +31,64 @@
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
-    .wrap{ max-width:860px; margin:0 auto; padding:14px; }
+    .wrap{max-width:820px;margin:0 auto;padding:14px}
 
     .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
       padding:6px 0 12px;
     }
-    .brand{
-      font-weight:900;
-      letter-spacing:.4px;
-      font-size:16px;
-      line-height:1;
-    }
+    .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
 
-    .pills{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .pill{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      color:var(--muted);
-      font-size:12px;
-      white-space:nowrap;
+      display:flex;align-items:center;gap:8px;
+      padding:8px 10px;border:1px solid var(--line);
+      border-radius:999px;color:var(--muted);
+      font-size:12px;white-space:nowrap;
       background:rgba(255,255,255,.02);
     }
-    .dot{ font-size:12px; line-height:1; }
-    .mono{ font-variant-numeric: tabular-nums; }
-
-    .board{
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-    }
+    .dot{font-size:12px;line-height:1}
+    .mono{font-variant-numeric:tabular-nums}
 
     .grid{
       display:grid;
-      grid-template-columns:1fr;
-      gap:14px;
-      align-items:start;
+      grid-template-columns: 1fr;
+      gap:12px;
     }
-    @media (min-width:720px){
-      .grid{ grid-template-columns: 1.1fr .9fr; }
-    }
-
-    /* ========= DIAL ========= */
-    .dialWrap{
-      display:grid;
-      place-items:center;
-      padding:6px 0;
-    }
-    .dial{
-      /* критично: не даём ему быть огромным в узком окне */
-      width:min(320px, 86vw);
-      aspect-ratio:1/1;
-      border-radius:50%;
-      position:relative;
-      display:grid;
-      place-items:center;
+    @media(min-width:640px){
+      .grid{grid-template-columns: 1fr 1fr;}
     }
 
-    /* 3 rings - тоньше и без тяжелых эффектов */
-    .ring{
-      position:absolute;
-      inset:0;
-      border-radius:50%;
-      background:conic-gradient(var(--c) calc(var(--p) * 1turn), rgba(255,255,255,.08) 0);
-      -webkit-mask:radial-gradient(circle, transparent calc(50% - var(--w)), #000 calc(50% - var(--w)));
-              mask:radial-gradient(circle, transparent calc(50% - var(--w)), #000 calc(50% - var(--w)));
-    }
-    .r1{ --w: 12px; transform: scale(1.00); --c: var(--ring1); }
-    .r2{ --w: 12px; transform: scale(.86); --c: var(--ring2); }
-    .r3{ --w: 12px; transform: scale(.72); --c: var(--ring3); }
-
-    .center{
-      width:74%;
-      border-radius:16px;
-      padding:12px 10px;
-      text-align:center;
-      background:rgba(0,0,0,.28);
-      border:1px solid var(--line);
-    }
-    .big{
-      font-size:40px;
-      line-height:1;
-      font-weight:950;
-      letter-spacing:.4px;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    .sub{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12px;
-    }
-
-    .miniBadges{
-      display:flex;
-      justify-content:center;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 10px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      font-size:12px;
-      color:var(--muted);
-      background:rgba(255,255,255,.02);
-    }
-    .badge strong{ color:var(--text); }
-
-    /* ========= Right side ========= */
-    .stack{ display:grid; gap:12px; }
     .card{
+      background:rgba(255,255,255,.02);
       border:1px solid var(--line);
       border-radius:16px;
       padding:12px;
-      background:rgba(255,255,255,.02);
     }
-    .row{
-      display:flex;
-      justify-content:space-between;
-      align-items:baseline;
-      gap:12px;
-    }
-    .k{ color:var(--muted); font-size:12px; }
-    .vBig{ font-weight:950; font-size:18px; }
-    .v{ font-weight:900; }
-    .sep{ height:1px; background:var(--line); margin:10px 0; }
 
-    .btns{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .label{color:var(--muted);font-size:12px;margin-bottom:6px}
+    .value{
+      font-weight:950;
+      font-size:20px;
+      line-height:1.15;
+      letter-spacing:.2px;
+      word-break:break-word;
+    }
+    .sub{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.35;
+    }
+
+    .rowBtns{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
     button{
+      width:100%;
       border:1px solid var(--line);
       border-radius:14px;
       padding:12px 12px;
@@ -183,25 +97,36 @@
       font-weight:900;
       cursor:pointer;
     }
-    button.good{ background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); }
-    button.primary{ background:rgba(46,166,255,.14); border-color:rgba(46,166,255,.35); }
-
-    .small{
-      margin-top:10px;
-      font-size:11px;
-      color:var(--muted);
-      line-height:1.35;
+    button.primary{
+      background:rgba(46,166,255,.16);
+      border-color:rgba(46,166,255,.35);
     }
+
+    .footer{
+      margin-top:12px;
+      padding-top:12px;
+      border-top:1px dashed var(--line);
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .statusGood{color:var(--good)}
+    .statusWarn{color:var(--warn)}
+    .statusBad{color:var(--bad)}
   </style>
 </head>
 
 <body>
   <div class="wrap">
     <div class="top">
-      <div class="brand">tgBTC Board</div>
+      <div class="brand">tgBTC Fi • Board</div>
 
       <div class="pills">
-        <div class="pill" title="Ориентировочный таймер. Перед действием проверь статусы в Teleport.">
+        <div class="pill" title="Ориентировочный таймер по времени. Перед действием проверяй статусы в Teleport.">
           <span class="dot" id="stDot">●</span>
           <span id="stText">—</span>
           <span class="mono" id="stTime">--:--:--</span>
@@ -210,80 +135,66 @@
       </div>
     </div>
 
-    <div class="board">
-      <div class="grid">
+    <!-- METRICS -->
+    <div class="grid">
 
-        <!-- LEFT -->
-        <div class="dialWrap">
-          <div class="dial">
-            <div class="ring r1" id="ring1" style="--p:0"></div>
-            <div class="ring r2" id="ring2" style="--p:0"></div>
-            <div class="ring r3" id="ring3" style="--p:0"></div>
-
-            <div class="center">
-              <div class="big mono" id="supply">—</div>
-              <div class="sub">tgBTC в TON (supply)</div>
-
-              <div class="miniBadges">
-                <span class="badge">🕒 <strong>Safe</strong> window</span>
-                <span class="badge">💱 <strong>Market</strong></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT -->
-        <div class="stack">
-
-          <div class="card">
-            <div class="row">
-              <div class="k">BTC / USDT</div>
-              <div class="vBig mono" id="btc">—</div>
-            </div>
-
-            <div class="sep"></div>
-
-            <div class="row">
-              <div class="k">tgBTC / USDT</div>
-              <div class="v mono" id="tgbtc">—</div>
-            </div>
-            <div class="row" style="margin-top:6px">
-              <div class="k">tgBTC / TON</div>
-              <div class="v mono" id="tgbtcTon">—</div>
-            </div>
-
-            <div class="small">
-              Курсы: обновление 30 сек. tgBTC/USDT сейчас — оценка (≈ BTC), пока не подключим DEX-пул.
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="k">Открыть</div>
-            <div class="btns">
-              <button class="good" id="btnTeleport">Teleport (main)</button>
-              <button class="primary" id="btnSandbox">Teleport (sandbox)</button>
-            </div>
-            <div class="btns">
-              <button id="btnDashboard">Sandbox Dashboard</button>
-              <button id="btnDocs">tgBTC Docs</button>
-            </div>
-            <div class="small">Если ссылка открывается во внешнем браузере — это нормально.</div>
-          </div>
-
-          <div class="card">
-            <div class="k">Пользователь</div>
-            <div class="row" style="margin-top:6px">
-              <div class="v mono" id="userLine">…</div>
-            </div>
-          </div>
-
+      <div class="card">
+        <div class="label">1) Время безопасной телепортации BTC → tgBTC</div>
+        <div class="value mono" id="safeLine">—</div>
+        <div class="sub">
+          Это ориентир по времени (не знает реальное состояние сети). Всегда сверяй Teleport перед действием.
         </div>
       </div>
+
+      <div class="card">
+        <div class="label">2) Количество tgBTC сейчас в TON (supply)</div>
+        <div class="value mono" id="supply">—</div>
+        <div class="sub" id="supplySub">Источник: Jetton master get_jetton_data()</div>
+      </div>
+
+      <div class="card">
+        <div class="label">3) Курс BTC в USDT</div>
+        <div class="value mono" id="btc">—</div>
+        <div class="sub">Источник: Binance public API</div>
+      </div>
+
+      <div class="card">
+        <div class="label">4) Курс tgBTC в USDT</div>
+        <div class="value mono" id="tgbtc">—</div>
+        <div class="sub" id="tgbtcSub">Сейчас: оценка ≈ BTC (подключим DEX-пул — будет реальная цена)</div>
+      </div>
+
+      <div class="card">
+        <div class="label">5) Курс tgBTC в TON</div>
+        <div class="value mono" id="tgbtcTon">—</div>
+        <div class="sub">Считается как (tgBTC/USDT) ÷ (TON/USDT)</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Teleport / Links</div>
+        <div class="rowBtns">
+          <button class="primary" id="btnTeleport">Teleport (main)</button>
+          <button id="btnSandbox">Teleport (sandbox)</button>
+        </div>
+        <div class="rowBtns">
+          <button id="btnDashboard">Sandbox Dashboard</button>
+          <button id="btnDocs">tgBTC Docs</button>
+        </div>
+        <div class="sub">Если ссылка откроется во внешнем браузере — это нормально.</div>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <div id="userLine">Пользователь: …</div>
+      <div>Bot: <b>@tgbtcfibot</b></div>
     </div>
   </div>
 
   <script>
-    // ===== CONFIG =====
+    // =======================
+    // CONFIG
+    // =======================
     const LINKS = {
       docs: "https://tgbtc.gitbook.io/docs",
       dashboard: "https://sandbox.teleport.tg/app/dashboard",
@@ -291,26 +202,30 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
+    // TON Center mainnet
     const TONCENTER_API_KEY = "a8712a63812b5ed49da196427110e18260c3b06a49705a8f897399f386cf8f4";
     const JETTON_MASTER = "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU";
 
+    // Supply decimals (у тебя по tonviewer выглядит как 8 знаков: 0.00084816)
+    const TGBTC_DECIMALS = 8;
+
+    // Ориентировочный цикл Safe/Wait/Risk
     const CYCLE = 4 * 60 * 60;   // 4h
-    const WAIT_START = 15 * 60;  // first 15m => Wait
-    const WAIT_END = 40 * 60;    // last 40m => Risk
+    const WAIT_START = 15 * 60;  // first 15m
+    const WAIT_END = 40 * 60;    // last 40m
 
-    const TGBTC_DISCOUNT = 0.999; // оценка tgBTC ≈ BTC
+    // tgBTC/USDT пока оценка ≈ BTC
+    const TGBTC_DISCOUNT = 0.999; // чтобы чуть отличалось
 
-    // ===== Helpers =====
+    // =======================
+    // Helpers
+    // =======================
     const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
 
     function openLink(url){
       if (tg && typeof tg.openLink === "function") tg.openLink(url);
       else window.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    function setRing(el, p){
-      el.style.setProperty("--p", String(Math.max(0, Math.min(1, p))));
     }
 
     function formatTime(sec){
@@ -330,7 +245,32 @@
       return x.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " TON";
     }
 
-    // ===== 1) Window timer =====
+    // BigInt utils
+    function parseTonStackNum(v){
+      // v can be: ["num","0x..."] or ["num","123"] etc.
+      // toncenter returns stack elements in different shapes; handle common cases.
+      const s = String(v);
+      if (s.startsWith("0x") || s.startsWith("0X")) return BigInt(s);
+      // sometimes it comes like "-1" or "123"
+      return BigInt(s);
+    }
+
+    function formatJettonFromRaw(rawBigInt, decimals){
+      const base = 10n ** BigInt(decimals);
+      const intPart = rawBigInt / base;
+      const fracPart = rawBigInt % base;
+
+      // format integer with locales
+      const intStr = Number(intPart).toLocaleString();
+
+      // frac trimmed
+      let frac = fracPart.toString().padStart(decimals, "0").replace(/0+$/,"");
+      return frac ? `${intStr}.${frac}` : intStr;
+    }
+
+    // =======================
+    // 1) Safe / Wait / Risk
+    // =======================
     function updateWindow(){
       const now = (Date.now()/1000)|0;
       const cycleStart = now - (now % CYCLE);
@@ -342,82 +282,104 @@
       const stDot = $("stDot");
       const stText = $("stText");
       const stTime = $("stTime");
-
-      const safeLen = Math.max(1, safeEnd - safeStart);
-      const safeProg = (now < safeStart) ? 0 : (now > safeEnd) ? 1 : (now - safeStart) / safeLen;
-      setRing($("ring1"), safeProg);
+      const safeLine = $("safeLine");
 
       if (now < safeStart) {
-        stDot.style.color = "#f59e0b";
+        stDot.style.color = "var(--warn)";
         stText.textContent = "🟡 Wait";
-        stTime.textContent = formatTime(safeStart - now);
+        const left = safeStart - now;
+        stTime.textContent = formatTime(left);
+        safeLine.innerHTML = `<span class="statusWarn">Wait</span> • до Safe: ${formatTime(left)}`;
       } else if (now <= safeEnd) {
-        stDot.style.color = "#22c55e";
+        stDot.style.color = "var(--good)";
         stText.textContent = "🟢 Safe";
-        stTime.textContent = formatTime(safeEnd - now);
+        const left = safeEnd - now;
+        stTime.textContent = formatTime(left);
+        safeLine.innerHTML = `<span class="statusGood">Safe</span> • осталось: ${formatTime(left)}`;
       } else {
-        stDot.style.color = "#ef4444";
+        stDot.style.color = "var(--bad)";
         stText.textContent = "🔴 Risk";
-        stTime.textContent = formatTime(cycleEnd - now);
+        const left = cycleEnd - now;
+        stTime.textContent = formatTime(left);
+        safeLine.innerHTML = `<span class="statusBad">Risk</span> • до нового цикла: ${formatTime(left)}`;
       }
     }
 
-    // ===== 2) Supply from TON Center =====
-    function formatJettonAmount(rawStr, decimals = 8){
-      if (!rawStr || typeof rawStr !== "string") return "—";
-      const s = rawStr.replace(/^0+/, "") || "0";
-      const pad = decimals + 1;
-      const x = s.length < pad ? s.padStart(pad, "0") : s;
-      const intPart = x.slice(0, -decimals) || "0";
-      let frac = x.slice(-decimals).replace(/0+$/, "");
-      const intFmt = Number(intPart).toLocaleString();
-      return frac ? `${intFmt}.${frac}` : intFmt;
-    }
+    // =======================
+    // 2) Supply via runGetMethod(get_jetton_data)
+    // (это стандартный способ достать total_supply Jetton) :contentReference[oaicite:1]{index=1}
+    // =======================
+    async function runGetMethod(address, method){
+      const url = "https://toncenter.com/api/v2/runGetMethod";
+      const body = {
+        address,
+        method,
+        // stack для get_jetton_data пустой:
+        stack: []
+      };
 
-    async function fetchTokenData(masterAddr){
-      const url = `https://toncenter.com/api/v2/getTokenData?address=${encodeURIComponent(masterAddr)}`;
       const r = await fetch(url, {
-        headers: { "X-API-Key": TONCENTER_API_KEY },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": TONCENTER_API_KEY
+        },
+        body: JSON.stringify(body),
         cache: "no-store"
       });
+
       const d = await r.json();
-      if (!d?.ok || !d?.result) throw new Error("toncenter getTokenData failed");
+      if (!d?.ok) throw new Error("runGetMethod failed");
       return d.result;
+    }
+
+    function extractTotalSupplyFromStack(result){
+      // toncenter может вернуть stack в разных местах:
+      const stack =
+        result?.stack ||
+        result?.result?.stack ||
+        result?.data?.stack ||
+        null;
+
+      if (!Array.isArray(stack) || stack.length < 1) return null;
+
+      // stack[0] обычно: ["num","0x..."] или ["num","123"]
+      const first = stack[0];
+      if (!Array.isArray(first) || first.length < 2) return null;
+
+      const type = first[0];
+      const val = first[1];
+
+      if (type !== "num") return null;
+
+      return parseTonStackNum(val);
     }
 
     async function updateSupply(){
       try{
-        const data = await fetchTokenData(JETTON_MASTER);
+        const res = await runGetMethod(JETTON_MASTER, "get_jetton_data");
+        const totalSupplyRaw = extractTotalSupplyFromStack(res);
 
-        const decimals =
-          Number(data?.decimals) ||
-          Number(data?.jetton_content?.decimals) ||
-          Number(data?.metadata?.decimals) ||
-          8;
+        if (totalSupplyRaw === null){
+          $("supply").textContent = "—";
+          $("supplySub").textContent = "Не удалось прочитать total_supply (stack).";
+          return;
+        }
 
-        const raw =
-          data?.total_supply ||
-          data?.totalSupply ||
-          data?.max_supply ||
-          data?.maxSupply ||
-          "0";
-
-        const human = formatJettonAmount(String(raw), decimals);
-        $("supply").textContent = `${human}`;
-
-        // ring3: нормализуем красиво (под твою текущую микро-саплай)
-        const numeric = Number(human.replace(/,/g,"")) || 0;
-        const norm = Math.max(0, Math.min(1, numeric / 0.01)); // 0.01 tgBTC = полный круг
-        setRing($("ring3"), norm);
+        const human = formatJettonFromRaw(totalSupplyRaw, TGBTC_DECIMALS);
+        $("supply").textContent = human + " tgBTC";
+        $("supplySub").textContent = "Источник: runGetMethod(get_jetton_data)";
 
       }catch(e){
         console.warn("Supply error:", e);
         $("supply").textContent = "—";
-        setRing($("ring3"), 0);
+        $("supplySub").textContent = "Ошибка TON Center / ключ / лимит / CORS.";
       }
     }
 
-    // ===== 3) Prices =====
+    // =======================
+    // 3-5) Prices
+    // =======================
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -429,37 +391,28 @@
         const btc = await fetchPrice("BTCUSDT");
         const ton = await fetchPrice("TONUSDT");
 
-        const tgbtc = btc * TGBTC_DISCOUNT;
+        const tgbtc = btc * TGBTC_DISCOUNT; // пока оценка
+        const tgbtcTon = tgbtc / ton;
 
         $("btc").textContent = fmtUsd(btc);
         $("tgbtc").textContent = fmtUsd(tgbtc);
-        $("tgbtcTon").textContent = fmtTon(tgbtc / ton);
-
-        // ring2: "health" (чем ближе tgBTC к BTC, тем выше)
-        const deviation = Math.abs(1 - (tgbtc / btc));
-        const health = Math.max(0, Math.min(1, 1 - deviation * 80));
-        setRing($("ring2"), health);
+        $("tgbtcTon").textContent = fmtTon(tgbtcTon);
 
       }catch(e){
         console.warn("Prices error:", e);
-        setRing($("ring2"), 0);
       }
     }
 
-    // ===== Buttons =====
-    $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
-    $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
-    $("btnDashboard").onclick = () => openLink(LINKS.dashboard);
-    $("btnDocs").onclick = () => openLink(LINKS.docs);
-
-    // ===== Telegram init =====
+    // =======================
+    // Telegram init
+    // =======================
     function initTelegram(){
       const envPill = $("envPill");
       const userLine = $("userLine");
 
       if (!tg){
         envPill.textContent = "Browser mode";
-        userLine.textContent = "(вне Telegram)";
+        userLine.textContent = "Пользователь: (вне Telegram)";
         return;
       }
 
@@ -468,18 +421,30 @@
 
       const u = tg.initDataUnsafe?.user;
       const uname = u?.username ? "@" + u.username : "(no username)";
-      userLine.textContent = `${u?.first_name || "Гость"} ${uname}`;
+      userLine.textContent = `Пользователь: ${u?.first_name || "Гость"} ${uname}`;
       envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
     }
 
-    // ===== Light timers (pause when hidden) =====
+    // =======================
+    // Buttons
+    // =======================
+    $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
+    $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
+    $("btnDashboard").onclick = () => openLink(LINKS.dashboard);
+    $("btnDocs").onclick = () => openLink(LINKS.docs);
+
+    // =======================
+    // Timers (light)
+    // =======================
     let tWin=null, tPrices=null, tSupply=null;
 
     function start(){
       if (tWin || tPrices || tSupply) return;
+
       updateWindow();
       updatePrices();
       updateSupply();
+
       tWin = setInterval(updateWindow, 1000);
       tPrices = setInterval(updatePrices, 30000);
       tSupply = setInterval(updateSupply, 60000);
