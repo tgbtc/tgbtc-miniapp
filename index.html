@@ -149,7 +149,7 @@
       <div class="card">
         <div class="label">2) Количество tgBTC сейчас в TON (supply)</div>
         <div class="value mono" id="supply">—</div>
-        <div class="sub" id="supplySub">Источник: Jetton master get_jetton_data()</div>
+        <div class="sub" id="supplySub">Источник: toncenter getTokenData</div>
       </div>
 
       <div class="card">
@@ -203,10 +203,11 @@
     };
 
     // TON Center mainnet
+    // ВАЖНО: чтобы избежать CORS, используем api_key в query, а не заголовок X-API-Key
     const TONCENTER_API_KEY = "a8712a63812b5ed49da196427110e18260c3b06a49705a8f897399f386cf8f4";
     const JETTON_MASTER = "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU";
 
-    // Supply decimals (у тебя по tonviewer выглядит как 8 знаков: 0.00084816)
+    // decimals tgBTC (по Tonviewer видно 8 знаков: 0.00084816)
     const TGBTC_DECIMALS = 8;
 
     // Ориентировочный цикл Safe/Wait/Risk
@@ -245,27 +246,16 @@
       return x.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " TON";
     }
 
-    // BigInt utils
-    function parseTonStackNum(v){
-      // v can be: ["num","0x..."] or ["num","123"] etc.
-      // toncenter returns stack elements in different shapes; handle common cases.
-      const s = String(v);
-      if (s.startsWith("0x") || s.startsWith("0X")) return BigInt(s);
-      // sometimes it comes like "-1" or "123"
-      return BigInt(s);
-    }
-
-    function formatJettonFromRaw(rawBigInt, decimals){
-      const base = 10n ** BigInt(decimals);
-      const intPart = rawBigInt / base;
-      const fracPart = rawBigInt % base;
-
-      // format integer with locales
-      const intStr = Number(intPart).toLocaleString();
-
-      // frac trimmed
-      let frac = fracPart.toString().padStart(decimals, "0").replace(/0+$/,"");
-      return frac ? `${intStr}.${frac}` : intStr;
+    function formatJetton(rawStr, decimals = 8){
+      // rawStr = big-int string
+      if (!rawStr) return "—";
+      const s = String(rawStr).replace(/^0+/, "") || "0";
+      const pad = decimals + 1;
+      const x = s.length < pad ? s.padStart(pad, "0") : s;
+      const intPart = x.slice(0, -decimals) || "0";
+      let frac = x.slice(-decimals).replace(/0+$/, "");
+      const intFmt = Number(intPart).toLocaleString();
+      return frac ? `${intFmt}.${frac}` : intFmt;
     }
 
     // =======================
@@ -306,74 +296,41 @@
     }
 
     // =======================
-    // 2) Supply via runGetMethod(get_jetton_data)
-    // (это стандартный способ достать total_supply Jetton) :contentReference[oaicite:1]{index=1}
+    // 2) Supply (CORS-safe): toncenter getTokenData with api_key=...
     // =======================
-    async function runGetMethod(address, method){
-      const url = "https://toncenter.com/api/v2/runGetMethod";
-      const body = {
-        address,
-        method,
-        // stack для get_jetton_data пустой:
-        stack: []
-      };
-
-      const r = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": TONCENTER_API_KEY
-        },
-        body: JSON.stringify(body),
-        cache: "no-store"
-      });
-
-      const d = await r.json();
-      if (!d?.ok) throw new Error("runGetMethod failed");
-      return d.result;
-    }
-
-    function extractTotalSupplyFromStack(result){
-      // toncenter может вернуть stack в разных местах:
-      const stack =
-        result?.stack ||
-        result?.result?.stack ||
-        result?.data?.stack ||
-        null;
-
-      if (!Array.isArray(stack) || stack.length < 1) return null;
-
-      // stack[0] обычно: ["num","0x..."] или ["num","123"]
-      const first = stack[0];
-      if (!Array.isArray(first) || first.length < 2) return null;
-
-      const type = first[0];
-      const val = first[1];
-
-      if (type !== "num") return null;
-
-      return parseTonStackNum(val);
-    }
-
     async function updateSupply(){
       try{
-        const res = await runGetMethod(JETTON_MASTER, "get_jetton_data");
-        const totalSupplyRaw = extractTotalSupplyFromStack(res);
+        const url =
+          `https://toncenter.com/api/v2/getTokenData?address=${encodeURIComponent(JETTON_MASTER)}&api_key=${encodeURIComponent(TONCENTER_API_KEY)}`;
 
-        if (totalSupplyRaw === null){
+        const r = await fetch(url, { cache: "no-store" });
+        const d = await r.json();
+
+        if (!d?.ok || !d?.result) throw new Error("getTokenData failed");
+
+        const data = d.result;
+
+        // разные jetton_master могут отдавать supply разными полями — пробуем несколько вариантов
+        const raw =
+          data.total_supply ||
+          data.totalSupply ||
+          data.max_supply ||
+          data.maxSupply ||
+          data?.jetton_data?.total_supply ||
+          null;
+
+        if (!raw){
           $("supply").textContent = "—";
-          $("supplySub").textContent = "Не удалось прочитать total_supply (stack).";
+          $("supplySub").textContent = "getTokenData: не нашёл поле supply. Тогда нужен server-proxy + runGetMethod(get_jetton_data).";
           return;
         }
 
-        const human = formatJettonFromRaw(totalSupplyRaw, TGBTC_DECIMALS);
-        $("supply").textContent = human + " tgBTC";
-        $("supplySub").textContent = "Источник: runGetMethod(get_jetton_data)";
-
-      }catch(e){
+        $("supply").textContent = formatJetton(String(raw), TGBTC_DECIMALS) + " tgBTC";
+        $("supplySub").textContent = "Источник: toncenter getTokenData (GET + api_key)";
+      } catch(e){
         console.warn("Supply error:", e);
         $("supply").textContent = "—";
-        $("supplySub").textContent = "Ошибка TON Center / ключ / лимит / CORS.";
+        $("supplySub").textContent = "Ошибка TON Center (проверь ключ/mainnet) или CORS.";
       }
     }
 
@@ -397,7 +354,6 @@
         $("btc").textContent = fmtUsd(btc);
         $("tgbtc").textContent = fmtUsd(tgbtc);
         $("tgbtcTon").textContent = fmtTon(tgbtcTon);
-
       }catch(e){
         console.warn("Prices error:", e);
       }
