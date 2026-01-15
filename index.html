@@ -1,387 +1,71 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC Fi — Mini App (MVP)</title>
+<section class="card">
+  <h2>📊 tgBTC Status Board</h2>
 
-  <!-- Telegram Mini Apps SDK -->
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- TIME -->
+  <p>
+    🕒 <b>Teleport Window</b><br>
+    <span id="cycleState">—</span>
+    <span id="cycleTime" class="mono">--:--:--</span>
+  </p>
 
-  <style>
-    :root{
-      --bg: var(--tg-theme-bg-color, #fff);
-      --text: var(--tg-theme-text-color, #111);
-      --hint: var(--tg-theme-hint-color, #6b7280);
-      --card: var(--tg-theme-secondary-bg-color, #f3f4f6);
-      --btn: var(--tg-theme-button-color, #2ea6ff);
-      --btnText: var(--tg-theme-button-text-color, #fff);
-      --sep: var(--tg-theme-section-separator-color, #e5e7eb);
-      --link: var(--tg-theme-link-color, #2ea6ff);
+  <hr>
+
+  <!-- SUPPLY -->
+  <p>
+    📦 <b>tgBTC в сети TON</b><br>
+    <span id="supply">—</span>
+  </p>
+
+  <hr>
+
+  <!-- PRICES -->
+  <p>
+    💱 <b>Курсы</b><br>
+    BTC / USDT: <span id="btcPrice">—</span><br>
+    tgBTC / USDT: <span id="tgbtcPrice">—</span><br>
+    tgBTC / TON: <span id="tgbtcTon">—</span>
+  </p>
+
+  <p class="small muted">
+    Курсы — ориентировочные. Перед действием проверяй Teleport.
+  </p>
+</section>
+
+<script>
+  // ====== Prices ======
+  async function fetchPrice(symbol) {
+    const r = await fetch(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+    );
+    const d = await r.json();
+    return Number(d.price);
+  }
+
+  async function updatePrices() {
+    try {
+      const btc = await fetchPrice("BTCUSDT");
+      const ton = await fetchPrice("TONUSDT");
+
+      const tgbtc = btc * 0.999; // временная оценка
+
+      document.getElementById("btcPrice").textContent =
+        btc.toLocaleString() + " $";
+
+      document.getElementById("tgbtcPrice").textContent =
+        tgbtc.toLocaleString() + " $";
+
+      document.getElementById("tgbtcTon").textContent =
+        (tgbtc / ton).toFixed(2) + " TON";
+    } catch {
+      console.warn("Price fetch error");
     }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    .wrap{ padding:14px; max-width:720px; margin:0 auto; }
+  }
 
-    .top{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding:10px 0 6px;
-    }
-    .brand{ font-weight:900; font-size:18px; letter-spacing:.2px; }
+  // ====== Supply (placeholder MVP) ======
+  document.getElementById("supply").textContent =
+    "— (подключается)";
 
-    .pills{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-    .pill{
-      font-size:12px; color:var(--hint);
-      border:1px solid var(--sep);
-      padding:6px 10px; border-radius:999px;
-      display:flex; align-items:center; gap:6px;
-      white-space:nowrap;
-    }
-    .mono{ font-variant-numeric: tabular-nums; }
-    #cycleDot{ font-size:12px; line-height:1; }
-
-    .tabs{
-      display:flex; gap:8px; padding:10px 0 4px;
-      overflow:auto; -webkit-overflow-scrolling: touch;
-    }
-    .tab{
-      border:1px solid var(--sep);
-      background:transparent;
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:14px;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    .tab[aria-selected="true"]{
-      background:var(--card);
-      border-color:transparent;
-      font-weight:800;
-    }
-
-    .card{
-      background:var(--card);
-      border-radius:16px;
-      padding:14px;
-      margin:10px 0;
-      border:1px solid rgba(0,0,0,.02);
-    }
-    h2{ margin:0 0 10px; font-size:18px; }
-    p{ margin:8px 0; line-height:1.45; }
-    ul{ margin:8px 0 0 18px; padding:0; }
-    li{ margin:6px 0; }
-    .muted{ color:var(--hint); font-size:13px; }
-    .small{ font-size:12px; color:var(--hint); margin-top:10px; line-height:1.35; }
-    a{ color:var(--link); text-decoration:none; }
-
-    .grid{ display:grid; grid-template-columns:1fr; gap:10px; }
-    @media (min-width:520px){ .grid{ grid-template-columns:1fr 1fr; } }
-
-    .btn{
-      width:100%;
-      padding:12px 14px;
-      border-radius:14px;
-      border:0;
-      background:var(--btn);
-      color:var(--btnText);
-      font-size:15px;
-      font-weight:800;
-      cursor:pointer;
-    }
-    .btn.secondary{
-      background:transparent;
-      color:var(--text);
-      border:1px solid var(--sep);
-    }
-
-    /* simple left-border statuses (no heavy shadows) */
-    .warn{ border-left:4px solid #f59e0b; padding-left:10px; }
-    .ok{ border-left:4px solid #22c55e; padding-left:10px; }
-    .danger{ border-left:4px solid #ef4444; padding-left:10px; }
-
-    .footer{
-      margin:12px 0 6px;
-      padding-top:12px;
-      border-top:1px dashed var(--sep);
-      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
-    }
-
-    /* Tabs content via [hidden] for faster toggle */
-    section[hidden]{ display:none !important; }
-  </style>
-</head>
-
-<body>
-  <div class="wrap">
-
-    <div class="top">
-      <div class="brand">tgBTC Fi</div>
-      <div class="pills">
-        <div class="pill" id="cyclePill" title="Ориентировочный индикатор по времени (не гарантия). Всегда проверяй в Teleport.">
-          <span id="cycleDot">●</span>
-          <span id="cycleText">—</span>
-          <span id="cycleTime" class="mono">--:--:--</span>
-        </div>
-        <div class="pill" id="envPill">…</div>
-      </div>
-    </div>
-
-    <div class="tabs" role="tablist" aria-label="Навигация">
-      <button class="tab" role="tab" aria-selected="true" data-tab="what">Что это</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="how">Как работает</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="safe">Безопасность</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="fees">Комиссии</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="go">Открыть Teleport</button>
-    </div>
-
-    <section class="card" id="tab-what">
-      <h2>tgBTC — Bitcoin в сети TON</h2>
-
-      <p class="ok"><b>Идея простая:</b> BTC-подобный актив в TON, чтобы использовать DeFi (DEX/лендинг/пулы).</p>
-
-      <p class="muted">
-        Этот Mini App <b>не мост</b> и <b>не кошелёк</b>. Он помогает понять и безопасно пользоваться.
-        Все транзакции ты подтверждаешь сам в кошельке/Teleport.
-      </p>
-
-      <div class="grid">
-        <button class="btn secondary" id="btnDocs">Документация tgBTC</button>
-        <button class="btn secondary" id="btnDashboard">Sandbox Dashboard</button>
-      </div>
-
-      <p class="small danger">
-        <b>Индикатор сверху (Wait/Safe/Risk) — ориентировочный таймер по времени.</b><br>
-        Он не знает реальное состояние сети/моста. Перед действием всегда смотри статусы в Teleport.
-      </p>
-    </section>
-
-    <section class="card" id="tab-how" hidden>
-      <h2>Peg-in и Peg-out</h2>
-      <p><b>Peg-in</b> = отправил BTC → получил tgBTC в TON.</p>
-      <p><b>Peg-out</b> = отправил/сжёг tgBTC → получил BTC на свой адрес.</p>
-
-      <div class="card" style="background:transparent;border:1px solid var(--sep);">
-        <p class="muted" style="margin-top:0"><b>Нормальные ожидания:</b></p>
-        <ul>
-          <li>BTC-сеть может подтверждать долго — это нормально.</li>
-          <li>Статусы иногда обновляются не мгновенно — особенно в тестнете.</li>
-          <li>Всегда проверяй: <b>testnet ≠ mainnet</b>.</li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="card" id="tab-safe" hidden>
-      <h2>Безопасность</h2>
-
-      <p class="warn">
-        <b>Главное правило вывода:</b> выводи BTC <u>только на свой личный Bitcoin-кошелёк</u>.<br>
-        Не используй биржевые депозитные адреса и адреса сторонних сервисов — можно потерять средства.
-      </p>
-
-      <div class="card" style="background:transparent;border:1px solid var(--sep);">
-        <p class="muted" style="margin-top:0"><b>ТОП-5 ошибок:</b></p>
-        <ul>
-          <li>Вывод на биржу (депозитный адрес биржи).</li>
-          <li>Путают сети/режимы (testnet vs mainnet).</li>
-          <li>Копируют “не тот” адрес.</li>
-          <li>Не учитывают комиссии и время подтверждений.</li>
-          <li>Делают вывод без финальной проверки суммы/комиссии.</li>
-        </ul>
-      </div>
-
-      <button class="btn secondary" id="btnChecklist">Чек-лист перед выводом</button>
-      <div id="checklist" class="card" hidden style="background:transparent;border:1px solid var(--sep);">
-        <ul>
-          <li>Я в правильной сети (testnet/mainnet) ✅</li>
-          <li>Адрес BTC — мой личный кошелёк ✅</li>
-          <li>Сумма и комиссия понятны ✅</li>
-          <li>Я понимаю, что подтверждения могут занять время ✅</li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="card" id="tab-fees" hidden>
-      <h2>Комиссии</h2>
-      <ul>
-        <li><b>Bitcoin network fee</b> — комиссия сети BTC (майнерам) за отправку.</li>
-        <li><b>TON fee</b> — комиссия TON за операции со смарт-контрактом.</li>
-        <li><b>Service fee</b> — комиссия сервиса/моста (если указана в интерфейсе).</li>
-      </ul>
-      <p class="muted">
-        В тестнете “service fee = 0” может быть просто параметром режима. Для мейннета это не обещание.
-      </p>
-    </section>
-
-    <section class="card" id="tab-go" hidden>
-      <h2>Открыть официальный Teleport</h2>
-      <p class="muted">Мы не заменяем Teleport. Мы — “понятный вход” + безопасность.</p>
-
-      <div class="grid">
-        <button class="btn" id="btnTeleport">Teleport (main)</button>
-        <button class="btn secondary" id="btnTeleportSandbox">Teleport (sandbox)</button>
-      </div>
-
-      <p class="small">В Mini App ссылка может открыться во внешнем браузере — это нормально.</p>
-    </section>
-
-    <div class="footer">
-      <div class="muted" id="userLine">Пользователь: …</div>
-      <div class="muted">Bot: <b>@tgbtcfibot</b></div>
-    </div>
-
-  </div>
-
-  <script>
-    // Small helpers (fast, no deps)
-    const $ = (id) => document.getElementById(id);
-    const tg = window.Telegram?.WebApp;
-
-    // Links
-    const LINKS = {
-      docs: "https://tgbtc.gitbook.io/docs",
-      dashboard: "https://sandbox.teleport.tg/app/dashboard",
-      teleportMain: "https://teleport.tg/",
-      teleportSandbox: "https://sandbox.teleport.tg/",
-    };
-
-    // Timing indicator (ORIENTATIONAL)
-    const CYCLE = 4 * 60 * 60;     // 4h
-    const WAIT_START = 15 * 60;    // first 15m = Wait
-    const WAIT_END = 40 * 60;      // last 40m = Risk
-
-    function openLink(url){
-      if (tg && typeof tg.openLink === "function") tg.openLink(url);
-      else window.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    function formatTime(sec){
-      sec = Math.max(0, sec|0);
-      const h = String((sec / 3600) | 0).padStart(2,'0');
-      const m = String(((sec % 3600) / 60) | 0).padStart(2,'0');
-      const s = String((sec % 60) | 0).padStart(2,'0');
-      return `${h}:${m}:${s}`;
-    }
-
-    function updateCycleIndicator(){
-      const now = (Date.now() / 1000) | 0;
-      const cycleStart = now - (now % CYCLE);
-      const cycleEnd = cycleStart + CYCLE;
-
-      const safeStart = cycleStart + WAIT_START;
-      const safeEnd = cycleEnd - WAIT_END;
-
-      const dot = $("cycleDot");
-      const text = $("cycleText");
-      const time = $("cycleTime");
-      if (!dot || !text || !time) return;
-
-      if (now < safeStart) {
-        dot.style.color = "#f59e0b";
-        text.textContent = "🟡 Wait";
-        time.textContent = formatTime(safeStart - now);
-      } else if (now <= safeEnd) {
-        dot.style.color = "#22c55e";
-        text.textContent = "🟢 Safe";
-        time.textContent = formatTime(safeEnd - now);
-      } else {
-        dot.style.color = "#ef4444";
-        text.textContent = "🔴 Risk";
-        time.textContent = formatTime(cycleEnd - now);
-      }
-    }
-
-    // Tabs (use hidden attribute = faster)
-    const sections = {
-      what: $("tab-what"),
-      how: $("tab-how"),
-      safe: $("tab-safe"),
-      fees: $("tab-fees"),
-      go: $("tab-go"),
-    };
-
-    function setTab(name){
-      document.querySelectorAll(".tab").forEach(btn => {
-        const active = btn.dataset.tab === name;
-        btn.setAttribute("aria-selected", active ? "true" : "false");
-      });
-      Object.keys(sections).forEach(k => {
-        sections[k].hidden = (k !== name);
-      });
-
-      if (tg?.MainButton) {
-        tg.MainButton.hide();
-        tg.MainButton.offClick?.(); // safe if supported
-        if (name === "go") {
-          tg.MainButton.setText("Открыть Teleport");
-          tg.MainButton.onClick(() => openLink(LINKS.teleportMain));
-          tg.MainButton.show();
-        }
-      }
-    }
-
-    document.querySelectorAll(".tab").forEach(btn => {
-      btn.addEventListener("click", () => setTab(btn.dataset.tab));
-    });
-
-    // Buttons
-    $("btnDocs").addEventListener("click", () => openLink(LINKS.docs));
-    $("btnDashboard").addEventListener("click", () => openLink(LINKS.dashboard));
-    $("btnTeleport").addEventListener("click", () => openLink(LINKS.teleportMain));
-    $("btnTeleportSandbox").addEventListener("click", () => openLink(LINKS.teleportSandbox));
-
-    $("btnChecklist").addEventListener("click", () => {
-      const el = $("checklist");
-      el.hidden = !el.hidden;
-      tg?.HapticFeedback?.selectionChanged?.();
-    });
-
-    // Telegram init
-    const envPill = $("envPill");
-    const userLine = $("userLine");
-
-    function initTelegram(){
-      if (!tg) {
-        userLine.textContent = "Пользователь: (вне Telegram)";
-        envPill.textContent = "Browser mode";
-        return;
-      }
-      tg.ready();
-      try { tg.expand(); } catch(e){}
-      const u = tg.initDataUnsafe?.user;
-      const uname = u?.username ? "@" + u.username : "(no username)";
-      userLine.textContent = `Пользователь: ${u?.first_name || "Гость"} ${uname}`;
-      envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
-    }
-
-    // Timer: run only when visible (lighter)
-    let timerId = null;
-    function startTimer(){
-      if (timerId) return;
-      updateCycleIndicator();
-      timerId = setInterval(updateCycleIndicator, 1000); // можно 2000 для ещё меньше нагрузки
-    }
-    function stopTimer(){
-      if (!timerId) return;
-      clearInterval(timerId);
-      timerId = null;
-    }
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) stopTimer();
-      else startTimer();
-    });
-
-    // Boot
-    initTelegram();
-    setTab("what");
-    startTimer();
-  </script>
-</body>
-</html>
+  // ====== Init ======
+  updatePrices();
+  setInterval(updatePrices, 30000); // раз в 30 сек
+</script>
