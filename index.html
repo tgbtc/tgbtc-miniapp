@@ -2,43 +2,291 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>tgBTC Fi MiniApp (test)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>tgBTC Fi — Mini App (MVP)</title>
+
+  <!-- Telegram Mini Apps SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 16px; }
-    .card { padding: 12px; border: 1px solid #ddd; border-radius: 12px; margin-bottom: 12px; }
-    button { width: 100%; padding: 12px; border-radius: 12px; border: 0; font-size: 16px; }
+    :root{
+      --bg: var(--tg-theme-bg-color, #ffffff);
+      --text: var(--tg-theme-text-color, #111111);
+      --hint: var(--tg-theme-hint-color, #6b7280);
+      --card: var(--tg-theme-secondary-bg-color, #f3f4f6);
+      --btn: var(--tg-theme-button-color, #2ea6ff);
+      --btnText: var(--tg-theme-button-text-color, #ffffff);
+      --sep: var(--tg-theme-section-separator-color, #e5e7eb);
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap{ padding: 14px; max-width: 720px; margin:0 auto; }
+    .top{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding: 10px 0 6px;
+    }
+    .brand{ font-weight: 800; letter-spacing: .2px; }
+    .pill{
+      font-size:12px; color: var(--hint);
+      border: 1px solid var(--sep);
+      padding: 6px 10px; border-radius: 999px;
+      white-space:nowrap;
+    }
+    .tabs{
+      display:flex; gap:8px; padding: 10px 0 4px;
+      overflow:auto;
+    }
+    .tab{
+      border: 1px solid var(--sep);
+      background: transparent;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 14px;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .tab.active{
+      background: var(--card);
+      border-color: transparent;
+      font-weight: 700;
+    }
+    .card{
+      background: var(--card);
+      border-radius: 16px;
+      padding: 14px;
+      margin: 10px 0;
+      border: 1px solid rgba(0,0,0,0.02);
+    }
+    h2{ margin: 0 0 10px; font-size: 18px; }
+    p{ margin: 8px 0; line-height: 1.45; }
+    ul{ margin: 8px 0 0 18px; padding:0; }
+    li{ margin: 6px 0; }
+    .muted{ color: var(--hint); font-size: 13px; }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 520px){
+      .grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .btn{
+      width:100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 0;
+      background: var(--btn);
+      color: var(--btnText);
+      font-size: 15px;
+      font-weight: 700;
+      cursor:pointer;
+    }
+    .btn.secondary{
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--sep);
+      font-weight: 700;
+    }
+    .warn{
+      border-left: 4px solid #f59e0b;
+      padding-left: 10px;
+    }
+    .ok{
+      border-left: 4px solid #22c55e;
+      padding-left: 10px;
+    }
+    .small{
+      font-size: 12px;
+      color: var(--hint);
+      margin-top: 10px;
+    }
+    .footer{
+      margin: 12px 0 6px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--sep);
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+    }
+    a{ color: var(--tg-theme-link-color, #2ea6ff); text-decoration: none; }
   </style>
 </head>
+
 <body>
-  <h2>tgBTC Fi MiniApp — test</h2>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">tgBTC Fi</div>
+      <div class="pill" id="envPill">…</div>
+    </div>
 
-  <div class="card" id="info">Загрузка…</div>
+    <div class="tabs" role="tablist" aria-label="Навигация">
+      <button class="tab active" data-tab="what">Что это</button>
+      <button class="tab" data-tab="how">Как работает</button>
+      <button class="tab" data-tab="safe">Безопасность</button>
+      <button class="tab" data-tab="fees">Комиссии</button>
+      <button class="tab" data-tab="go">Открыть Teleport</button>
+    </div>
 
-  <button id="openTeleport">Открыть teleport.tg (в браузере)</button>
+    <!-- WHAT -->
+    <section class="card" id="tab-what">
+      <h2>tgBTC — Bitcoin в сети TON</h2>
+      <p class="ok"><b>Идея простая:</b> ты используешь “BTC-подобный актив” в TON, чтобы заходить в DeFi (DEX/лендинг и т.д.).</p>
+      <p class="muted">Этот Mini App — не мост и не кошелёк. Мы объясняем и направляем. Транзакции ты подтверждаешь сам в своём кошельке.</p>
+
+      <div class="grid">
+        <button class="btn secondary" id="btnDocs">Открыть документацию tgBTC</button>
+        <button class="btn secondary" id="btnDashboard">Открыть Sandbox Dashboard</button>
+      </div>
+    </section>
+
+    <!-- HOW -->
+    <section class="card" id="tab-how" style="display:none">
+      <h2>Peg-in и Peg-out (по-человечески)</h2>
+      <p><b>Peg-in</b> = ты отправляешь BTC → получаешь tgBTC в TON.</p>
+      <p><b>Peg-out</b> = ты отправляешь (сжигаешь) tgBTC в TON → получаешь BTC на свой адрес.</p>
+      <div class="card" style="background: transparent; border: 1px solid var(--sep);">
+        <p class="muted" style="margin-top:0"><b>Нормальные ожидания:</b></p>
+        <ul>
+          <li>BTC-сеть может подтверждать долго — это нормально.</li>
+          <li>Статусы иногда меняются не мгновенно — особенно в тестнете.</li>
+          <li>Всегда проверяй сеть: тестнет ≠ мейннет.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SAFE -->
+    <section class="card" id="tab-safe" style="display:none">
+      <h2>Безопасность — важнее скорости</h2>
+
+      <p class="warn"><b>Главное правило вывода:</b> выводи BTC <u>только на свой личный Bitcoin-кошелёк</u>. Не используй биржевые адреса, депозитные адреса сервисов и “чужие” адреса.</p>
+
+      <div class="card" style="background: transparent; border: 1px solid var(--sep);">
+        <p class="muted" style="margin-top:0"><b>ТОП-5 ошибок:</b></p>
+        <ul>
+          <li>Вывод на биржу (депозитный адрес биржи) → риск потери.</li>
+          <li>Копипаст “не того” адреса.</li>
+          <li>Путают сети/режимы (testnet vs mainnet).</li>
+          <li>Не учитывают Bitcoin fee и ожидают “мгновенно”.</li>
+          <li>Делают вывод без проверки суммы/комиссии.</li>
+        </ul>
+      </div>
+
+      <button class="btn secondary" id="btnChecklist">Показать чек-лист перед выводом</button>
+      <div id="checklist" class="card" style="display:none; background: transparent; border: 1px solid var(--sep);">
+        <ul>
+          <li>Я в правильной сети (testnet/mainnet) ✅</li>
+          <li>Адрес BTC мой личный ✅</li>
+          <li>Сумма и комиссия понятны ✅</li>
+          <li>Я понимаю, что подтверждения могут занять время ✅</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- FEES -->
+    <section class="card" id="tab-fees" style="display:none">
+      <h2>Комиссии: за что платишь</h2>
+      <ul>
+        <li><b>Bitcoin network fee</b> — комиссия BTC-сети (майнерам) за отправку.</li>
+        <li><b>TON fee</b> — комиссия TON за операции со смарт-контрактом.</li>
+        <li><b>Service fee</b> — протокольная комиссия сервиса/моста (если указана).</li>
+      </ul>
+      <p class="muted">Важно: UI может показывать “service fee = 0” в тестнете — это не обещание для мейннета, а текущий параметр режима.</p>
+    </section>
+
+    <!-- GO -->
+    <section class="card" id="tab-go" style="display:none">
+      <h2>Открыть официальный Teleport</h2>
+      <p class="muted">Мы не заменяем Teleport. Мы помогаем понять и безопасно пользоваться.</p>
+
+      <div class="grid">
+        <button class="btn" id="btnTeleport">Перейти в Teleport</button>
+        <button class="btn secondary" id="btnTeleportSandbox">Перейти в Sandbox Teleport</button>
+      </div>
+
+      <p class="small">Если ты делаешь это из Mini App — откроется внешний браузер. Это нормально.</p>
+    </section>
+
+    <div class="footer">
+      <div class="muted" id="userLine">Пользователь: …</div>
+      <div class="muted">Bot: <b>@tgbtcfibot</b></div>
+    </div>
+  </div>
 
   <script>
     const tg = window.Telegram?.WebApp;
 
-    if (tg) {
-      tg.ready();
-      const u = tg.initDataUnsafe?.user;
-      document.getElementById('info').innerHTML = `
-        <b>Telegram WebApp подключен ✅</b><br/>
-        user: ${u ? `${u.first_name || ""} (@${u.username || "no_username"})` : "нет данных"}<br/>
-        platform: ${tg.platform}<br/>
-        version: ${tg.version}<br/>
-        colorScheme: ${tg.colorScheme}
-      `;
-    } else {
-      document.getElementById('info').innerHTML = `<b>Открыто вне Telegram WebApp</b>`;
+    // --- Helpers
+    function openLink(url){
+      if (tg && typeof tg.openLink === "function") tg.openLink(url);
+      else window.open(url, "_blank");
     }
 
-    document.getElementById('openTeleport').onclick = () => {
-      // В Mini App это откроется внешним браузером
-      if (tg) tg.openLink("https://teleport.tg/");
-      else window.open("https://teleport.tg/", "_blank");
+    // --- Init Telegram WebApp
+    const envPill = document.getElementById('envPill');
+    const userLine = document.getElementById('userLine');
+
+    if (tg) {
+      tg.ready();
+      // Optional: make it nicer
+      try {
+        tg.expand();
+      } catch(e){}
+
+      const u = tg.initDataUnsafe?.user;
+      const uname = u?.username ? '@' + u.username : '(no username)';
+      userLine.textContent = `Пользователь: ${u?.first_name || 'Гость'} ${uname}`;
+      envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
+    } else {
+      userLine.textContent = `Пользователь: (вне Telegram)`;
+      envPill.textContent = `Browser mode`;
+    }
+
+    // --- Tabs
+    const tabs = document.querySelectorAll('.tab');
+    const sections = {
+      what: document.getElementById('tab-what'),
+      how: document.getElementById('tab-how'),
+      safe: document.getElementById('tab-safe'),
+      fees: document.getElementById('tab-fees'),
+      go: document.getElementById('tab-go'),
+    };
+
+    function setTab(name){
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      Object.entries(sections).forEach(([k, el]) => {
+        el.style.display = (k === name) ? 'block' : 'none';
+      });
+
+      // nice: update bottom button in Telegram (optional)
+      if (tg && tg.MainButton) {
+        tg.MainButton.hide();
+        if (name === "go") {
+          tg.MainButton.setText("Открыть Teleport");
+          tg.MainButton.onClick(() => openLink("https://teleport.tg/"));
+          tg.MainButton.show();
+        }
+      }
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+
+    // --- Buttons
+    document.getElementById('btnDocs').onclick = () => openLink("https://tgbtc.gitbook.io/docs");
+    document.getElementById('btnDashboard').onclick = () => openLink("https://sandbox.teleport.tg/app/dashboard");
+
+    document.getElementById('btnTeleport').onclick = () => openLink("https://teleport.tg/");
+    document.getElementById('btnTeleportSandbox').onclick = () => openLink("https://sandbox.teleport.tg/");
+
+    document.getElementById('btnTeleport').ondblclick = () => setTab("fees");
+
+    document.getElementById('btnChecklist').onclick = () => {
+      const el = document.getElementById('checklist');
+      el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     };
   </script>
 </body>
