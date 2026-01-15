@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>tgBTC Board — Mini App</title>
 
-  <!-- Telegram Mini Apps SDK -->
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
@@ -14,17 +13,18 @@
       --panel:#0f172a;
       --text:#e5e7eb;
       --muted:#94a3b8;
-      --line:rgba(148,163,184,.16);
+      --line:rgba(148,163,184,.18);
 
       --good:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
 
-      --ring1:#22c55e;
-      --ring2:#f59e0b;
-      --ring3:#60a5fa;
+      --ring1:#22c55e;   /* safe window */
+      --ring2:#f59e0b;   /* price health */
+      --ring3:#60a5fa;   /* supply scale */
     }
-    *{box-sizing:border-box}
+
+    *{ box-sizing:border-box; }
     body{
       margin:0;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -33,113 +33,165 @@
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
-    .wrap{max-width:820px;margin:0 auto;padding:14px}
+    .wrap{ max-width:860px; margin:0 auto; padding:14px; }
+
     .top{
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      padding:6px 0 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:6px 0 12px;
     }
-    .brand{font-weight:900;letter-spacing:.4px}
-    .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .brand{
+      font-weight:900;
+      letter-spacing:.4px;
+      font-size:16px;
+      line-height:1;
+    }
+
+    .pills{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .pill{
-      display:flex;align-items:center;gap:8px;
-      padding:8px 10px;border:1px solid var(--line);
-      border-radius:999px;color:var(--muted);font-size:12px;white-space:nowrap;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
       background:rgba(255,255,255,.02);
     }
-    .dot{font-size:12px;line-height:1}
-    .mono{font-variant-numeric:tabular-nums}
+    .dot{ font-size:12px; line-height:1; }
+    .mono{ font-variant-numeric: tabular-nums; }
 
     .board{
       border:1px solid var(--line);
       border-radius:18px;
       padding:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
     }
 
     .grid{
       display:grid;
       grid-template-columns:1fr;
       gap:14px;
-      align-items:center;
+      align-items:start;
     }
-    @media(min-width:680px){
-      .grid{grid-template-columns: 1.2fr .8fr;}
+    @media (min-width:720px){
+      .grid{ grid-template-columns: 1.1fr .9fr; }
     }
 
-    /* ===== Rings ===== */
-    .dialWrap{display:grid;place-items:center;padding:6px 0;}
+    /* ========= DIAL ========= */
+    .dialWrap{
+      display:grid;
+      place-items:center;
+      padding:6px 0;
+    }
     .dial{
-      width:min(380px, 92vw);
+      /* критично: не даём ему быть огромным в узком окне */
+      width:min(320px, 86vw);
       aspect-ratio:1/1;
       border-radius:50%;
       position:relative;
       display:grid;
       place-items:center;
     }
+
+    /* 3 rings - тоньше и без тяжелых эффектов */
     .ring{
-      position:absolute;inset:0;border-radius:50%;
-      background:conic-gradient(var(--c) calc(var(--p) * 1turn), rgba(255,255,255,.06) 0);
+      position:absolute;
+      inset:0;
+      border-radius:50%;
+      background:conic-gradient(var(--c) calc(var(--p) * 1turn), rgba(255,255,255,.08) 0);
       -webkit-mask:radial-gradient(circle, transparent calc(50% - var(--w)), #000 calc(50% - var(--w)));
               mask:radial-gradient(circle, transparent calc(50% - var(--w)), #000 calc(50% - var(--w)));
-      filter: drop-shadow(0 0 12px rgba(0,0,0,.25));
     }
-    .r1{ --w: 18px; transform: scale(1.00); --c: var(--ring1); }
-    .r2{ --w: 18px; transform: scale(.86); --c: var(--ring2); }
-    .r3{ --w: 18px; transform: scale(.72); --c: var(--ring3); }
+    .r1{ --w: 12px; transform: scale(1.00); --c: var(--ring1); }
+    .r2{ --w: 12px; transform: scale(.86); --c: var(--ring2); }
+    .r3{ --w: 12px; transform: scale(.72); --c: var(--ring3); }
 
     .center{
-      width:72%;
-      border-radius:18px;
-      padding:14px 12px;
+      width:74%;
+      border-radius:16px;
+      padding:12px 10px;
       text-align:center;
-      background:rgba(0,0,0,.24);
+      background:rgba(0,0,0,.28);
       border:1px solid var(--line);
-      backdrop-filter: blur(6px);
     }
     .big{
-      font-size:44px;
+      font-size:40px;
       line-height:1;
       font-weight:950;
-      letter-spacing:.6px;
+      letter-spacing:.4px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
-    .sub{margin-top:6px;color:var(--muted);font-size:12px}
-    .hint{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.35}
+    .sub{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+    }
 
-    /* ===== Right cards ===== */
-    .stack{display:grid;gap:12px}
+    .miniBadges{
+      display:flex;
+      justify-content:center;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      background:rgba(255,255,255,.02);
+    }
+    .badge strong{ color:var(--text); }
+
+    /* ========= Right side ========= */
+    .stack{ display:grid; gap:12px; }
     .card{
       border:1px solid var(--line);
       border-radius:16px;
       padding:12px;
       background:rgba(255,255,255,.02);
     }
-    .row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
-    .k{color:var(--muted);font-size:12px}
-    .v{font-weight:850}
-    .vBig{font-weight:950;font-size:18px}
-    .sep{height:1px;background:var(--line);margin:10px 0}
+    .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:12px;
+    }
+    .k{ color:var(--muted); font-size:12px; }
+    .vBig{ font-weight:950; font-size:18px; }
+    .v{ font-weight:900; }
+    .sep{ height:1px; background:var(--line); margin:10px 0; }
 
-    .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .btns{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
     button{
       border:1px solid var(--line);
       border-radius:14px;
       padding:12px 12px;
       background:rgba(255,255,255,.03);
       color:var(--text);
-      font-weight:850;
+      font-weight:900;
       cursor:pointer;
     }
-    button.primary{background:rgba(46,166,255,.14);border-color:rgba(46,166,255,.35)}
-    button.good{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35)}
-    .small{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.35}
+    button.good{ background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); }
+    button.primary{ background:rgba(46,166,255,.14); border-color:rgba(46,166,255,.35); }
 
-    .badge{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:6px 10px;border:1px solid var(--line);border-radius:999px;
-      font-size:12px;color:var(--muted);
-      background:rgba(255,255,255,.02);
+    .small{
+      margin-top:10px;
+      font-size:11px;
+      color:var(--muted);
+      line-height:1.35;
     }
-    .badge strong{color:var(--text)}
   </style>
 </head>
 
@@ -160,28 +212,27 @@
 
     <div class="board">
       <div class="grid">
-        <!-- LEFT: Rings -->
+
+        <!-- LEFT -->
         <div class="dialWrap">
           <div class="dial">
-            <div class="ring r1" id="ring1" style="--p:.0"></div>
-            <div class="ring r2" id="ring2" style="--p:.0"></div>
-            <div class="ring r3" id="ring3" style="--p:.0"></div>
+            <div class="ring r1" id="ring1" style="--p:0"></div>
+            <div class="ring r2" id="ring2" style="--p:0"></div>
+            <div class="ring r3" id="ring3" style="--p:0"></div>
 
             <div class="center">
               <div class="big mono" id="supply">—</div>
               <div class="sub">tgBTC в TON (supply)</div>
-              <div class="hint">
+
+              <div class="miniBadges">
                 <span class="badge">🕒 <strong>Safe</strong> window</span>
-                <span class="badge">💱 <strong>Market</strong> snapshot</span>
-              </div>
-              <div class="hint" style="margin-top:10px">
-                Кольца: (1) прогресс Safe-окна • (2) близость tgBTC к BTC • (3) tgBTC в TON (шкала)
+                <span class="badge">💱 <strong>Market</strong></span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- RIGHT: Stats + Links -->
+        <!-- RIGHT -->
         <div class="stack">
 
           <div class="card">
@@ -202,26 +253,21 @@
             </div>
 
             <div class="small">
-              Курсы обновляются раз в 30 сек. tgBTC/USDT сейчас — <b>оценка</b> (≈ BTC). Когда дашь ссылку на пул/DEX — подключим реальную цену.
+              Курсы: обновление 30 сек. tgBTC/USDT сейчас — оценка (≈ BTC), пока не подключим DEX-пул.
             </div>
           </div>
 
           <div class="card">
             <div class="k">Открыть</div>
-
             <div class="btns">
               <button class="good" id="btnTeleport">Teleport (main)</button>
               <button class="primary" id="btnSandbox">Teleport (sandbox)</button>
             </div>
-
             <div class="btns">
               <button id="btnDashboard">Sandbox Dashboard</button>
               <button id="btnDocs">tgBTC Docs</button>
             </div>
-
-            <div class="small">
-              Если ссылка открывается во внешнем браузере — это нормально.
-            </div>
+            <div class="small">Если ссылка открывается во внешнем браузере — это нормально.</div>
           </div>
 
           <div class="card">
@@ -237,9 +283,7 @@
   </div>
 
   <script>
-    // =======================
-    // CONFIG (меняй под себя)
-    // =======================
+    // ===== CONFIG =====
     const LINKS = {
       docs: "https://tgbtc.gitbook.io/docs",
       dashboard: "https://sandbox.teleport.tg/app/dashboard",
@@ -247,21 +291,16 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    // TON Center (mainnet) — ты дал ключ и jetton master
     const TONCENTER_API_KEY = "a8712a63812b5ed49da196427110e18260c3b06a49705a8f897399f386cf8f4";
     const JETTON_MASTER = "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU";
 
-    // Ориентировочный цикл Teleport window
     const CYCLE = 4 * 60 * 60;   // 4h
     const WAIT_START = 15 * 60;  // first 15m => Wait
     const WAIT_END = 40 * 60;    // last 40m => Risk
 
-    // tgBTC estimate vs BTC (пока нет DEX-цены)
-    const TGBTC_DISCOUNT = 0.999; // 0.1% ниже BTC, просто чтобы отличалось
+    const TGBTC_DISCOUNT = 0.999; // оценка tgBTC ≈ BTC
 
-    // =======================
-    // Helpers
-    // =======================
+    // ===== Helpers =====
     const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
 
@@ -270,16 +309,16 @@
       else window.open(url, "_blank", "noopener,noreferrer");
     }
 
+    function setRing(el, p){
+      el.style.setProperty("--p", String(Math.max(0, Math.min(1, p))));
+    }
+
     function formatTime(sec){
       sec = Math.max(0, sec|0);
       const h = String((sec/3600)|0).padStart(2,'0');
       const m = String(((sec%3600)/60)|0).padStart(2,'0');
       const s = String((sec%60)|0).padStart(2,'0');
       return `${h}:${m}:${s}`;
-    }
-
-    function setRing(el, p){
-      el.style.setProperty("--p", String(Math.max(0, Math.min(1, p))));
     }
 
     function fmtUsd(x){
@@ -291,9 +330,7 @@
       return x.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " TON";
     }
 
-    // =======================
-    // 1) Safe / Wait / Risk timer
-    // =======================
+    // ===== 1) Window timer =====
     function updateWindow(){
       const now = (Date.now()/1000)|0;
       const cycleStart = now - (now % CYCLE);
@@ -306,7 +343,6 @@
       const stText = $("stText");
       const stTime = $("stTime");
 
-      // Ring1 = progress within Safe window
       const safeLen = Math.max(1, safeEnd - safeStart);
       const safeProg = (now < safeStart) ? 0 : (now > safeEnd) ? 1 : (now - safeStart) / safeLen;
       setRing($("ring1"), safeProg);
@@ -326,18 +362,12 @@
       }
     }
 
-    // =======================
-    // 2) tgBTC supply from TON Center (jetton master)
-    // =======================
+    // ===== 2) Supply from TON Center =====
     function formatJettonAmount(rawStr, decimals = 8){
-      // rawStr is big-int string
       if (!rawStr || typeof rawStr !== "string") return "—";
       const s = rawStr.replace(/^0+/, "") || "0";
-      if (decimals <= 0) return s;
-
       const pad = decimals + 1;
       const x = s.length < pad ? s.padStart(pad, "0") : s;
-
       const intPart = x.slice(0, -decimals) || "0";
       let frac = x.slice(-decimals).replace(/0+$/, "");
       const intFmt = Number(intPart).toLocaleString();
@@ -359,7 +389,6 @@
       try{
         const data = await fetchTokenData(JETTON_MASTER);
 
-        // decimals can live in different fields; fallback = 8
         const decimals =
           Number(data?.decimals) ||
           Number(data?.jetton_content?.decimals) ||
@@ -374,24 +403,21 @@
           "0";
 
         const human = formatJettonAmount(String(raw), decimals);
+        $("supply").textContent = `${human}`;
 
-        $("supply").textContent = `${human} tgBTC`;
-
-        // small visual: ring3 is normalized by a chosen "max" to look nice.
-        // since supply is very small now, we scale it so ring moves.
-        const numeric = Number(human.replace(/,/g,"")) || 0; // ok for your small supply
-        const norm = Math.max(0, Math.min(1, numeric / 0.01)); // 0.01 tgBTC = full ring (tweak anytime)
+        // ring3: нормализуем красиво (под твою текущую микро-саплай)
+        const numeric = Number(human.replace(/,/g,"")) || 0;
+        const norm = Math.max(0, Math.min(1, numeric / 0.01)); // 0.01 tgBTC = полный круг
         setRing($("ring3"), norm);
 
       }catch(e){
         console.warn("Supply error:", e);
         $("supply").textContent = "—";
+        setRing($("ring3"), 0);
       }
     }
 
-    // =======================
-    // 3) Prices (Binance public)
-    // =======================
+    // ===== 3) Prices =====
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -403,33 +429,30 @@
         const btc = await fetchPrice("BTCUSDT");
         const ton = await fetchPrice("TONUSDT");
 
-        const tgbtc = btc * TGBTC_DISCOUNT; // estimate until we connect DEX
+        const tgbtc = btc * TGBTC_DISCOUNT;
 
         $("btc").textContent = fmtUsd(btc);
         $("tgbtc").textContent = fmtUsd(tgbtc);
         $("tgbtcTon").textContent = fmtTon(tgbtc / ton);
 
-        // ring2 = "health": how close tgBTC is to BTC (0..1)
-        const deviation = Math.abs(1 - (tgbtc / btc)); // 0 = perfect
+        // ring2: "health" (чем ближе tgBTC к BTC, тем выше)
+        const deviation = Math.abs(1 - (tgbtc / btc));
         const health = Math.max(0, Math.min(1, 1 - deviation * 80));
         setRing($("ring2"), health);
 
       }catch(e){
         console.warn("Prices error:", e);
+        setRing($("ring2"), 0);
       }
     }
 
-    // =======================
-    // Buttons
-    // =======================
+    // ===== Buttons =====
     $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
     $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
     $("btnDashboard").onclick = () => openLink(LINKS.dashboard);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
-    // =======================
-    // Telegram init (nice UX)
-    // =======================
+    // ===== Telegram init =====
     function initTelegram(){
       const envPill = $("envPill");
       const userLine = $("userLine");
@@ -447,30 +470,20 @@
       const uname = u?.username ? "@" + u.username : "(no username)";
       userLine.textContent = `${u?.first_name || "Гость"} ${uname}`;
       envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
-
-      // Optional: show MainButton on tap "go" style (not required)
-      // tg.MainButton.setText("Открыть Teleport");
-      // tg.MainButton.onClick(() => openLink(LINKS.teleportMain));
-      // tg.MainButton.show();
     }
 
-    // =======================
-    // Timers (light + pause on hidden)
-    // =======================
+    // ===== Light timers (pause when hidden) =====
     let tWin=null, tPrices=null, tSupply=null;
 
     function start(){
       if (tWin || tPrices || tSupply) return;
-
       updateWindow();
       updatePrices();
       updateSupply();
-
       tWin = setInterval(updateWindow, 1000);
       tPrices = setInterval(updatePrices, 30000);
       tSupply = setInterval(updateSupply, 60000);
     }
-
     function stop(){
       clearInterval(tWin); clearInterval(tPrices); clearInterval(tSupply);
       tWin = tPrices = tSupply = null;
