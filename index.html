@@ -1,222 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>tgBTC Timing App</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>tgBTC Fi MiniApp (test)</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      text-align: center;
-    }
-    .box {
-      padding: 26px;
-      border-radius: 18px;
-      background: #020617;
-      box-shadow: 0 0 40px rgba(0,0,0,0.4);
-      max-width: 360px;
-      width: 100%;
-    }
-    h1 {
-      margin-bottom: 6px;
-      font-size: 22px;
-    }
-    .status {
-      font-size: 18px;
-      margin: 10px 0;
-    }
-    .timer {
-      font-size: 28px;
-      font-weight: bold;
-      margin: 12px 0;
-    }
-    .hint {
-      font-size: 13px;
-      opacity: 0.85;
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-    .note {
-      font-size: 12px;
-      opacity: 0.6;
-      margin-top: 12px;
-      line-height: 1.4;
-    }
-    .btn {
-      margin-top: 14px;
-      padding: 12px;
-      width: 100%;
-      border-radius: 12px;
-      border: none;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn.primary {
-      background: #2563eb;
-      color: #fff;
-    }
-    .btn.secondary {
-      background: #475569;
-      color: #e5e7eb;
-    }
-    .btn:active {
-      transform: scale(0.98);
-    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 16px; }
+    .card { padding: 12px; border: 1px solid #ddd; border-radius: 12px; margin-bottom: 12px; }
+    button { width: 100%; padding: 12px; border-radius: 12px; border: 0; font-size: 16px; }
   </style>
 </head>
 <body>
+  <h2>tgBTC Fi MiniApp — test</h2>
 
-<div class="box">
-  <h1>tgBTC Timing</h1>
+  <div class="card" id="info">Загрузка…</div>
 
-  <div id="status" class="status">—</div>
-  <div id="timer" class="timer">--:--:--</div>
-  <div id="hint" class="hint"></div>
+  <button id="openTeleport">Открыть teleport.tg (в браузере)</button>
 
-  <button class="btn primary" onclick="openTeleport()">
-    Open TON Teleport
-  </button>
+  <script>
+    const tg = window.Telegram?.WebApp;
 
-  <button class="btn primary" id="notifyBtn" onclick="toggleNotify()">
-    🔔 Enable notification
-  </button>
-
-  <div class="note">
-    This app does not perform transactions.<br>
-    Timing is indicative — always confirm on TON Teleport.
-  </div>
-</div>
-
-<script>
-  const tg = window.Telegram.WebApp;
-  tg.ready();
-  tg.expand();
-
-  // ===== CONFIG =====
-  const CYCLE = 4 * 60 * 60;   // 4 hours
-  const WAIT_START = 15 * 60;  // buffer start
-  const WAIT_END = 40 * 60;    // buffer end
-
-  let lastNotifiedCycle = null;
-
-  function formatTime(sec) {
-    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-    const s = String(sec % 60).padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  }
-
-  function updateNotifyUI(show) {
-    const btn = document.getElementById("notifyBtn");
-    const enabled = localStorage.getItem("notify") === "true";
-
-    if (!show) {
-      btn.style.display = "none";
-      return;
-    }
-
-    btn.style.display = "block";
-
-    if (enabled) {
-      btn.textContent = "🔕 Disable notification";
-      btn.classList.remove("primary");
-      btn.classList.add("secondary");
+    if (tg) {
+      tg.ready();
+      const u = tg.initDataUnsafe?.user;
+      document.getElementById('info').innerHTML = `
+        <b>Telegram WebApp подключен ✅</b><br/>
+        user: ${u ? `${u.first_name || ""} (@${u.username || "no_username"})` : "нет данных"}<br/>
+        platform: ${tg.platform}<br/>
+        version: ${tg.version}<br/>
+        colorScheme: ${tg.colorScheme}
+      `;
     } else {
-      btn.textContent = "🔔 Enable notification";
-      btn.classList.remove("secondary");
-      btn.classList.add("primary");
-    }
-  }
-
-  function toggleNotify() {
-    const enabled = localStorage.getItem("notify") === "true";
-
-    if (enabled) {
-      localStorage.removeItem("notify");
-      alert("🔕 Notification disabled.");
-    } else {
-      localStorage.setItem("notify", "true");
-      alert(
-        "🔔 Notification enabled.\n\n" +
-        "You will be notified once when the safe window opens."
-      );
-    }
-  }
-
-  function maybeNotify(now, safeStart, cycleId) {
-    const notifyEnabled = localStorage.getItem("notify") === "true";
-
-    if (
-      notifyEnabled &&
-      now >= safeStart &&
-      lastNotifiedCycle !== cycleId
-    ) {
-      alert(
-        "🟢 Safe window is open!\n\n" +
-        "You can send BTC now.\n\n" +
-        "Notification was disabled automatically."
-      );
-
-      localStorage.removeItem("notify");
-      lastNotifiedCycle = cycleId;
-    }
-  }
-
-  function update() {
-    const now = Math.floor(Date.now() / 1000);
-    const cycleStart = now - (now % CYCLE);
-    const cycleEnd = cycleStart + CYCLE;
-    const cycleId = cycleStart;
-
-    const safeStart = cycleStart + WAIT_START;
-    const safeEnd = cycleEnd - WAIT_END;
-
-    const statusEl = document.getElementById("status");
-    const timerEl = document.getElementById("timer");
-    const hintEl = document.getElementById("hint");
-
-    let showNotifyButton = true;
-
-    if (now < safeStart) {
-      statusEl.textContent = "🟡 Подожди — цикл начался";
-      timerEl.textContent = formatTime(safeStart - now);
-      hintEl.textContent =
-        "До начала безопасного окна. Не отправляй BTC сейчас.";
-    }
-    else if (now <= safeEnd) {
-      statusEl.textContent = "🟢 Можно отправлять BTC";
-      timerEl.textContent = formatTime(safeEnd - now);
-      hintEl.textContent =
-        "Это время, которое осталось для безопасной отправки BTC.";
-      showNotifyButton = false; // 🔑 скрываем кнопку
-    }
-    else {
-      statusEl.textContent = "🔴 Опасно — адрес скоро сменится";
-      timerEl.textContent = formatTime(cycleEnd - now);
-      hintEl.textContent =
-        "Жди следующий цикл, чтобы избежать блокировки.";
+      document.getElementById('info').innerHTML = `<b>Открыто вне Telegram WebApp</b>`;
     }
 
-    updateNotifyUI(showNotifyButton);
-    maybeNotify(now, safeStart, cycleId);
-  }
-
-  function openTeleport() {
-    window.open("https://sandbox.teleport.tg/app/deposit/new", "_blank");
-  }
-
-  update();
-  setInterval(update, 1000);
-</script>
-
+    document.getElementById('openTeleport').onclick = () => {
+      // В Mini App это откроется внешним браузером
+      if (tg) tg.openLink("https://teleport.tg/");
+      else window.open("https://teleport.tg/", "_blank");
+    };
+  </script>
 </body>
 </html>
