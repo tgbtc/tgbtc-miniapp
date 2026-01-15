@@ -6,162 +6,142 @@
   <title>tgBTC Fi — Mini App (MVP)</title>
 
   <!-- Telegram Mini Apps SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
-      --bg: var(--tg-theme-bg-color, #ffffff);
-      --text: var(--tg-theme-text-color, #111111);
+      --bg: var(--tg-theme-bg-color, #fff);
+      --text: var(--tg-theme-text-color, #111);
       --hint: var(--tg-theme-hint-color, #6b7280);
       --card: var(--tg-theme-secondary-bg-color, #f3f4f6);
       --btn: var(--tg-theme-button-color, #2ea6ff);
-      --btnText: var(--tg-theme-button-text-color, #ffffff);
+      --btnText: var(--tg-theme-button-text-color, #fff);
       --sep: var(--tg-theme-section-separator-color, #e5e7eb);
       --link: var(--tg-theme-link-color, #2ea6ff);
     }
     *{ box-sizing:border-box; }
     body{
       margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    .wrap{ padding: 14px; max-width: 720px; margin:0 auto; }
+    .wrap{ padding:14px; max-width:720px; margin:0 auto; }
 
     .top{
       display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding: 10px 0 6px;
+      padding:10px 0 6px;
     }
-    .brand{ font-weight: 900; letter-spacing: .2px; font-size: 18px; }
+    .brand{ font-weight:900; font-size:18px; letter-spacing:.2px; }
 
-    .rightPills{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-
+    .pills{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .pill{
-      font-size:12px; color: var(--hint);
-      border: 1px solid var(--sep);
-      padding: 6px 10px; border-radius: 999px;
-      white-space:nowrap;
+      font-size:12px; color:var(--hint);
+      border:1px solid var(--sep);
+      padding:6px 10px; border-radius:999px;
       display:flex; align-items:center; gap:6px;
+      white-space:nowrap;
     }
-    #cycleDot{ font-size: 12px; line-height: 1; }
-    #cycleTime{ font-variant-numeric: tabular-nums; }
+    .mono{ font-variant-numeric: tabular-nums; }
+    #cycleDot{ font-size:12px; line-height:1; }
 
     .tabs{
-      display:flex; gap:8px; padding: 10px 0 4px;
-      overflow:auto;
+      display:flex; gap:8px; padding:10px 0 4px;
+      overflow:auto; -webkit-overflow-scrolling: touch;
     }
     .tab{
-      border: 1px solid var(--sep);
-      background: transparent;
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      font-size: 14px;
+      border:1px solid var(--sep);
+      background:transparent;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      font-size:14px;
       cursor:pointer;
       white-space:nowrap;
     }
-    .tab.active{
-      background: var(--card);
-      border-color: transparent;
-      font-weight: 800;
+    .tab[aria-selected="true"]{
+      background:var(--card);
+      border-color:transparent;
+      font-weight:800;
     }
 
     .card{
-      background: var(--card);
-      border-radius: 16px;
-      padding: 14px;
-      margin: 10px 0;
-      border: 1px solid rgba(0,0,0,0.02);
+      background:var(--card);
+      border-radius:16px;
+      padding:14px;
+      margin:10px 0;
+      border:1px solid rgba(0,0,0,.02);
     }
-    h2{ margin: 0 0 10px; font-size: 18px; }
-    p{ margin: 8px 0; line-height: 1.45; }
-    ul{ margin: 8px 0 0 18px; padding:0; }
-    li{ margin: 6px 0; }
-    .muted{ color: var(--hint); font-size: 13px; }
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    @media (min-width: 520px){
-      .grid{ grid-template-columns: 1fr 1fr; }
-    }
+    h2{ margin:0 0 10px; font-size:18px; }
+    p{ margin:8px 0; line-height:1.45; }
+    ul{ margin:8px 0 0 18px; padding:0; }
+    li{ margin:6px 0; }
+    .muted{ color:var(--hint); font-size:13px; }
+    .small{ font-size:12px; color:var(--hint); margin-top:10px; line-height:1.35; }
+    a{ color:var(--link); text-decoration:none; }
+
+    .grid{ display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (min-width:520px){ .grid{ grid-template-columns:1fr 1fr; } }
+
     .btn{
       width:100%;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 0;
-      background: var(--btn);
-      color: var(--btnText);
-      font-size: 15px;
-      font-weight: 800;
+      padding:12px 14px;
+      border-radius:14px;
+      border:0;
+      background:var(--btn);
+      color:var(--btnText);
+      font-size:15px;
+      font-weight:800;
       cursor:pointer;
     }
     .btn.secondary{
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--sep);
-      font-weight: 800;
+      background:transparent;
+      color:var(--text);
+      border:1px solid var(--sep);
     }
-    .warn{
-      border-left: 4px solid #f59e0b;
-      padding-left: 10px;
-    }
-    .ok{
-      border-left: 4px solid #22c55e;
-      padding-left: 10px;
-    }
-    .danger{
-      border-left: 4px solid #ef4444;
-      padding-left: 10px;
-    }
-    .small{
-      font-size: 12px;
-      color: var(--hint);
-      margin-top: 10px;
-      line-height: 1.35;
-    }
+
+    /* simple left-border statuses (no heavy shadows) */
+    .warn{ border-left:4px solid #f59e0b; padding-left:10px; }
+    .ok{ border-left:4px solid #22c55e; padding-left:10px; }
+    .danger{ border-left:4px solid #ef4444; padding-left:10px; }
+
     .footer{
-      margin: 12px 0 6px;
-      padding-top: 12px;
-      border-top: 1px dashed var(--sep);
-      display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+      margin:12px 0 6px;
+      padding-top:12px;
+      border-top:1px dashed var(--sep);
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
     }
-    a{ color: var(--link); text-decoration: none; }
-    .mono{ font-variant-numeric: tabular-nums; }
+
+    /* Tabs content via [hidden] for faster toggle */
+    section[hidden]{ display:none !important; }
   </style>
 </head>
 
 <body>
   <div class="wrap">
 
-    <!-- TOP BAR -->
     <div class="top">
       <div class="brand">tgBTC Fi</div>
-
-      <div class="rightPills">
-        <!-- Timing indicator -->
+      <div class="pills">
         <div class="pill" id="cyclePill" title="Ориентировочный индикатор по времени (не гарантия). Всегда проверяй в Teleport.">
           <span id="cycleDot">●</span>
           <span id="cycleText">—</span>
           <span id="cycleTime" class="mono">--:--:--</span>
         </div>
-
-        <!-- Environment -->
         <div class="pill" id="envPill">…</div>
       </div>
     </div>
 
-    <!-- TABS -->
     <div class="tabs" role="tablist" aria-label="Навигация">
-      <button class="tab active" data-tab="what">Что это</button>
-      <button class="tab" data-tab="how">Как работает</button>
-      <button class="tab" data-tab="safe">Безопасность</button>
-      <button class="tab" data-tab="fees">Комиссии</button>
-      <button class="tab" data-tab="go">Открыть Teleport</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="what">Что это</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="how">Как работает</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="safe">Безопасность</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="fees">Комиссии</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="go">Открыть Teleport</button>
     </div>
 
-    <!-- WHAT -->
     <section class="card" id="tab-what">
       <h2>tgBTC — Bitcoin в сети TON</h2>
 
@@ -183,13 +163,12 @@
       </p>
     </section>
 
-    <!-- HOW -->
-    <section class="card" id="tab-how" style="display:none">
+    <section class="card" id="tab-how" hidden>
       <h2>Peg-in и Peg-out</h2>
       <p><b>Peg-in</b> = отправил BTC → получил tgBTC в TON.</p>
       <p><b>Peg-out</b> = отправил/сжёг tgBTC → получил BTC на свой адрес.</p>
 
-      <div class="card" style="background: transparent; border: 1px solid var(--sep);">
+      <div class="card" style="background:transparent;border:1px solid var(--sep);">
         <p class="muted" style="margin-top:0"><b>Нормальные ожидания:</b></p>
         <ul>
           <li>BTC-сеть может подтверждать долго — это нормально.</li>
@@ -199,8 +178,7 @@
       </div>
     </section>
 
-    <!-- SAFE -->
-    <section class="card" id="tab-safe" style="display:none">
+    <section class="card" id="tab-safe" hidden>
       <h2>Безопасность</h2>
 
       <p class="warn">
@@ -208,7 +186,7 @@
         Не используй биржевые депозитные адреса и адреса сторонних сервисов — можно потерять средства.
       </p>
 
-      <div class="card" style="background: transparent; border: 1px solid var(--sep);">
+      <div class="card" style="background:transparent;border:1px solid var(--sep);">
         <p class="muted" style="margin-top:0"><b>ТОП-5 ошибок:</b></p>
         <ul>
           <li>Вывод на биржу (депозитный адрес биржи).</li>
@@ -220,7 +198,7 @@
       </div>
 
       <button class="btn secondary" id="btnChecklist">Чек-лист перед выводом</button>
-      <div id="checklist" class="card" style="display:none; background: transparent; border: 1px solid var(--sep);">
+      <div id="checklist" class="card" hidden style="background:transparent;border:1px solid var(--sep);">
         <ul>
           <li>Я в правильной сети (testnet/mainnet) ✅</li>
           <li>Адрес BTC — мой личный кошелёк ✅</li>
@@ -230,8 +208,7 @@
       </div>
     </section>
 
-    <!-- FEES -->
-    <section class="card" id="tab-fees" style="display:none">
+    <section class="card" id="tab-fees" hidden>
       <h2>Комиссии</h2>
       <ul>
         <li><b>Bitcoin network fee</b> — комиссия сети BTC (майнерам) за отправку.</li>
@@ -243,8 +220,7 @@
       </p>
     </section>
 
-    <!-- GO -->
-    <section class="card" id="tab-go" style="display:none">
+    <section class="card" id="tab-go" hidden>
       <h2>Открыть официальный Teleport</h2>
       <p class="muted">Мы не заменяем Teleport. Мы — “понятный вход” + безопасность.</p>
 
@@ -256,7 +232,6 @@
       <p class="small">В Mini App ссылка может открыться во внешнем браузере — это нормально.</p>
     </section>
 
-    <!-- FOOTER -->
     <div class="footer">
       <div class="muted" id="userLine">Пользователь: …</div>
       <div class="muted">Bot: <b>@tgbtcfibot</b></div>
@@ -265,9 +240,11 @@
   </div>
 
   <script>
+    // Small helpers (fast, no deps)
+    const $ = (id) => document.getElementById(id);
     const tg = window.Telegram?.WebApp;
 
-    // ====== LINKS (ты можешь поменять под себя) ======
+    // Links
     const LINKS = {
       docs: "https://tgbtc.gitbook.io/docs",
       dashboard: "https://sandbox.teleport.tg/app/dashboard",
@@ -275,88 +252,73 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    // ====== ORIENTATIONAL TIMING INDICATOR ======
-    // ВАЖНО: это ориентир по времени. Не гарантия реального "safe window".
-    const CYCLE = 4 * 60 * 60;   // 4 hours
-    const WAIT_START = 15 * 60;  // buffer start
-    const WAIT_END = 40 * 60;    // buffer end
+    // Timing indicator (ORIENTATIONAL)
+    const CYCLE = 4 * 60 * 60;     // 4h
+    const WAIT_START = 15 * 60;    // first 15m = Wait
+    const WAIT_END = 40 * 60;      // last 40m = Risk
 
     function openLink(url){
       if (tg && typeof tg.openLink === "function") tg.openLink(url);
-      else window.open(url, "_blank");
+      else window.open(url, "_blank", "noopener,noreferrer");
     }
 
-    function formatTime(sec) {
-      sec = Math.max(0, sec);
-      const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-      const s = String(sec % 60).padStart(2, '0');
+    function formatTime(sec){
+      sec = Math.max(0, sec|0);
+      const h = String((sec / 3600) | 0).padStart(2,'0');
+      const m = String(((sec % 3600) / 60) | 0).padStart(2,'0');
+      const s = String((sec % 60) | 0).padStart(2,'0');
       return `${h}:${m}:${s}`;
     }
 
     function updateCycleIndicator(){
-      const now = Math.floor(Date.now() / 1000);
+      const now = (Date.now() / 1000) | 0;
       const cycleStart = now - (now % CYCLE);
       const cycleEnd = cycleStart + CYCLE;
 
       const safeStart = cycleStart + WAIT_START;
       const safeEnd = cycleEnd - WAIT_END;
 
-      const dot = document.getElementById("cycleDot");
-      const text = document.getElementById("cycleText");
-      const time = document.getElementById("cycleTime");
-
+      const dot = $("cycleDot");
+      const text = $("cycleText");
+      const time = $("cycleTime");
       if (!dot || !text || !time) return;
 
       if (now < safeStart) {
-        dot.style.color = "#f59e0b"; // amber
+        dot.style.color = "#f59e0b";
         text.textContent = "🟡 Wait";
         time.textContent = formatTime(safeStart - now);
       } else if (now <= safeEnd) {
-        dot.style.color = "#22c55e"; // green
+        dot.style.color = "#22c55e";
         text.textContent = "🟢 Safe";
         time.textContent = formatTime(safeEnd - now);
       } else {
-        dot.style.color = "#ef4444"; // red
+        dot.style.color = "#ef4444";
         text.textContent = "🔴 Risk";
         time.textContent = formatTime(cycleEnd - now);
       }
     }
 
-    // ====== Telegram init ======
-    const envPill = document.getElementById('envPill');
-    const userLine = document.getElementById('userLine');
-
-    if (tg) {
-      tg.ready();
-      try { tg.expand(); } catch(e){}
-      const u = tg.initDataUnsafe?.user;
-      const uname = u?.username ? '@' + u.username : '(no username)';
-      userLine.textContent = `Пользователь: ${u?.first_name || 'Гость'} ${uname}`;
-      envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
-    } else {
-      userLine.textContent = `Пользователь: (вне Telegram)`;
-      envPill.textContent = `Browser mode`;
-    }
-
-    // ====== Tabs ======
-    const tabs = document.querySelectorAll('.tab');
+    // Tabs (use hidden attribute = faster)
     const sections = {
-      what: document.getElementById('tab-what'),
-      how: document.getElementById('tab-how'),
-      safe: document.getElementById('tab-safe'),
-      fees: document.getElementById('tab-fees'),
-      go: document.getElementById('tab-go'),
+      what: $("tab-what"),
+      how: $("tab-how"),
+      safe: $("tab-safe"),
+      fees: $("tab-fees"),
+      go: $("tab-go"),
     };
 
     function setTab(name){
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-      Object.entries(sections).forEach(([k, el]) => {
-        el.style.display = (k === name) ? 'block' : 'none';
+      document.querySelectorAll(".tab").forEach(btn => {
+        const active = btn.dataset.tab === name;
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      Object.keys(sections).forEach(k => {
+        sections[k].hidden = (k !== name);
       });
 
-      if (tg && tg.MainButton) {
+      if (tg?.MainButton) {
         tg.MainButton.hide();
+        tg.MainButton.offClick?.(); // safe if supported
         if (name === "go") {
           tg.MainButton.setText("Открыть Teleport");
           tg.MainButton.onClick(() => openLink(LINKS.teleportMain));
@@ -365,23 +327,61 @@
       }
     }
 
-    tabs.forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => setTab(btn.dataset.tab));
+    });
 
-    // ====== Buttons ======
-    document.getElementById('btnDocs').onclick = () => openLink(LINKS.docs);
-    document.getElementById('btnDashboard').onclick = () => openLink(LINKS.dashboard);
-    document.getElementById('btnTeleport').onclick = () => openLink(LINKS.teleportMain);
-    document.getElementById('btnTeleportSandbox').onclick = () => openLink(LINKS.teleportSandbox);
+    // Buttons
+    $("btnDocs").addEventListener("click", () => openLink(LINKS.docs));
+    $("btnDashboard").addEventListener("click", () => openLink(LINKS.dashboard));
+    $("btnTeleport").addEventListener("click", () => openLink(LINKS.teleportMain));
+    $("btnTeleportSandbox").addEventListener("click", () => openLink(LINKS.teleportSandbox));
 
-    document.getElementById('btnChecklist').onclick = () => {
-      const el = document.getElementById('checklist');
-      el.style.display = (el.style.display === 'none') ? 'block' : 'none';
-      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
-    };
+    $("btnChecklist").addEventListener("click", () => {
+      const el = $("checklist");
+      el.hidden = !el.hidden;
+      tg?.HapticFeedback?.selectionChanged?.();
+    });
 
-    // ====== Start indicator ======
-    updateCycleIndicator();
-    setInterval(updateCycleIndicator, 1000);
+    // Telegram init
+    const envPill = $("envPill");
+    const userLine = $("userLine");
+
+    function initTelegram(){
+      if (!tg) {
+        userLine.textContent = "Пользователь: (вне Telegram)";
+        envPill.textContent = "Browser mode";
+        return;
+      }
+      tg.ready();
+      try { tg.expand(); } catch(e){}
+      const u = tg.initDataUnsafe?.user;
+      const uname = u?.username ? "@" + u.username : "(no username)";
+      userLine.textContent = `Пользователь: ${u?.first_name || "Гость"} ${uname}`;
+      envPill.textContent = `Telegram • ${tg.platform} • API ${tg.version}`;
+    }
+
+    // Timer: run only when visible (lighter)
+    let timerId = null;
+    function startTimer(){
+      if (timerId) return;
+      updateCycleIndicator();
+      timerId = setInterval(updateCycleIndicator, 1000); // можно 2000 для ещё меньше нагрузки
+    }
+    function stopTimer(){
+      if (!timerId) return;
+      clearInterval(timerId);
+      timerId = null;
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopTimer();
+      else startTimer();
+    });
+
+    // Boot
+    initTelegram();
+    setTab("what");
+    startTimer();
   </script>
 </body>
 </html>
