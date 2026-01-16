@@ -39,6 +39,18 @@
     }
     .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
 
+    /* ✅ индикатор статуса (вернули) */
+    .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .pill{
+      display:flex;align-items:center;gap:8px;
+      padding:8px 10px;border:1px solid var(--line);
+      border-radius:999px;color:var(--muted);
+      font-size:12px;white-space:nowrap;
+      background:rgba(255,255,255,.02);
+    }
+    .dot{font-size:12px;line-height:1}
+    .mono{font-variant-numeric:tabular-nums}
+
     .grid{
       display:grid;
       grid-template-columns: 1fr;
@@ -102,8 +114,6 @@
       color:var(--muted);
       font-size:12px;
     }
-
-    .mono{font-variant-numeric:tabular-nums}
   </style>
 </head>
 
@@ -111,7 +121,15 @@
   <div class="wrap">
     <div class="top">
       <div class="brand">tgBTC Fi • Board</div>
-      <!-- Убрали верхние плашки Safe/Browser mode -->
+
+      <!-- ✅ Вернули индикатор окон BTC→tgBTC -->
+      <div class="pills">
+        <div class="pill" title="Окна видимости BTC-адреса в 4-часовом цикле: первые 10 минут и последние 30 минут адрес скрыт.">
+          <span class="dot" id="stDot">●</span>
+          <span id="stText">—</span>
+          <span class="mono" id="stTime">--:--:--</span>
+        </div>
+      </div>
     </div>
 
     <!-- METRICS -->
@@ -179,12 +197,13 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    // TON Center mainnet
-    const TONCENTER_API_KEY = "a8712a63812b5ed49da196427110e18260c3b06a49705a8f897399f386cf8f4";
-    const JETTON_MASTER = "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU";
-
     // Supply decimals
     const TGBTC_DECIMALS = 8;
+
+    // ✅ Окна видимости BTC-адреса для mint tgBTC
+    const CYCLE = 4 * 60 * 60;   // 4 часа
+    const HIDE_FIRST = 10 * 60;  // первые 10 минут адрес скрыт
+    const HIDE_LAST  = 30 * 60;  // последние 30 минут адрес скрыт
 
     // =======================
     // Helpers
@@ -202,83 +221,57 @@
       return x.toLocaleString(undefined, { maximumFractionDigits: 4 }) + " $";
     }
 
-    // BigInt utils
-    function parseTonStackNum(v){
-      const s = String(v);
-      if (s.startsWith("0x") || s.startsWith("0X")) return BigInt(s);
-      return BigInt(s);
+    function formatTime(sec){
+      sec = Math.max(0, sec|0);
+      const h = String((sec/3600)|0).padStart(2,'0');
+      const m = String(((sec%3600)/60)|0).padStart(2,'0');
+      const s = String((sec%60)|0).padStart(2,'0');
+      return `${h}:${m}:${s}`;
     }
 
-    function formatJettonFromRaw(rawBigInt, decimals){
-      const base = 10n ** BigInt(decimals);
-      const intPart = rawBigInt / base;
-      const fracPart = rawBigInt % base;
-
-      const intStr = Number(intPart).toLocaleString();
-      let frac = fracPart.toString().padStart(decimals, "0").replace(/0+$/,"");
-      return frac ? `${intStr}.${frac}` : intStr;
+    // ✅ Формат как у тебя: "57m : 30s"
+    function formatMinSec(sec){
+      sec = Math.max(0, sec|0);
+      const m = (sec/60)|0;
+      const s = sec%60;
+      return `${m}m : ${String(s).padStart(2,'0')}s`;
     }
 
     // =======================
-    // Supply via runGetMethod(get_jetton_data)
+    // ✅ Индикатор окон BTC→tgBTC (🟢/🟡/🔴)
     // =======================
-    async function runGetMethod(address, method){
-      const url = "https://toncenter.com/api/v2/runGetMethod";
-      const body = { address, method, stack: [] };
+    function updateAddressWindow(){
+      const now = (Date.now()/1000)|0;
+      const pos = now % CYCLE;
 
-      const r = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": TONCENTER_API_KEY
-        },
-        body: JSON.stringify(body),
-        cache: "no-store"
-      });
+      const stDot = $("stDot");
+      const stText = $("stText");
+      const stTime = $("stTime");
 
-      const d = await r.json();
-      if (!d?.ok) throw new Error("runGetMethod failed");
-      return d.result;
+      const visibleStart = HIDE_FIRST;
+      const visibleEnd   = CYCLE - HIDE_LAST;
+
+      if (pos < visibleStart) {
+        // 🟡 первые 10 минут (адрес скрыт)
+        const left = visibleStart - pos;
+        stDot.style.color = "var(--warn)";
+        stText.textContent = "🟡 Updating";
+        stTime.textContent = formatTime(left); // можешь заменить на formatMinSec(left) если хочешь
+      } else if (pos <= visibleEnd) {
+        // 🟢 середина (адрес виден и актуален)
+        const left = visibleEnd - pos;
+        stDot.style.color = "var(--good)";
+        stText.textContent = "🟢 Safe";
+        stTime.textContent = formatTime(left);
+      } else {
+        // 🔴 последние 30 минут (адрес скрыт)
+        const left = CYCLE - pos;
+        stDot.style.color = "var(--bad)";
+        stText.textContent = "🔴 Hidden";
+        // как у тебя: "The address will be updated in 57m : 30s"
+        stTime.textContent = formatMinSec(left);
+      }
     }
-
-    function extractTotalSupplyFromStack(result){
-      const stack =
-        result?.stack ||
-        result?.result?.stack ||
-        result?.data?.stack ||
-        null;
-
-      if (!Array.isArray(stack) || stack.length < 1) return null;
-
-      const first = stack[0];
-      if (!Array.isArray(first) || first.length < 2) return null;
-
-      const type = first[0];
-      const val = first[1];
-
-      if (type !== "num") return null;
-      return parseTonStackNum(val);
-    }
-
-    async function updateSupply(){
-  try{
-    const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
-    const d = await r.json();
-
-    if (!d?.ok) {
-      document.getElementById("supply").textContent = "—";
-      document.getElementById("supplySub").textContent = "Supply API error: " + (d?.error || "unknown");
-      return;
-    }
-
-    document.getElementById("supply").textContent = d.total_supply + " tgBTC";
-    document.getElementById("supplySub").textContent = "Источник: /api/tgbtc-supply (Vercel server → TON Center)";
-  }catch(e){
-    document.getElementById("supply").textContent = "—";
-    document.getElementById("supplySub").textContent = "Ошибка загрузки supply.";
-  }
-}
-
 
     // =======================
     // Prices (BTC, TON)
@@ -296,12 +289,30 @@
 
         $("btc").textContent = fmtUsd(btc);
         $("ton").textContent = fmtUsd(ton);
-
-        // tgBTC placeholders intentionally left as "—"
-        // $("tgbtc").textContent = "—";
-        // $("tgbtcTon").textContent = "—";
       }catch(e){
         console.warn("Prices error:", e);
+      }
+    }
+
+    // =======================
+    // Supply (через твой /api/tgbtc-supply)
+    // =======================
+    async function updateSupply(){
+      try{
+        const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
+        const d = await r.json();
+
+        if (!d?.ok) {
+          $("supply").textContent = "—";
+          $("supplySub").textContent = "Supply API error: " + (d?.error || "unknown");
+          return;
+        }
+
+        $("supply").textContent = d.total_supply + " tgBTC";
+        $("supplySub").textContent = "Источник: /api/tgbtc-supply (Vercel server → TON Center)";
+      }catch(e){
+        $("supply").textContent = "—";
+        $("supplySub").textContent = "Ошибка загрузки supply.";
       }
     }
 
@@ -312,7 +323,6 @@
       const userLine = $("userLine");
 
       if (!tg){
-        // Убрали "(вне Telegram)" — теперь просто гость
         userLine.textContent = "Пользователь: Гость";
         return;
       }
@@ -337,18 +347,20 @@
     // =======================
     // Timers (light)
     // =======================
-    let tPrices=null, tSupply=null;
+    let tPrices=null, tSupply=null, tWin=null;
 
     function start(){
+      updateAddressWindow();
       updatePrices();
       updateSupply();
 
+      tWin = setInterval(updateAddressWindow, 1000);
       tPrices = setInterval(updatePrices, 30000);
       tSupply = setInterval(updateSupply, 60000);
     }
     function stop(){
-      clearInterval(tPrices); clearInterval(tSupply);
-      tPrices = tSupply = null;
+      clearInterval(tWin); clearInterval(tPrices); clearInterval(tSupply);
+      tWin = tPrices = tSupply = null;
     }
 
     document.addEventListener("visibilitychange", () => {
@@ -362,4 +374,3 @@
   </script>
 </body>
 </html>
-
