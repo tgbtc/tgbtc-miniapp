@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC Fi — Board</title>
+  <title>tgBTC Fi — Status</title>
 
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -120,7 +120,7 @@
 <body>
   <div class="wrap">
     <div class="top">
-      <div class="brand">tgBTC Fi • Board</div>
+      <div class="brand">tgBTC Fi • Status</div>
 
       <!-- ✅ Вернули индикатор окон BTC→tgBTC -->
       <div class="pills">
@@ -172,7 +172,7 @@
           <button id="btnSandbox">Teleport (sandbox)</button>
         </div>
         <div class="rowBtns">
-          <button id="btnDashboard">Sandbox Dashboard</button>
+          <button id="btnDashStatus">Sandbox DashStatus</button>
           <button id="btnDocs">tgBTC Docs</button>
         </div>
         <div class="sub">Если ссылка откроется во внешнем браузере — это нормально.</div>
@@ -192,7 +192,7 @@
     // =======================
     const LINKS = {
       docs: "https://tgbtc.gitbook.io/docs",
-      dashboard: "https://sandbox.teleport.tg/app/dashboard",
+      dashStatus: "https://sandbox.teleport.tg/app/dashStatus",
       teleportMain: "https://teleport.tg/",
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
@@ -341,7 +341,7 @@
     // =======================
     $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
     $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
-    $("btnDashboard").onclick = () => openLink(LINKS.dashboard);
+    $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
     // =======================
@@ -374,3 +374,4 @@
   </script>
 </body>
 </html>
+
