@@ -261,25 +261,24 @@
     }
 
     async function updateSupply(){
-      try{
-        const res = await runGetMethod(JETTON_MASTER, "get_jetton_data");
-        const totalSupplyRaw = extractTotalSupplyFromStack(res);
+  try{
+    const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
+    const d = await r.json();
 
-        if (totalSupplyRaw === null){
-          $("supply").textContent = "—";
-          $("supplySub").textContent = "Не удалось прочитать total_supply (stack).";
-          return;
-        }
-
-        const human = formatJettonFromRaw(totalSupplyRaw, TGBTC_DECIMALS);
-        $("supply").textContent = human + " tgBTC";
-        $("supplySub").textContent = "Источник: TON Center runGetMethod(get_jetton_data)";
-      }catch(e){
-        console.warn("Supply error:", e);
-        $("supply").textContent = "—";
-        $("supplySub").textContent = "Ошибка TON Center / ключ / лимит / CORS.";
-      }
+    if (!d?.ok) {
+      document.getElementById("supply").textContent = "—";
+      document.getElementById("supplySub").textContent = "Supply API error: " + (d?.error || "unknown");
+      return;
     }
+
+    document.getElementById("supply").textContent = d.total_supply + " tgBTC";
+    document.getElementById("supplySub").textContent = "Источник: /api/tgbtc-supply (Vercel server → TON Center)";
+  }catch(e){
+    document.getElementById("supply").textContent = "—";
+    document.getElementById("supplySub").textContent = "Ошибка загрузки supply.";
+  }
+}
+
 
     // =======================
     // Prices (BTC, TON)
@@ -363,3 +362,4 @@
   </script>
 </body>
 </html>
+
