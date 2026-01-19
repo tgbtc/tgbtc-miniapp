@@ -217,6 +217,67 @@
       color:var(--muted);
       font-size:12px;
     }
+
+    /* arbitrage */
+.arb{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px dashed var(--line);
+}
+.arbTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.arbTitle{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:900;
+}
+.arbPill{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  font-size:11px;
+  font-weight:950;
+  background:rgba(255,255,255,.02);
+  color:var(--muted);
+}
+.arbPill.good{ color:var(--good); border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.08); }
+.arbPill.warn{ color:var(--warn); border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.08); }
+.arbPill.bad { color:var(--bad);  border-color:rgba(239,68,68,.35);  background:rgba(239,68,68,.08); }
+
+.arbRows{ margin-top:8px; display:grid; gap:6px; }
+.arbRow{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+}
+.arbRow .left{ color:var(--muted); font-size:11px; }
+.arbRow .right{ color:var(--text); font-size:11px; font-weight:950; }
+
+.arbBar{
+  margin-top:10px;
+  height:10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+  overflow:hidden;
+}
+.arbBarFill{
+  height:100%;
+  width:0%;
+  border-radius:999px;
+  background:rgba(148,163,184,.35); /* default muted */
+  transition:width .25s ease;
+}
+.arbBarFill.good{ background:rgba(34,197,94,.55); }
+.arbBarFill.warn{ background:rgba(245,158,11,.55); }
+.arbBarFill.bad { background:rgba(239,68,68,.55); }
+
+    
   </style>
 </head>
 
@@ -287,6 +348,30 @@
           <div class="left mono">Binance</div>
           <div class="right mono muted" id="tonBin">—</div>
         </div>
+        <!-- Arbitrage indicator -->
+<div class="arb">
+  <div class="arbTop">
+    <div class="arbTitle">Arbitrage</div>
+    <div class="arbPill" id="arbPill">—</div>
+  </div>
+
+  <div class="arbRows">
+    <div class="arbRow">
+      <div class="left mono">Δ (Binance − STON)</div>
+      <div class="right mono" id="arbDiffAbs">—</div>
+    </div>
+    <div class="arbRow">
+      <div class="left mono">Δ % (от STON)</div>
+      <div class="right mono" id="arbDiffPct">—</div>
+    </div>
+  </div>
+
+  <div class="arbBar" aria-label="Spread bar">
+    <div class="arbBarFill" id="arbBarFill"></div>
+  </div>
+
+  <div class="sub mono" id="arbHint">Если спред большой — может быть арбитраж (с учётом комиссий/времени).</div>
+</div>
 
         <div class="sub" id="tonSub">Источник: Binance + STON.fi</div>
       </div>
@@ -520,3 +605,4 @@
   </script>
 </body>
 </html>
+
