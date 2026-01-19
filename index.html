@@ -270,10 +270,16 @@
       </div>
 
       <div class="card">
-        <div class="label">3) Курс TON в USDT</div>
-        <div class="value mono" id="ton">—</div>
-        <div class="sub">Источник: Binance public API</div>
-      </div>
+  <div class="label">3) Курс TON в USDT</div>
+
+  <div class="value mono" id="tonOnchain">—</div>
+
+  <div class="sub">
+    <span class="mono">STON.fi (onchain):</span> <span class="mono" id="tonOnchainSmall">—</span><br>
+    <span class="mono">Binance:</span> <span class="mono" id="tonBinance">—</span>
+  </div>
+</div>
+
 
       <div class="card">
         <div class="label">4) Курс tgBTC в USDT</div>
@@ -385,15 +391,27 @@
     }
 
     async function updatePrices(){
-      try{
-        const btc = await fetchPrice("BTCUSDT");
-        const ton = await fetchPrice("TONUSDT");
-        $("btc").textContent = fmtUsd(btc);
-        $("ton").textContent = fmtUsd(ton);
-      }catch(e){
-        console.warn("Prices error:", e);
-      }
-    }
+  try{
+    const btc = await fetchPrice("BTCUSDT");
+    $("btc").textContent = fmtUsd(btc);
+
+    // TON: получаем сразу 2 источника с сервера
+    const r = await fetch("/api/ton-usdt", { cache: "no-store" });
+    const d = await r.json();
+
+    const tonSton = Number(d?.ton_usdt_stonfi);
+    const tonBin  = Number(d?.ton_usdt_binance);
+
+    // крупно показываем onchain, мелко — оба
+    $("tonOnchain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
+    $("tonOnchainSmall").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
+    $("tonBinance").textContent = Number.isFinite(tonBin) ? fmtUsd(tonBin) : "—";
+
+  }catch(e){
+    console.warn("Prices error:", e);
+  }
+}
+
 
     async function updateSupply(){
       try{
@@ -499,4 +517,5 @@
   </script>
 </body>
 </html>
+
 
