@@ -39,7 +39,7 @@
     }
     .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
 
-    /* ✅ индикатор статуса (вернули) */
+    /* индикатор статуса */
     .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .pill{
       display:flex;align-items:center;gap:8px;
@@ -47,9 +47,60 @@
       border-radius:999px;color:var(--muted);
       font-size:12px;white-space:nowrap;
       background:rgba(255,255,255,.02);
+      position:relative;
     }
     .dot{font-size:12px;line-height:1}
     .mono{font-variant-numeric:tabular-nums}
+
+    /* ✅ кнопка ? */
+    .helpBtn{
+      width:18px;height:18px;
+      display:inline-flex;align-items:center;justify-content:center;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-weight:900;
+      font-size:12px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .helpBtn:active{transform:scale(.98)}
+    .helpBtn:focus{outline:none; box-shadow:0 0 0 2px rgba(46,166,255,.25)}
+
+    /* ✅ всплывашка */
+    .popover{
+      position:absolute;
+      right:0;
+      top:calc(100% + 10px);
+      width:min(340px, 90vw);
+      background:rgba(15,23,42,.98);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 10px;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);
+      display:none;
+      z-index:50;
+    }
+    .popover.show{display:block}
+    .popTitle{
+      font-weight:950;
+      font-size:12px;
+      margin-bottom:6px;
+      color:var(--text);
+      letter-spacing:.2px;
+    }
+    .popText{
+      font-size:11px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .popList{margin:8px 0 0; padding:0; list-style:none}
+    .popList li{margin:6px 0}
+    .k{font-weight:900}
+    .g{color:var(--good)}
+    .y{color:var(--warn)}
+    .r{color:var(--bad)}
 
     .grid{
       display:grid;
@@ -122,12 +173,29 @@
     <div class="top">
       <div class="brand">tgBTC Fi • Status</div>
 
-      <!-- ✅ Вернули индикатор окон BTC→tgBTC -->
+      <!-- Индикатор + кнопка помощи -->
       <div class="pills">
-        <div class="pill" title="Окна видимости BTC-адреса в 4-часовом цикле: первые 10 минут и последние 30 минут адрес скрыт.">
+        <div class="pill" id="statusPill">
           <span class="dot" id="stDot">●</span>
           <span id="stText">—</span>
           <span class="mono" id="stTime">--:--:--</span>
+
+          <span class="helpBtn" id="helpBtn" title="Что означает индикатор?">?</span>
+
+          <div class="popover" id="helpPop" role="dialog" aria-label="Пояснение индикатора">
+            <div class="popTitle">Окно BTC → tgBTC (4 часа)</div>
+            <div class="popText">
+              Адрес BTC для депозита живёт <span class="k">4 часа</span>. В начале и конце цикла адрес скрывается.
+            </div>
+            <ul class="popList">
+              <li><span class="k g">🟢 Safe</span> — адрес BTC <span class="k">виден</span> и актуален. Таймер показывает, сколько осталось до скрытия.</li>
+              <li><span class="k y">🟡 Updating</span> — <span class="k">первые 10 минут</span> цикла адрес скрыт (обновление).</li>
+              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт. Таймер: <span class="k">The address will be updated in …</span></li>
+            </ul>
+            <div class="popText" style="margin-top:8px;">
+              Важно: это индикатор по таймеру. Перед действием всё равно сверяй Teleport.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -197,17 +265,14 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    // Supply decimals
     const TGBTC_DECIMALS = 8;
 
-    // ✅ Окна видимости BTC-адреса для mint tgBTC
+    // Окна видимости BTC-адреса для mint tgBTC
     const CYCLE = 4 * 60 * 60;   // 4 часа
     const HIDE_FIRST = 10 * 60;  // первые 10 минут адрес скрыт
     const HIDE_LAST  = 30 * 60;  // последние 30 минут адрес скрыт
 
-    // =======================
     // Helpers
-    // =======================
     const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
 
@@ -229,7 +294,7 @@
       return `${h}:${m}:${s}`;
     }
 
-    // ✅ Формат как у тебя: "57m : 30s"
+    // Формат: "57m : 30s"
     function formatMinSec(sec){
       sec = Math.max(0, sec|0);
       const m = (sec/60)|0;
@@ -237,9 +302,7 @@
       return `${m}m : ${String(s).padStart(2,'0')}s`;
     }
 
-    // =======================
-    // ✅ Индикатор окон BTC→tgBTC (🟢/🟡/🔴)
-    // =======================
+    // Индикатор окон BTC→tgBTC (🟢/🟡/🔴)
     function updateAddressWindow(){
       const now = (Date.now()/1000)|0;
       const pos = now % CYCLE;
@@ -252,30 +315,24 @@
       const visibleEnd   = CYCLE - HIDE_LAST;
 
       if (pos < visibleStart) {
-        // 🟡 первые 10 минут (адрес скрыт)
         const left = visibleStart - pos;
         stDot.style.color = "var(--warn)";
         stText.textContent = "🟡 Updating";
-        stTime.textContent = formatTime(left); // можешь заменить на formatMinSec(left) если хочешь
+        stTime.textContent = formatTime(left);
       } else if (pos <= visibleEnd) {
-        // 🟢 середина (адрес виден и актуален)
         const left = visibleEnd - pos;
         stDot.style.color = "var(--good)";
         stText.textContent = "🟢 Safe";
         stTime.textContent = formatTime(left);
       } else {
-        // 🔴 последние 30 минут (адрес скрыт)
         const left = CYCLE - pos;
         stDot.style.color = "var(--bad)";
         stText.textContent = "🔴 Hidden";
-        // как у тебя: "The address will be updated in 57m : 30s"
         stTime.textContent = formatMinSec(left);
       }
     }
 
-    // =======================
     // Prices (BTC, TON)
-    // =======================
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -294,9 +351,7 @@
       }
     }
 
-    // =======================
-    // Supply (через твой /api/tgbtc-supply)
-    // =======================
+    // Supply (через /api/tgbtc-supply)
     async function updateSupply(){
       try{
         const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
@@ -316,9 +371,7 @@
       }
     }
 
-    // =======================
     // Telegram init
-    // =======================
     function initTelegram(){
       const userLine = $("userLine");
 
@@ -336,17 +389,51 @@
       userLine.textContent = uname ? `Пользователь: ${first} ${uname}` : `Пользователь: ${first}`;
     }
 
-    // =======================
     // Buttons
-    // =======================
     $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
     $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
     $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
-    // =======================
-    // Timers (light)
-    // =======================
+    // ✅ Popover logic
+    (function initHelpPopover(){
+      const btn = $("helpBtn");
+      const pop = $("helpPop");
+      const pill = $("statusPill");
+
+      function close(){
+        pop.classList.remove("show");
+        btn.setAttribute("aria-expanded", "false");
+      }
+      function toggle(){
+        const isOpen = pop.classList.contains("show");
+        if (isOpen) close();
+        else {
+          pop.classList.add("show");
+          btn.setAttribute("aria-expanded", "true");
+        }
+      }
+
+      btn.setAttribute("aria-expanded", "false");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+
+      // клик вне — закрыть
+      document.addEventListener("click", (e) => {
+        if (!pop.classList.contains("show")) return;
+        if (pill.contains(e.target)) return;
+        close();
+      });
+
+      // Esc — закрыть
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") close();
+      });
+    })();
+
+    // Timers
     let tPrices=null, tSupply=null, tWin=null;
 
     function start(){
@@ -374,4 +461,3 @@
   </script>
 </body>
 </html>
-
