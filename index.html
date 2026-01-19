@@ -18,9 +18,6 @@
       --good:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
-
-      --btn:#2ea6ff;
-      --btnText:#ffffff;
     }
     *{box-sizing:border-box}
     body{
@@ -45,7 +42,7 @@
       display:flex;align-items:center;gap:8px;
       padding:8px 10px;border:1px solid var(--line);
       border-radius:999px;color:var(--muted);
-      font-size:12px;white-space:nowrap;
+      font-size:12px;
       background:rgba(255,255,255,.02);
       position:relative;
     }
@@ -64,36 +61,71 @@
       font-size:12px;
       cursor:pointer;
       user-select:none;
+      flex:0 0 auto;
     }
     .helpBtn:active{transform:scale(.98)}
     .helpBtn:focus{outline:none; box-shadow:0 0 0 2px rgba(46,166,255,.25)}
 
-    /* ✅ всплывашка */
+    /* ✅ Подложка для мобилки (чтобы читалось и ничего не обрезалось) */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      backdrop-filter: blur(2px);
+      display:none;
+      z-index:80;
+    }
+    .overlay.show{display:block}
+
+    /* ✅ всплывашка (десктоп по умолчанию) */
     .popover{
       position:absolute;
       right:0;
       top:calc(100% + 10px);
-      width:min(340px, 90vw);
+      width:min(360px, 92vw);
       background:rgba(15,23,42,.98);
       border:1px solid var(--line);
       border-radius:14px;
       padding:10px 10px;
       box-shadow:0 10px 30px rgba(0,0,0,.45);
       display:none;
-      z-index:50;
+      z-index:90;
+      white-space:normal;
     }
     .popover.show{display:block}
+
+    .popHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:6px;
+    }
     .popTitle{
       font-weight:950;
       font-size:12px;
-      margin-bottom:6px;
       color:var(--text);
       letter-spacing:.2px;
+      margin:0;
     }
+    .popClose{
+      width:22px;height:22px;
+      display:inline-flex;align-items:center;justify-content:center;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-weight:900;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .popClose:active{transform:scale(.98)}
+
     .popText{
       font-size:11px;
       color:var(--muted);
       line-height:1.35;
+      word-break:break-word;
     }
     .popList{margin:8px 0 0; padding:0; list-style:none}
     .popList li{margin:6px 0}
@@ -101,6 +133,20 @@
     .g{color:var(--good)}
     .y{color:var(--warn)}
     .r{color:var(--bad)}
+
+    /* ✅ На телефоне — делаем подсказку модалкой с прокруткой */
+    @media(max-width:640px){
+      .popover{
+        position:fixed;
+        left:12px;
+        right:12px;
+        top:74px;
+        width:auto;
+        max-height:calc(100vh - 110px);
+        overflow:auto;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
 
     .grid{
       display:grid;
@@ -169,13 +215,15 @@
 </head>
 
 <body>
+  <!-- ✅ overlay для мобилки -->
+  <div class="overlay" id="helpOverlay"></div>
+
   <div class="wrap">
     <div class="top">
       <div class="brand">tgBTC Fi • Status</div>
 
-      <!-- Индикатор + кнопка помощи -->
       <div class="pills">
-        <div class="pill" id="statusPill">
+        <div class="pill" id="statusPill" title="Окна BTC-адреса: первые 10 минут и последние 30 минут адрес скрыт.">
           <span class="dot" id="stDot">●</span>
           <span id="stText">—</span>
           <span class="mono" id="stTime">--:--:--</span>
@@ -183,15 +231,22 @@
           <span class="helpBtn" id="helpBtn" title="Что означает индикатор?">?</span>
 
           <div class="popover" id="helpPop" role="dialog" aria-label="Пояснение индикатора">
-            <div class="popTitle">Окно BTC → tgBTC (4 часа)</div>
-            <div class="popText">
-              Адрес BTC для депозита живёт <span class="k">4 часа</span>. В начале и конце цикла адрес скрывается.
+            <div class="popHeader">
+              <h3 class="popTitle">Окно BTC → tgBTC (4 часа)</h3>
+              <div class="popClose" id="helpClose" title="Закрыть">×</div>
             </div>
+
+            <div class="popText">
+              Адрес BTC для депозита живёт <span class="k">4 часа</span>.
+              В начале и конце цикла адрес скрывается (в Teleport он может не отображаться).
+            </div>
+
             <ul class="popList">
               <li><span class="k g">🟢 Safe</span> — адрес BTC <span class="k">виден</span> и актуален. Таймер показывает, сколько осталось до скрытия.</li>
               <li><span class="k y">🟡 Updating</span> — <span class="k">первые 10 минут</span> цикла адрес скрыт (обновление).</li>
               <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт. Таймер: <span class="k">The address will be updated in …</span></li>
             </ul>
+
             <div class="popText" style="margin-top:8px;">
               Важно: это индикатор по таймеру. Перед действием всё равно сверяй Teleport.
             </div>
@@ -200,7 +255,6 @@
       </div>
     </div>
 
-    <!-- METRICS -->
     <div class="grid">
 
       <div class="card">
@@ -255,9 +309,6 @@
   </div>
 
   <script>
-    // =======================
-    // CONFIG
-    // =======================
     const LINKS = {
       docs: "https://tgbtc.gitbook.io/docs",
       dashStatus: "https://sandbox.teleport.tg/app/dashStatus",
@@ -265,14 +316,11 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    const TGBTC_DECIMALS = 8;
-
-    // Окна видимости BTC-адреса для mint tgBTC
+    // Окна видимости BTC-адреса
     const CYCLE = 4 * 60 * 60;   // 4 часа
     const HIDE_FIRST = 10 * 60;  // первые 10 минут адрес скрыт
     const HIDE_LAST  = 30 * 60;  // последние 30 минут адрес скрыт
 
-    // Helpers
     const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
 
@@ -294,7 +342,6 @@
       return `${h}:${m}:${s}`;
     }
 
-    // Формат: "57m : 30s"
     function formatMinSec(sec){
       sec = Math.max(0, sec|0);
       const m = (sec/60)|0;
@@ -302,7 +349,6 @@
       return `${m}m : ${String(s).padStart(2,'0')}s`;
     }
 
-    // Индикатор окон BTC→tgBTC (🟢/🟡/🔴)
     function updateAddressWindow(){
       const now = (Date.now()/1000)|0;
       const pos = now % CYCLE;
@@ -332,7 +378,6 @@
       }
     }
 
-    // Prices (BTC, TON)
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -343,7 +388,6 @@
       try{
         const btc = await fetchPrice("BTCUSDT");
         const ton = await fetchPrice("TONUSDT");
-
         $("btc").textContent = fmtUsd(btc);
         $("ton").textContent = fmtUsd(ton);
       }catch(e){
@@ -351,7 +395,6 @@
       }
     }
 
-    // Supply (через /api/tgbtc-supply)
     async function updateSupply(){
       try{
         const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
@@ -371,69 +414,65 @@
       }
     }
 
-    // Telegram init
     function initTelegram(){
       const userLine = $("userLine");
-
       if (!tg){
         userLine.textContent = "Пользователь: Гость";
         return;
       }
-
       tg.ready();
       try{ tg.expand(); }catch(e){}
-
       const u = tg.initDataUnsafe?.user;
       const uname = u?.username ? "@" + u.username : "";
       const first = u?.first_name || "Гость";
       userLine.textContent = uname ? `Пользователь: ${first} ${uname}` : `Пользователь: ${first}`;
     }
 
-    // Buttons
     $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
     $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
     $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
-    // ✅ Popover logic
+    // ✅ Popover logic (аккуратно, чтобы не обрезалось)
     (function initHelpPopover(){
       const btn = $("helpBtn");
       const pop = $("helpPop");
-      const pill = $("statusPill");
+      const closeBtn = $("helpClose");
+      const overlay = $("helpOverlay");
 
+      function open(){
+        pop.classList.add("show");
+        overlay.classList.add("show");
+        btn.setAttribute("aria-expanded", "true");
+      }
       function close(){
         pop.classList.remove("show");
+        overlay.classList.remove("show");
         btn.setAttribute("aria-expanded", "false");
       }
       function toggle(){
-        const isOpen = pop.classList.contains("show");
-        if (isOpen) close();
-        else {
-          pop.classList.add("show");
-          btn.setAttribute("aria-expanded", "true");
-        }
+        pop.classList.contains("show") ? close() : open();
       }
 
       btn.setAttribute("aria-expanded", "false");
+
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         toggle();
       });
 
-      // клик вне — закрыть
-      document.addEventListener("click", (e) => {
-        if (!pop.classList.contains("show")) return;
-        if (pill.contains(e.target)) return;
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         close();
       });
 
-      // Esc — закрыть
+      overlay.addEventListener("click", () => close());
+
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") close();
       });
     })();
 
-    // Timers
     let tPrices=null, tSupply=null, tWin=null;
 
     function start(){
@@ -455,7 +494,6 @@
       else start();
     });
 
-    // Boot
     initTelegram();
     start();
   </script>
