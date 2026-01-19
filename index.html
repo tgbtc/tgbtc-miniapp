@@ -49,7 +49,7 @@
     .dot{font-size:12px;line-height:1}
     .mono{font-variant-numeric:tabular-nums}
 
-    /* ✅ кнопка ? */
+    /* кнопка ? */
     .helpBtn{
       width:18px;height:18px;
       display:inline-flex;align-items:center;justify-content:center;
@@ -66,7 +66,7 @@
     .helpBtn:active{transform:scale(.98)}
     .helpBtn:focus{outline:none; box-shadow:0 0 0 2px rgba(46,166,255,.25)}
 
-    /* ✅ Подложка для мобилки (чтобы читалось и ничего не обрезалось) */
+    /* overlay (мобилка) */
     .overlay{
       position:fixed;
       inset:0;
@@ -77,7 +77,7 @@
     }
     .overlay.show{display:block}
 
-    /* ✅ всплывашка (десктоп по умолчанию) */
+    /* popover */
     .popover{
       position:absolute;
       right:0;
@@ -134,7 +134,7 @@
     .y{color:var(--warn)}
     .r{color:var(--bad)}
 
-    /* ✅ На телефоне — делаем подсказку модалкой с прокруткой */
+    /* мобилка: popover как модалка с прокруткой */
     @media(max-width:640px){
       .popover{
         position:fixed;
@@ -179,6 +179,17 @@
       line-height:1.35;
     }
 
+    .rowLine{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:6px;
+    }
+    .rowLine .left{color:var(--muted);font-size:11px}
+    .rowLine .right{color:var(--text);font-size:11px;font-weight:900}
+    .rowLine .right.muted{color:var(--muted);font-weight:700}
+
     .rowBtns{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -215,7 +226,6 @@
 </head>
 
 <body>
-  <!-- ✅ overlay для мобилки -->
   <div class="overlay" id="helpOverlay"></div>
 
   <div class="wrap">
@@ -244,7 +254,7 @@
             <ul class="popList">
               <li><span class="k g">🟢 Safe</span> — адрес BTC <span class="k">виден</span> и актуален. Таймер показывает, сколько осталось до скрытия.</li>
               <li><span class="k y">🟡 Updating</span> — <span class="k">первые 10 минут</span> цикла адрес скрыт (обновление).</li>
-              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт.</li>
+              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт. Таймер: <span class="k">The address will be updated in …</span></li>
             </ul>
 
             <div class="popText" style="margin-top:8px;">
@@ -269,17 +279,22 @@
         <div class="sub">Источник: Binance public API</div>
       </div>
 
+      <!-- ✅ TON/USDT: ONCHAIN + BINANCE -->
       <div class="card">
-  <div class="label">3) Курс TON в USDT</div>
+        <div class="label">3) Курс TON в USDT</div>
+        <div class="value mono" id="tonMain">—</div>
 
-  <div class="value mono" id="tonOnchain">—</div>
+        <div class="rowLine">
+          <div class="left mono">STON.fi (onchain)</div>
+          <div class="right mono" id="tonSton">—</div>
+        </div>
+        <div class="rowLine">
+          <div class="left mono">Binance</div>
+          <div class="right mono muted" id="tonBin">—</div>
+        </div>
 
-  <div class="sub">
-    <span class="mono">STON.fi (onchain):</span> <span class="mono" id="tonOnchainSmall">—</span><br>
-    <span class="mono">Binance:</span> <span class="mono" id="tonBinance">—</span>
-  </div>
-</div>
-
+        <div class="sub" id="tonSub">Источник: /api/ton-usdt (STON.fi onchain + Binance)</div>
+      </div>
 
       <div class="card">
         <div class="label">4) Курс tgBTC в USDT</div>
@@ -384,6 +399,7 @@
       }
     }
 
+    // Binance BTCUSDT (прямо из браузера можно)
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -391,27 +407,29 @@
     }
 
     async function updatePrices(){
-  try{
-    const btc = await fetchPrice("BTCUSDT");
-    $("btc").textContent = fmtUsd(btc);
+      try{
+        const btc = await fetchPrice("BTCUSDT");
+        $("btc").textContent = fmtUsd(btc);
 
-    // TON: получаем сразу 2 источника с сервера
-    const r = await fetch("/api/ton-usdt", { cache: "no-store" });
-    const d = await r.json();
+        // ✅ TON/USDT: берём сразу 2 источника с сервера
+        const r = await fetch("/api/ton-usdt", { cache: "no-store" });
+        const d = await r.json();
 
-    const tonSton = Number(d?.ton_usdt_stonfi);
-    const tonBin  = Number(d?.ton_usdt_binance);
+        const tonSton = Number(d?.ton_usdt_stonfi);
+        const tonBin  = Number(d?.ton_usdt_binance);
 
-    // крупно показываем onchain, мелко — оба
-    $("tonOnchain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
-    $("tonOnchainSmall").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
-    $("tonBinance").textContent = Number.isFinite(tonBin) ? fmtUsd(tonBin) : "—";
+        $("tonMain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
+        $("tonSton").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
+        $("tonBin").textContent  = Number.isFinite(tonBin)  ? fmtUsd(tonBin)  : "—";
 
-  }catch(e){
-    console.warn("Prices error:", e);
-  }
-}
+        $("tonSub").textContent = d?.ok
+          ? "Источник: /api/ton-usdt (STON.fi onchain + Binance)"
+          : ("Ошибка: " + (d?.error || "ton-usdt"));
 
+      }catch(e){
+        console.warn("Prices error:", e);
+      }
+    }
 
     async function updateSupply(){
       try{
@@ -451,7 +469,7 @@
     $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
-    // ✅ Popover logic (аккуратно, чтобы не обрезалось)
+    // Popover logic
     (function initHelpPopover(){
       const btn = $("helpBtn");
       const pop = $("helpPop");
@@ -517,5 +535,3 @@
   </script>
 </body>
 </html>
-
-
