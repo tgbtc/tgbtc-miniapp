@@ -1,8 +1,8 @@
 export default async function handler(req, res) {
   try {
-    // Это pool адрес пары USD₮ / TON (его видно даже на DexScreener, и он совпадает с вашим)
-    // EQD8TJ8xEWB1SpnRE4d89YO3jl0W0EiBnNS4IBaHaUmdfizE
-    const POOL = "EQD8TJ8xEWB1SpnRE4d89YO3jl0W0EiBnNS4IBaHaUmdfizE";
+    // Пара USD₮/TON на STON.fi (адрес пары как на DexScreener)
+    // https://dexscreener.com/ton/eqd8tj8xewb1spnre4d89yo3jl0w0eibnns4ibahaumdfize
+    const PAIR = "eqd8tj8xewb1spnre4d89yo3jl0w0eibnns4ibahaumdfize";
 
     async function getJSON(url) {
       const r = await fetch(url, { headers: { accept: "application/json" } });
@@ -16,9 +16,8 @@ export default async function handler(req, res) {
     const bin = await getJSON("https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT");
     const ton_binance = Number(bin?.data?.price);
 
-    // 2) STON.fi onchain через export dexscreener pair endpoint
-    // Документировано у STON.fi: /export/dexscreener/v1/pair/{address} :contentReference[oaicite:1]{index=1}
-    const st = await getJSON(`https://api.ston.fi/export/dexscreener/v1/pair/${POOL}`);
+    // 2) STON.fi export (DexScreener-like)
+    const st = await getJSON(`https://api.ston.fi/export/dexscreener/v1/pair/${PAIR}`);
 
     if (!st.ok || !st.data) {
       return res.status(502).json({
@@ -28,54 +27,35 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- Универсальный поиск TON priceUsd в любом формате ответа ---
-    function findTonPriceUsd(node) {
-      if (!node) return null;
+    // Обычно ответ либо { pair: {...} }, либо сразу объект пары
+    const pair = st.data?.pair ?? st.data;
 
-      // Если массив — ищем внутри
-      if (Array.isArray(node)) {
-        for (const x of node) {
-          const v = findTonPriceUsd(x);
-          if (Number.isFinite(v)) return v;
-        }
-        return null;
-      }
+    const baseSym = (pair?.baseToken?.symbol || "").toString().toUpperCase();
+    const quoteSym = (pair?.quoteToken?.symbol || "").toString().toUpperCase();
 
-      // Если объект — проверяем, не токен ли это
-      if (typeof node === "object") {
-        const sym = (node.symbol || node.baseToken?.symbol || node.quoteToken?.symbol || "").toString().toUpperCase();
+    const priceUsd = Number(pair?.priceUsd);       // цена baseToken в USD
+    const priceNative = Number(pair?.priceNative); // цена baseToken в quoteToken
 
-        // Часто TON лежит как token {symbol:"TON", priceUsd:"..."} или baseToken/quoteToken
-        const priceUsd =
-          node.priceUsd ?? node.price_usd ??
-          node.baseToken?.priceUsd ?? node.baseToken?.price_usd ??
-          node.quoteToken?.priceUsd ?? node.quoteToken?.price_usd;
+    let ton_stonfi = null;
 
-        if (sym === "TON" && priceUsd != null) {
-          const n = Number(priceUsd);
-          if (Number.isFinite(n)) return n;
-        }
-
-        // Если это pair, иногда цена "priceUsd" относится к базовому токену пары.
-        // Тогда просто рекурсивно обходим всё дерево.
-        for (const k of Object.keys(node)) {
-          const v = findTonPriceUsd(node[k]);
-          if (Number.isFinite(v)) return v;
-        }
-      }
-
-      return null;
+    // Сценарий A: TON — baseToken => priceUsd уже TON/USD
+    if (baseSym === "TON") {
+      if (Number.isFinite(priceUsd)) ton_stonfi = priceUsd;
     }
 
-    let ton_stonfi = findTonPriceUsd(st.data);
+    // Сценарий B: TON — quoteToken, baseToken — USDt => TON/USD = 1 / (USDt in TON)
+    // priceNative = baseToken в quoteToken => 1 USDt = X TON => 1 TON = 1/X USDt ~ 1/X USD
+    if (!Number.isFinite(ton_stonfi) && quoteSym === "TON") {
+      if (Number.isFinite(priceNative) && priceNative > 0) {
+        ton_stonfi = 1 / priceNative;
+      }
+    }
 
-    // Фолбэк: иногда в dexscreener-подобных структурах есть "priceNative" или "priceUsd" на уровне pair
-    if (!Number.isFinite(ton_stonfi)) {
-      const p = st.data?.pair ?? st.data;
-      // Иногда pair.priceUsd — это цена baseToken в USD
-      if ((p?.baseToken?.symbol || "").toUpperCase() === "TON") {
-        const n = Number(p?.priceUsd);
-        if (Number.isFinite(n)) ton_stonfi = n;
+    // Фолбэк (если порядок токенов вдруг другой)
+    // Если baseToken — USD/USDT и priceNative = USD in TON, всё равно работает (инверсия)
+    if (!Number.isFinite(ton_stonfi) && Number.isFinite(priceNative) && priceNative > 0) {
+      if (baseSym.includes("USD") || baseSym.includes("USDT") || baseSym.includes("USD₮")) {
+        ton_stonfi = 1 / priceNative;
       }
     }
 
@@ -83,18 +63,17 @@ export default async function handler(req, res) {
       return res.status(502).json({
         ok: false,
         error: "Cannot parse TON price from STON.fi export response",
-        hint: "Open /api/ton-usdt and send me the JSON if it still fails"
+        debug: { baseSym, quoteSym, priceUsd: pair?.priceUsd, priceNative: pair?.priceNative }
       });
     }
 
-    // лёгкий кэш на edge
     res.setHeader("Cache-Control", "s-maxage=10, stale-while-revalidate=60");
 
     return res.json({
       ok: true,
       ton_usdt_binance: Number.isFinite(ton_binance) ? ton_binance : null,
       ton_usdt_stonfi: ton_stonfi,
-      pool: POOL
+      pair: PAIR
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
