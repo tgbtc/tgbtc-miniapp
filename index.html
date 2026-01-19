@@ -505,6 +505,48 @@
         $("tonMain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
         $("tonSton").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
         $("tonBin").textContent  = Number.isFinite(tonBin)  ? fmtUsd(tonBin)  : "—";
+        // --- Arbitrage indicator: Binance (offchain) vs STON.fi (onchain)
+(function updateArb(){
+  const pill = $("arbPill");
+  const absEl = $("arbDiffAbs");
+  const pctEl = $("arbDiffPct");
+  const bar = $("arbBarFill");
+
+  if (!Number.isFinite(tonSton) || !Number.isFinite(tonBin) || tonSton <= 0) {
+    pill.textContent = "—";
+    pill.className = "arbPill";
+    absEl.textContent = "—";
+    pctEl.textContent = "—";
+    bar.style.width = "0%";
+    bar.className = "arbBarFill";
+    return;
+  }
+
+  const diffAbs = tonBin - tonSton;                 // $ spread
+  const diffPct = (diffAbs / tonSton) * 100;        // % from onchain
+  const sign = diffAbs >= 0 ? "+" : "−";
+
+  absEl.textContent = `${sign}${Math.abs(diffAbs).toFixed(6)} $`;
+  pctEl.textContent = `${sign}${Math.abs(diffPct).toFixed(3)} %`;
+
+  // Thresholds (можешь настроить под себя)
+  const A = Math.abs(diffPct);
+  // <=0.20%: small, 0.20–0.60%: medium, >0.60%: big
+  let cls = "good";
+  let label = "Low spread";
+  if (A >= 0.60) { cls = "bad"; label = "High spread"; }
+  else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
+
+  pill.className = `arbPill ${cls}`;
+  pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
+
+  // Bar scale: 0%..2% mapped to 0..100 (cap)
+  const cap = 2.0; // 2%
+  const w = Math.min(100, (A / cap) * 100);
+  bar.style.width = `${w}%`;
+  bar.className = `arbBarFill ${cls}`;
+})();
+
 
         $("tonSub").textContent = "Источник: Binance + STON.fi";
 
@@ -605,4 +647,5 @@
   </script>
 </body>
 </html>
+
 
