@@ -12,9 +12,14 @@ export default async function handler(req, res) {
       return { ok: r.ok, status: r.status, data, raw: txt };
     }
 
-    // 1) Binance TONUSDT
-    const bin = await getJSON("https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT");
-    const ton_binance = Number(bin?.data?.price);
+    // 1) Binance TONUSDT (server-side, без CORS)
+let ton_binance = null;
+try {
+  const b = await getJSON("https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT");
+  const n = Number(b?.data?.price);
+  if (Number.isFinite(n)) ton_binance = n;
+} catch {}
+
 
     // 2) DexScreener pair
     // Документировано: /latest/dex/pairs/{chainId}/{pairId} :contentReference[oaicite:2]{index=2}
