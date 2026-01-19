@@ -261,6 +261,7 @@
     </div>
 
     <div class="grid">
+
       <div class="card">
         <div class="label">1) Количество tgBTC сейчас в TON (supply)</div>
         <div class="value mono" id="supply">—</div>
@@ -273,6 +274,7 @@
         <div class="sub">Источник: Binance public API</div>
       </div>
 
+      <!-- TON/USDT: BINANCE + STONFI -->
       <div class="card">
         <div class="label">3) Курс TON в USDT</div>
         <div class="value mono" id="tonMain">—</div>
@@ -286,7 +288,7 @@
           <div class="right mono muted" id="tonBin">—</div>
         </div>
 
-        <div class="sub" id="tonSub">Источник: /api/ton-usdt</div>
+        <div class="sub" id="tonSub">Источник: Binance + STON.fi</div>
       </div>
 
       <div class="card">
@@ -313,6 +315,7 @@
         </div>
         <div class="sub">Если ссылка откроется во внешнем браузере — это нормально.</div>
       </div>
+
     </div>
 
     <div class="footer">
@@ -344,7 +347,7 @@
 
     function fmtUsd(x){
       if (!Number.isFinite(x)) return "—";
-      return x.toLocaleString(undefined, { maximumFractionDigits: 4 }) + " $";
+      return x.toLocaleString(undefined, { maximumFractionDigits: 6 }) + " $";
     }
 
     function formatTime(sec){
@@ -390,33 +393,38 @@
       }
     }
 
-    async function fetchPrice(symbol){
-      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
+    async function fetchBinance(symbol){
+      const r = await fetch(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+        { cache: "no-store" }
+      );
       const d = await r.json();
       return Number(d.price);
     }
 
     async function updatePrices(){
       try{
-        const btc = await fetchPrice("BTCUSDT");
+        // BTC/USDT (Binance)
+        const btc = await fetchBinance("BTCUSDT");
         $("btc").textContent = fmtUsd(btc);
 
-        const r = await fetch("/api/ton-usdt", { cache: "no-store" });
-        const d = await r.json();
+        // TON/USDT (Binance) — как раньше
+        const tonBin = await fetchBinance("TONUSDT");
 
-        const tonSton = Number(d?.ton_usdt_stonfi);
-        const tonBin  = Number(d?.ton_usdt_binance);
+        // TON/USDT (STON.fi onchain) — через наш API
+        const rr = await fetch("/api/ton-usdt", { cache: "no-store" });
+        const dd = await rr.json();
+        const tonSton = Number(dd?.ton_usdt_stonfi);
 
+        // Основной — onchain (STON.fi)
         $("tonMain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
         $("tonSton").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
         $("tonBin").textContent  = Number.isFinite(tonBin)  ? fmtUsd(tonBin)  : "—";
 
-        $("tonSub").textContent = d?.ok
-          ? "Источник: STON.fi (onchain) + Binance"
-          : ("Ошибка: " + (d?.error || "ton-usdt"));
+        $("tonSub").textContent = "Источник: Binance + STON.fi";
 
       }catch(e){
-        console.warn("Prices error:", e);
+        console.warn("updatePrices error:", e);
       }
     }
 
