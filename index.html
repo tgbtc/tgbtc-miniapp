@@ -10,7 +10,6 @@
   <style>
     :root{
       --bg:#0b0f17;
-      --card:#0f172a;
       --text:#e5e7eb;
       --muted:#94a3b8;
       --line:rgba(148,163,184,.18);
@@ -63,8 +62,6 @@
       user-select:none;
       flex:0 0 auto;
     }
-    .helpBtn:active{transform:scale(.98)}
-    .helpBtn:focus{outline:none; box-shadow:0 0 0 2px rgba(46,166,255,.25)}
 
     /* overlay (мобилка) */
     .overlay{
@@ -119,7 +116,6 @@
       cursor:pointer;
       flex:0 0 auto;
     }
-    .popClose:active{transform:scale(.98)}
 
     .popText{
       font-size:11px;
@@ -134,7 +130,6 @@
     .y{color:var(--warn)}
     .r{color:var(--bad)}
 
-    /* мобилка: popover как модалка с прокруткой */
     @media(max-width:640px){
       .popover{
         position:fixed;
@@ -266,11 +261,10 @@
     </div>
 
     <div class="grid">
-
       <div class="card">
         <div class="label">1) Количество tgBTC сейчас в TON (supply)</div>
         <div class="value mono" id="supply">—</div>
-        <div class="sub" id="supplySub">Источник: Jetton master get_jetton_data()</div>
+        <div class="sub" id="supplySub">Источник: /api/tgbtc-supply</div>
       </div>
 
       <div class="card">
@@ -279,7 +273,6 @@
         <div class="sub">Источник: Binance public API</div>
       </div>
 
-      <!-- ✅ TON/USDT: ONCHAIN + BINANCE -->
       <div class="card">
         <div class="label">3) Курс TON в USDT</div>
         <div class="value mono" id="tonMain">—</div>
@@ -293,7 +286,7 @@
           <div class="right mono muted" id="tonBin">—</div>
         </div>
 
-        <div class="sub" id="tonSub">Источник: /api/ton-usdt (STON.fi onchain + Binance)</div>
+        <div class="sub" id="tonSub">Источник: /api/ton-usdt</div>
       </div>
 
       <div class="card">
@@ -320,7 +313,6 @@
         </div>
         <div class="sub">Если ссылка откроется во внешнем браузере — это нормально.</div>
       </div>
-
     </div>
 
     <div class="footer">
@@ -338,9 +330,9 @@
     };
 
     // Окна видимости BTC-адреса
-    const CYCLE = 4 * 60 * 60;   // 4 часа
-    const HIDE_FIRST = 10 * 60;  // первые 10 минут адрес скрыт
-    const HIDE_LAST  = 30 * 60;  // последние 30 минут адрес скрыт
+    const CYCLE = 4 * 60 * 60;
+    const HIDE_FIRST = 10 * 60;
+    const HIDE_LAST  = 30 * 60;
 
     const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
@@ -362,7 +354,6 @@
       const s = String((sec%60)|0).padStart(2,'0');
       return `${h}:${m}:${s}`;
     }
-
     function formatMinSec(sec){
       sec = Math.max(0, sec|0);
       const m = (sec/60)|0;
@@ -399,7 +390,6 @@
       }
     }
 
-    // Binance BTCUSDT (прямо из браузера можно)
     async function fetchPrice(symbol){
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
@@ -411,7 +401,6 @@
         const btc = await fetchPrice("BTCUSDT");
         $("btc").textContent = fmtUsd(btc);
 
-        // ✅ TON/USDT: берём сразу 2 источника с сервера
         const r = await fetch("/api/ton-usdt", { cache: "no-store" });
         const d = await r.json();
 
@@ -423,7 +412,7 @@
         $("tonBin").textContent  = Number.isFinite(tonBin)  ? fmtUsd(tonBin)  : "—";
 
         $("tonSub").textContent = d?.ok
-          ? "Источник: /api/ton-usdt (STON.fi onchain + Binance)"
+          ? "Источник: STON.fi (onchain) + Binance"
           : ("Ошибка: " + (d?.error || "ton-usdt"));
 
       }catch(e){
@@ -443,7 +432,7 @@
         }
 
         $("supply").textContent = d.total_supply + " tgBTC";
-        $("supplySub").textContent = "Источник: /api/tgbtc-supply (Vercel server → TON Center)";
+        $("supplySub").textContent = "Источник: TON Center (server)";
       }catch(e){
         $("supply").textContent = "—";
         $("supplySub").textContent = "Ошибка загрузки supply.";
@@ -491,22 +480,10 @@
       }
 
       btn.setAttribute("aria-expanded", "false");
-
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        toggle();
-      });
-
-      closeBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        close();
-      });
-
+      btn.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+      closeBtn.addEventListener("click", (e) => { e.stopPropagation(); close(); });
       overlay.addEventListener("click", () => close());
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") close();
-      });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
     })();
 
     let tPrices=null, tSupply=null, tWin=null;
