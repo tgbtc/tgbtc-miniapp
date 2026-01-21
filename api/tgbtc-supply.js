@@ -1,45 +1,45 @@
 export default async function handler(req, res) {
   try {
-    const key = process.env.TONAPI_KEY;
-    const master = process.env.TGBTC_JETTON_MASTER;
+    const KEY = process.env.TONAPI_KEY;
+    const MASTER = process.env.TGBTC_JETTON_MASTER;
 
-    if (!key) return res.status(500).json({ ok: false, error: "TONAPI_KEY missing" });
-    if (!master) return res.status(500).json({ ok: false, error: "TGBTC_JETTON_MASTER missing" });
+    if (!KEY) return res.status(500).json({ ok: false, error: "TONAPI_KEY missing" });
+    if (!MASTER) return res.status(500).json({ ok: false, error: "TGBTC_JETTON_MASTER missing" });
 
-    const r = await fetch(`https://tonapi.io/v2/jettons/${encodeURIComponent(master)}`, {
-      headers: { Authorization: `Bearer ${key}`, accept: "application/json" },
-      cache: "no-store",
+    const r = await fetch(`https://tonapi.io/v2/jettons/${encodeURIComponent(MASTER)}`, {
+      headers: { Authorization: `Bearer ${KEY}`, accept: "application/json" },
     });
 
-    const data = await r.json().catch(() => null);
-    if (!r.ok || !data) {
-      return res.status(502).json({ ok: false, error: "TonAPI jetton failed", status: r.status, details: data });
+    const txt = await r.text();
+    let d = null;
+    try { d = JSON.parse(txt); } catch {}
+
+    if (!r.ok || !d) {
+      return res.status(502).json({ ok: false, error: "TonAPI jetton fetch failed", status: r.status });
     }
 
-    const totalRaw = data?.total_supply ?? data?.supply ?? null;
-    const decimals = Number(data?.metadata?.decimals ?? data?.decimals ?? 0);
+    // TonAPI jetton object usually has: total_supply (string), decimals (number), metadata.symbol
+    const totalSupplyRaw = d.total_supply;
+    const decimals = Number(d.decimals ?? d.metadata?.decimals ?? 0);
 
-    // string -> human
-    let human = null;
-    if (typeof totalRaw === "string" && /^\d+$/.test(totalRaw)) {
-      const s = totalRaw;
-      const d = Number.isFinite(decimals) ? decimals : 0;
-      if (d === 0) human = s;
-      else {
-        const pad = s.padStart(d + 1, "0");
-        const intPart = pad.slice(0, -d);
-        const fracPart = pad.slice(-d).replace(/0+$/, "");
-        human = fracPart ? `${intPart}.${fracPart}` : intPart;
-      }
-    }
+    // convert to human
+    const rawBig = BigInt(totalSupplyRaw || "0");
+    const base = 10n ** BigInt(Math.max(0, decimals));
+    const whole = rawBig / base;
+    const frac = rawBig % base;
+
+    // show up to 8 decimals for UI
+    const fracStr = decimals > 0 ? frac.toString().padStart(decimals, "0").slice(0, 8) : "";
+    const human = decimals > 0 ? `${whole.toString()}.${fracStr}` : whole.toString();
 
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.json({
       ok: true,
-      total_supply: human ?? totalRaw,
-      total_supply_raw: totalRaw,
+      symbol: (d.metadata?.symbol || "tgBTC"),
       decimals,
-      source: "tonapi:/v2/jettons/{master}",
+      total_supply_raw: totalSupplyRaw,
+      total_supply: human,
+      source: "tonapi(jettons)",
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
