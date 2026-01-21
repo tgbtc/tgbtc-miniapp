@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     });
     const d = await r.json();
 
-    const raw = BigInt(d.total_supply || "0");
+    const raw = BigInt(d.max_supply || "0");
     const decimals = Number(d.decimals || 0);
     const base = 10n ** BigInt(decimals);
 
