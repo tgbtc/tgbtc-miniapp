@@ -566,8 +566,9 @@
           return;
         }
 
-        $("supply").textContent = d.total_supply + " tgBTC";
-        $("supplySub").textContent = "Источник: TON Center (server)";
+$("supply").textContent = (d.total_supply ?? "—") + " tgBTC";
+$("supplySub").textContent = "Источник: TonAPI (server)";
+
       }catch(e){
         $("supply").textContent = "—";
         $("supplySub").textContent = "Ошибка загрузки supply.";
@@ -647,6 +648,7 @@
   </script>
 </body>
 </html>
+
 
 
 
