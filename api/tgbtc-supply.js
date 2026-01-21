@@ -8,29 +8,20 @@ export default async function handler(req, res) {
 
     const url = `https://tonapi.io/v2/jettons/${encodeURIComponent(MASTER)}`;
     const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${KEY}`, accept: "application/json" },
+      headers: { Authorization: `Bearer ${KEY}`, accept: "application/json" }
     });
 
-    const txt = await r.text();
-    let d = null;
-    try { d = JSON.parse(txt); } catch {}
-
+    const d = await r.json().catch(() => null);
     if (!r.ok || !d) {
-      return res.status(502).json({
-        ok:false,
-        error:"TonAPI jetton fetch failed",
-        status:r.status,
-        used_master: MASTER,
-        url
-      });
+      return res.status(502).json({ ok:false, error:"TonAPI jetton fetch failed", status:r.status });
     }
 
-    const totalSupplyRawStr = String(d.total_supply ?? "0");
-    let raw = 0n;
-    try { raw = BigInt(totalSupplyRawStr); } catch {}
-
+    const totalRawStr = String(d.total_supply ?? "0");
     const decimals = Number(d.decimals ?? d.metadata?.decimals ?? 0);
     const symbol = d.metadata?.symbol || "tgBTC";
+
+    let raw = 0n;
+    try { raw = BigInt(totalRawStr); } catch {}
 
     const base = 10n ** BigInt(Math.max(0, decimals));
     const whole = raw / base;
@@ -42,14 +33,8 @@ export default async function handler(req, res) {
 
     const supply = decimals > 0 ? `${whole}.${fracStr}` : whole.toString();
 
-    return res.json({
-      ok: true,
-      symbol,
-      decimals,
-      total_supply_raw: totalSupplyRawStr,
-      supply,
-      used_master: MASTER
-    });
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
+    return res.json({ ok:true, symbol, supply, decimals });
   } catch (e) {
     return res.status(500).json({ ok:false, error:String(e?.message || e) });
   }
