@@ -17,6 +17,9 @@
       --good:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
+
+      --btn:#2ea6ff;
+      --btnText:#ffffff;
     }
     *{box-sizing:border-box}
     body{
@@ -219,65 +222,63 @@
     }
 
     /* arbitrage */
-.arb{
-  margin-top:10px;
-  padding-top:10px;
-  border-top:1px dashed var(--line);
-}
-.arbTop{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-.arbTitle{
-  font-size:12px;
-  color:var(--muted);
-  font-weight:900;
-}
-.arbPill{
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  font-size:11px;
-  font-weight:950;
-  background:rgba(255,255,255,.02);
-  color:var(--muted);
-}
-.arbPill.good{ color:var(--good); border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.08); }
-.arbPill.warn{ color:var(--warn); border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.08); }
-.arbPill.bad { color:var(--bad);  border-color:rgba(239,68,68,.35);  background:rgba(239,68,68,.08); }
+    .arb{
+      margin-top:10px;
+      padding-top:10px;
+      border-top:1px dashed var(--line);
+    }
+    .arbTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .arbTitle{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:900;
+    }
+    .arbPill{
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      font-size:11px;
+      font-weight:950;
+      background:rgba(255,255,255,.02);
+      color:var(--muted);
+    }
+    .arbPill.good{ color:var(--good); border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.08); }
+    .arbPill.warn{ color:var(--warn); border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.08); }
+    .arbPill.bad { color:var(--bad);  border-color:rgba(239,68,68,.35);  background:rgba(239,68,68,.08); }
 
-.arbRows{ margin-top:8px; display:grid; gap:6px; }
-.arbRow{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-}
-.arbRow .left{ color:var(--muted); font-size:11px; }
-.arbRow .right{ color:var(--text); font-size:11px; font-weight:950; }
+    .arbRows{ margin-top:8px; display:grid; gap:6px; }
+    .arbRow{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .arbRow .left{ color:var(--muted); font-size:11px; }
+    .arbRow .right{ color:var(--text); font-size:11px; font-weight:950; }
 
-.arbBar{
-  margin-top:10px;
-  height:10px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.02);
-  overflow:hidden;
-}
-.arbBarFill{
-  height:100%;
-  width:0%;
-  border-radius:999px;
-  background:rgba(148,163,184,.35); /* default muted */
-  transition:width .25s ease;
-}
-.arbBarFill.good{ background:rgba(34,197,94,.55); }
-.arbBarFill.warn{ background:rgba(245,158,11,.55); }
-.arbBarFill.bad { background:rgba(239,68,68,.55); }
-
-    
+    .arbBar{
+      margin-top:10px;
+      height:10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.02);
+      overflow:hidden;
+    }
+    .arbBarFill{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background:rgba(148,163,184,.35);
+      transition:width .25s ease;
+    }
+    .arbBarFill.good{ background:rgba(34,197,94,.55); }
+    .arbBarFill.warn{ background:rgba(245,158,11,.55); }
+    .arbBarFill.bad { background:rgba(239,68,68,.55); }
   </style>
 </head>
 
@@ -310,7 +311,7 @@
             <ul class="popList">
               <li><span class="k g">🟢 Safe</span> — адрес BTC <span class="k">виден</span> и актуален. Таймер показывает, сколько осталось до скрытия.</li>
               <li><span class="k y">🟡 Updating</span> — <span class="k">первые 10 минут</span> цикла адрес скрыт (обновление).</li>
-              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт.</span></li>
+              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт.</li>
             </ul>
 
             <div class="popText" style="margin-top:8px;">
@@ -335,45 +336,51 @@
         <div class="sub">Источник: Binance public API</div>
       </div>
 
-      <!-- TON/USDT: BINANCE + STONFI -->
+      <!-- TON/USDT: TonAPI onchain + TonAPI markets -->
       <div class="card">
         <div class="label">3) Курс TON в USDT</div>
         <div class="value mono" id="tonMain">—</div>
 
         <div class="rowLine">
-          <div class="left mono">STON.fi (onchain)</div>
+          <div class="left mono">Onchain (TonAPI rates)</div>
           <div class="right mono" id="tonSton">—</div>
         </div>
         <div class="rowLine">
-          <div class="left mono">Binance</div>
+          <div class="left mono">Markets (TonAPI)</div>
           <div class="right mono muted" id="tonBin">—</div>
         </div>
+
         <!-- Arbitrage indicator -->
-<div class="arb">
-  <div class="arbTop">
-    <div class="arbTitle">Arbitrage</div>
-    <div class="arbPill" id="arbPill">—</div>
-  </div>
+        <div class="arb">
+          <div class="arbTop">
+            <div class="arbTitle">Arbitrage (Markets − Onchain)</div>
+            <div class="arbPill" id="arbPill">—</div>
+          </div>
 
-  <div class="arbRows">
-    <div class="arbRow">
-      <div class="left mono">Δ (Binance − STON)</div>
-      <div class="right mono" id="arbDiffAbs">—</div>
-    </div>
-    <div class="arbRow">
-      <div class="left mono">Δ % (от STON)</div>
-      <div class="right mono" id="arbDiffPct">—</div>
-    </div>
-  </div>
+          <div class="arbRows">
+            <div class="arbRow">
+              <div class="left mono">Δ (USD)</div>
+              <div class="right mono" id="arbDiffAbs">—</div>
+            </div>
+            <div class="arbRow">
+              <div class="left mono">Δ % (от Onchain)</div>
+              <div class="right mono" id="arbDiffPct">—</div>
+            </div>
+          </div>
 
-  <div class="arbBar" aria-label="Spread bar">
-    <div class="arbBarFill" id="arbBarFill"></div>
-  </div>
+          <div class="arbBar" aria-label="Spread bar">
+            <div class="arbBarFill" id="arbBarFill"></div>
+          </div>
 
-  <div class="sub mono" id="arbHint">Если спред большой — может быть арбитраж (с учётом комиссий/времени).</div>
-</div>
+          <div class="rowLine">
+            <div class="left mono">Onchain activity (15m)</div>
+            <div class="right mono" id="tonAct">—</div>
+          </div>
 
-        <div class="sub" id="tonSub">Источник: Binance + STON.fi</div>
+          <div class="sub mono" id="arbHint">Если спред большой + активность высокая — может быть арбитраж (с учётом комиссий/времени).</div>
+        </div>
+
+        <div class="sub" id="tonSub">Источник: TonAPI (rates + markets) + TonAPI activity</div>
       </div>
 
       <div class="card">
@@ -479,76 +486,92 @@
     }
 
     async function fetchBinance(symbol){
-      const r = await fetch(
-        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
-        { cache: "no-store" }
-      );
+      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
       return Number(d.price);
     }
 
     async function updatePrices(){
       try{
-        // BTC/USDT (Binance)
+        // BTC/USDT (Binance) — TonAPI не даёт BTC
         const btc = await fetchBinance("BTCUSDT");
         $("btc").textContent = fmtUsd(btc);
 
-        // TON/USDT (Binance) — как раньше
-        const tonBin = await fetchBinance("TONUSDT");
+        // TON onchain (TonAPI rates)
+        const r1 = await fetch("/api/ton-usdt", { cache: "no-store" });
+        const d1 = await r1.json();
+        const tonOn = Number(d1?.ton_usdt_onchain);
 
-        // TON/USDT (STON.fi onchain) — через наш API
-        const rr = await fetch("/api/ton-usdt", { cache: "no-store" });
-        const dd = await rr.json();
-        const tonSton = Number(dd?.ton_usdt_stonfi);
+        // TON markets (TonAPI markets)
+        const r2 = await fetch("/api/ton-usdt-markets", { cache: "no-store" });
+        const d2 = await r2.json();
+        const tonMk = Number(d2?.ton_usdt_markets);
 
-        // Основной — onchain (STON.fi)
-        $("tonMain").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
-        $("tonSton").textContent = Number.isFinite(tonSton) ? fmtUsd(tonSton) : "—";
-        $("tonBin").textContent  = Number.isFinite(tonBin)  ? fmtUsd(tonBin)  : "—";
-        // --- Arbitrage indicator: Binance (offchain) vs STON.fi (onchain)
-(function updateArb(){
-  const pill = $("arbPill");
-  const absEl = $("arbDiffAbs");
-  const pctEl = $("arbDiffPct");
-  const bar = $("arbBarFill");
+        $("tonMain").textContent = Number.isFinite(tonOn) ? fmtUsd(tonOn) : "—";
+        $("tonSton").textContent = Number.isFinite(tonOn) ? fmtUsd(tonOn) : "—";
+        $("tonBin").textContent  = Number.isFinite(tonMk) ? fmtUsd(tonMk) : "—";
 
-  if (!Number.isFinite(tonSton) || !Number.isFinite(tonBin) || tonSton <= 0) {
-    pill.textContent = "—";
-    pill.className = "arbPill";
-    absEl.textContent = "—";
-    pctEl.textContent = "—";
-    bar.style.width = "0%";
-    bar.className = "arbBarFill";
-    return;
-  }
+        // --- Arbitrage indicator: Markets (offchain-ish) vs Onchain
+        (function updateArb(){
+          const pill = $("arbPill");
+          const absEl = $("arbDiffAbs");
+          const pctEl = $("arbDiffPct");
+          const bar = $("arbBarFill");
 
-  const diffAbs = tonBin - tonSton;                 // $ spread
-  const diffPct = (diffAbs / tonSton) * 100;        // % from onchain
-  const sign = diffAbs >= 0 ? "+" : "−";
+          if (!Number.isFinite(tonOn) || !Number.isFinite(tonMk) || tonOn <= 0) {
+            pill.textContent = "—";
+            pill.className = "arbPill";
+            absEl.textContent = "—";
+            pctEl.textContent = "—";
+            bar.style.width = "0%";
+            bar.className = "arbBarFill";
+            return;
+          }
 
-  absEl.textContent = `${sign}${Math.abs(diffAbs).toFixed(6)} $`;
-  pctEl.textContent = `${sign}${Math.abs(diffPct).toFixed(3)} %`;
+          const diffAbs = tonMk - tonOn;              // $ spread
+          const diffPct = (diffAbs / tonOn) * 100;    // % from onchain
+          const sign = diffAbs >= 0 ? "+" : "−";
 
-  // Thresholds (можешь настроить под себя)
-  const A = Math.abs(diffPct);
-  // <=0.20%: small, 0.20–0.60%: medium, >0.60%: big
-  let cls = "good";
-  let label = "Low spread";
-  if (A >= 0.60) { cls = "bad"; label = "High spread"; }
-  else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
+          absEl.textContent = `${sign}${Math.abs(diffAbs).toFixed(6)} $`;
+          pctEl.textContent = `${sign}${Math.abs(diffPct).toFixed(3)} %`;
 
-  pill.className = `arbPill ${cls}`;
-  pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
+          // Thresholds (настрой под себя)
+          const A = Math.abs(diffPct);
+          // <=0.20%: small, 0.20–0.60%: medium, >0.60%: big
+          let cls = "good";
+          let label = "Low spread";
+          if (A >= 0.60) { cls = "bad"; label = "High spread"; }
+          else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
 
-  // Bar scale: 0%..2% mapped to 0..100 (cap)
-  const cap = 2.0; // 2%
-  const w = Math.min(100, (A / cap) * 100);
-  bar.style.width = `${w}%`;
-  bar.className = `arbBarFill ${cls}`;
-})();
+          pill.className = `arbPill ${cls}`;
+          pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
 
+          // Bar scale: 0%..2% mapped to 0..100 (cap)
+          const cap = 2.0; // 2%
+          const w = Math.min(100, (A / cap) * 100);
+          bar.style.width = `${w}%`;
+          bar.className = `arbBarFill ${cls}`;
+        })();
 
-        $("tonSub").textContent = "Источник: Binance + STON.fi";
+        // Onchain activity via our API (/api/ton-activity)
+        try{
+          const ar = await fetch("/api/ton-activity", { cache: "no-store" });
+          const ad = await ar.json();
+          if (ad?.ok) {
+            const lvl = String(ad.level || "LOW");
+            const n = Number(ad.recentEvents || 0);
+            $("tonAct").textContent =
+              lvl === "HIGH" ? `🔥 HIGH (${n})` :
+              lvl === "MEDIUM" ? `⚡ MEDIUM (${n})` :
+              `💤 LOW (${n})`;
+          } else {
+            $("tonAct").textContent = "—";
+          }
+        }catch(e){
+          $("tonAct").textContent = "—";
+        }
+
+        $("tonSub").textContent = "Источник: TonAPI (rates + markets) + TonAPI activity";
 
       }catch(e){
         console.warn("updatePrices error:", e);
@@ -566,9 +589,8 @@
           return;
         }
 
-$("supply").textContent = (d.total_supply ?? "—") + " tgBTC";
-$("supplySub").textContent = "Источник: TonAPI (server)";
-
+        $("supply").textContent = (d.total_supply ?? "—") + " tgBTC";
+        $("supplySub").textContent = "Источник: TonAPI (server)";
       }catch(e){
         $("supply").textContent = "—";
         $("supplySub").textContent = "Ошибка загрузки supply.";
@@ -648,7 +670,3 @@ $("supplySub").textContent = "Источник: TonAPI (server)";
   </script>
 </body>
 </html>
-
-
-
-
