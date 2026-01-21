@@ -95,6 +95,23 @@
       display:flex;
       justify-content:space-between;
     }
+    .rowLine{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:6px;
+}
+.rowLine .left{
+  color:var(--muted);
+  font-size:12px;
+}
+.rowLine .right{
+  color:var(--text);
+  font-size:12px;
+  font-weight:900;
+}
+
   </style>
 </head>
 
@@ -127,15 +144,21 @@
     </div>
 
     <div class="card">
-      <div class="label">BTC / USDT</div>
-      <div class="value mono" id="btc">—</div>
-    </div>
+  <div class="label">Рынок · Crypto Prices</div>
 
-    <div class="card">
-      <div class="label">TON / USDT</div>
-      <div class="value mono" id="ton">—</div>
-    </div>
+  <div class="rowLine">
+    <div class="left mono">BTC / USDT</div>
+    <div class="right mono" id="btc">—</div>
   </div>
+
+  <div class="rowLine">
+    <div class="left mono">TON / USDT</div>
+    <div class="right mono" id="ton">—</div>
+  </div>
+
+  <div class="sub">Источник: Binance</div>
+</div>
+
 
   <div class="footer">
     <div>Bot: <b>@tgbtcfibot</b></div>
@@ -221,3 +244,4 @@
 
 </body>
 </html>
+
