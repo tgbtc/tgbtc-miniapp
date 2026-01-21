@@ -1,62 +1,57 @@
-// Vercel Serverless Function: /api/tgbtc-supply
-// Работает даже если у тебя проект "просто index.html"
-
-const JETTON_MASTER = "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU";
-const DECIMALS = 8;
-
-function pickTotalSupply(stack) {
-  const first = stack?.[0];
-  if (!Array.isArray(first) || first[0] !== "num") return null;
-  const v = String(first[1]);
-  return (v.startsWith("0x") || v.startsWith("0X"))
-    ? BigInt(v).toString()
-    : BigInt(v).toString();
-}
-
-function formatJetton(rawStr, decimals) {
-  const raw = BigInt(rawStr);
-  const base = 10n ** BigInt(decimals);
-  const i = raw / base;
-  const f = raw % base;
-
-  const intStr = i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  let frac = f.toString().padStart(decimals, "0").replace(/0+$/, "");
-  return frac ? `${intStr}.${frac}` : intStr;
-}
-
 export default async function handler(req, res) {
   try {
-    const key = process.env.TONCENTER_API_KEY;
-    if (!key) return res.status(500).json({ ok: false, error: "Missing TONCENTER_API_KEY" });
+    const key = process.env.TONAPI_KEY;
+    const master = process.env.TGBTC_JETTON_MASTER;
 
-    const r = await fetch("https://toncenter.com/api/v2/runGetMethod", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": key,
-      },
-      body: JSON.stringify({
-        address: JETTON_MASTER,
-        method: "get_jetton_data",
-        stack: []
-      }),
+    if (!key) return res.status(500).json({ ok: false, error: "TONAPI_KEY missing" });
+    if (!master) return res.status(500).json({ ok: false, error: "TGBTC_JETTON_MASTER missing" });
+
+    const r = await fetch(`https://tonapi.io/v2/jettons/${encodeURIComponent(master)}`, {
+      headers: { Authorization: `Bearer ${key}`, accept: "application/json" },
+      cache: "no-store",
     });
 
-    const d = await r.json();
-    if (!d?.ok) return res.status(502).json({ ok: false, error: d?.error || "TON Center error", code: d?.code });
+    const data = await r.json().catch(() => null);
 
-    const raw = pickTotalSupply(d?.result?.stack);
-    if (!raw) return res.status(502).json({ ok: false, error: "Cannot parse total_supply from stack" });
+    if (!r.ok || !data) {
+      return res.status(502).json({
+        ok: false,
+        error: "TonAPI jetton fetch failed",
+        status: r.status,
+        details: data,
+      });
+    }
 
-    // маленький анти-спам кэш на 5 секунд (чтобы не долбить toncenter)
-    res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=30");
+    // TonAPI обычно возвращает total_supply строкой (иногда очень большой)
+    const total_supply = data?.total_supply ?? data?.supply ?? null;
+    const decimals = Number(data?.metadata?.decimals ?? data?.decimals ?? 0);
 
+    // Нормализуем в “человеческий” формат, если supply строкой
+    let total_supply_human = null;
+    if (typeof total_supply === "string" && /^\d+$/.test(total_supply) && Number.isFinite(decimals)) {
+      // безопасно: делаем строковое деление
+      const s = total_supply;
+      const d = decimals;
+
+      if (d === 0) total_supply_human = s;
+      else {
+        const pad = s.padStart(d + 1, "0");
+        const intPart = pad.slice(0, -d);
+        const fracPart = pad.slice(-d).replace(/0+$/, "");
+        total_supply_human = fracPart ? `${intPart}.${fracPart}` : intPart;
+      }
+    } else if (typeof total_supply === "number") {
+      total_supply_human = String(total_supply);
+    }
+
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.json({
       ok: true,
-      jetton_master: JETTON_MASTER,
-      total_supply_raw: raw,
-      total_supply: formatJetton(raw, DECIMALS),
-      decimals: DECIMALS,
+      jetton_master: master,
+      total_supply_raw: total_supply,
+      decimals,
+      total_supply: total_supply_human ?? total_supply, // то, что ты показываешь в UI
+      source: "tonapi",
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
