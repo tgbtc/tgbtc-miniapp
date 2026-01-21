@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>tgBTC Fi — Status</title>
-
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
@@ -17,7 +16,6 @@
       --good:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
-
       --btn:#2ea6ff;
       --btnText:#ffffff;
     }
@@ -38,7 +36,6 @@
     }
     .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
 
-    /* индикатор статуса */
     .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .pill{
       display:flex;align-items:center;gap:8px;
@@ -51,7 +48,6 @@
     .dot{font-size:12px;line-height:1}
     .mono{font-variant-numeric:tabular-nums}
 
-    /* кнопка ? */
     .helpBtn{
       width:18px;height:18px;
       display:inline-flex;align-items:center;justify-content:center;
@@ -66,7 +62,6 @@
       flex:0 0 auto;
     }
 
-    /* overlay (мобилка) */
     .overlay{
       position:fixed;
       inset:0;
@@ -77,7 +72,6 @@
     }
     .overlay.show{display:block}
 
-    /* popover */
     .popover{
       position:absolute;
       right:0;
@@ -221,7 +215,7 @@
       font-size:12px;
     }
 
-    /* arbitrage */
+    /* Arbitrage indicator */
     .arb{
       margin-top:10px;
       padding-top:10px;
@@ -336,21 +330,19 @@
         <div class="sub">Источник: Binance public API</div>
       </div>
 
-      <!-- TON/USDT: TonAPI onchain + TonAPI markets -->
       <div class="card">
         <div class="label">3) Курс TON в USDT</div>
         <div class="value mono" id="tonMain">—</div>
 
         <div class="rowLine">
           <div class="left mono">Onchain (TonAPI rates)</div>
-          <div class="right mono" id="tonSton">—</div>
+          <div class="right mono" id="tonOnchain">—</div>
         </div>
         <div class="rowLine">
           <div class="left mono">Markets (TonAPI)</div>
-          <div class="right mono muted" id="tonBin">—</div>
+          <div class="right mono muted" id="tonMarkets">—</div>
         </div>
 
-        <!-- Arbitrage indicator -->
         <div class="arb">
           <div class="arbTop">
             <div class="arbTitle">Arbitrage (Markets − Onchain)</div>
@@ -372,15 +364,10 @@
             <div class="arbBarFill" id="arbBarFill"></div>
           </div>
 
-          <div class="rowLine">
-            <div class="left mono">Onchain activity (15m)</div>
-            <div class="right mono" id="tonAct">—</div>
-          </div>
-
-          <div class="sub mono" id="arbHint">Если спред большой + активность высокая — может быть арбитраж (с учётом комиссий/времени).</div>
+          <div class="sub mono" id="arbHint">Если спред большой — может быть арбитраж (с учётом комиссий/времени).</div>
         </div>
 
-        <div class="sub" id="tonSub">Источник: TonAPI (rates + markets) + TonAPI activity</div>
+        <div class="sub" id="tonSub">Источник: TonAPI (rates + markets)</div>
       </div>
 
       <div class="card">
@@ -424,7 +411,6 @@
       teleportSandbox: "https://sandbox.teleport.tg/",
     };
 
-    // Окна видимости BTC-адреса
     const CYCLE = 4 * 60 * 60;
     const HIDE_FIRST = 10 * 60;
     const HIDE_LAST  = 30 * 60;
@@ -439,6 +425,7 @@
 
     function fmtUsd(x){
       if (!Number.isFinite(x)) return "—";
+      // показываем как USDT (по факту USD ~ USDT)
       return x.toLocaleString(undefined, { maximumFractionDigits: 6 }) + " $";
     }
 
@@ -486,93 +473,75 @@
     }
 
     async function fetchBinance(symbol){
-      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
+      const r = await fetch(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+        { cache: "no-store" }
+      );
       const d = await r.json();
       return Number(d.price);
     }
 
+    function setArbUI(onchain, markets, spreadAbs, spreadPct){
+      const pill = $("arbPill");
+      const absEl = $("arbDiffAbs");
+      const pctEl = $("arbDiffPct");
+      const bar = $("arbBarFill");
+
+      if (!Number.isFinite(onchain) || !Number.isFinite(markets) || !Number.isFinite(spreadAbs) || !Number.isFinite(spreadPct)) {
+        pill.textContent = "—";
+        pill.className = "arbPill";
+        absEl.textContent = "—";
+        pctEl.textContent = "—";
+        bar.style.width = "0%";
+        bar.className = "arbBarFill";
+        return;
+      }
+
+      const sign = spreadAbs >= 0 ? "+" : "−";
+      const A = Math.abs(spreadPct);
+
+      absEl.textContent = `${sign}${Math.abs(spreadAbs).toFixed(6)} $`;
+      pctEl.textContent = `${sign}${A.toFixed(3)} %`;
+
+      // пороги под арбитраж (настраивай)
+      // <=0.20% small, 0.20–0.60% medium, >0.60% big
+      let cls = "good";
+      let label = "Low spread";
+      if (A >= 0.60) { cls = "bad"; label = "High spread"; }
+      else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
+
+      pill.className = `arbPill ${cls}`;
+      pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
+
+      // шкала бара: 0..2% => 0..100%
+      const cap = 2.0;
+      const w = Math.min(100, (A / cap) * 100);
+      bar.style.width = `${w}%`;
+      bar.className = `arbBarFill ${cls}`;
+    }
+
     async function updatePrices(){
       try{
-        // BTC/USDT (Binance) — TonAPI не даёт BTC
+        // BTC/USDT (Binance)
         const btc = await fetchBinance("BTCUSDT");
         $("btc").textContent = fmtUsd(btc);
 
-        // TON onchain (TonAPI rates)
-        const r1 = await fetch("/api/ton-usdt", { cache: "no-store" });
-        const d1 = await r1.json();
-        const tonOn = Number(d1?.ton_usdt_onchain);
+        // TON prices from our server (TonAPI key inside)
+        const rr = await fetch("/api/ton-prices", { cache: "no-store" });
+        const dd = await rr.json();
 
-        // TON markets (TonAPI markets)
-        const r2 = await fetch("/api/ton-usdt-markets", { cache: "no-store" });
-        const d2 = await r2.json();
-        const tonMk = Number(d2?.ton_usdt_markets);
+        const onchain = Number(dd?.onchain_usd);
+        const markets = Number(dd?.markets_usd);
+        const spreadAbs = Number(dd?.spread_abs_usd);
+        const spreadPct = Number(dd?.spread_pct);
 
-        $("tonMain").textContent = Number.isFinite(tonOn) ? fmtUsd(tonOn) : "—";
-        $("tonSton").textContent = Number.isFinite(tonOn) ? fmtUsd(tonOn) : "—";
-        $("tonBin").textContent  = Number.isFinite(tonMk) ? fmtUsd(tonMk) : "—";
+        $("tonMain").textContent = Number.isFinite(onchain) ? fmtUsd(onchain) : "—";
+        $("tonOnchain").textContent = Number.isFinite(onchain) ? fmtUsd(onchain) : "—";
+        $("tonMarkets").textContent = Number.isFinite(markets) ? fmtUsd(markets) : "—";
 
-        // --- Arbitrage indicator: Markets (offchain-ish) vs Onchain
-        (function updateArb(){
-          const pill = $("arbPill");
-          const absEl = $("arbDiffAbs");
-          const pctEl = $("arbDiffPct");
-          const bar = $("arbBarFill");
+        setArbUI(onchain, markets, spreadAbs, spreadPct);
 
-          if (!Number.isFinite(tonOn) || !Number.isFinite(tonMk) || tonOn <= 0) {
-            pill.textContent = "—";
-            pill.className = "arbPill";
-            absEl.textContent = "—";
-            pctEl.textContent = "—";
-            bar.style.width = "0%";
-            bar.className = "arbBarFill";
-            return;
-          }
-
-          const diffAbs = tonMk - tonOn;              // $ spread
-          const diffPct = (diffAbs / tonOn) * 100;    // % from onchain
-          const sign = diffAbs >= 0 ? "+" : "−";
-
-          absEl.textContent = `${sign}${Math.abs(diffAbs).toFixed(6)} $`;
-          pctEl.textContent = `${sign}${Math.abs(diffPct).toFixed(3)} %`;
-
-          // Thresholds (настрой под себя)
-          const A = Math.abs(diffPct);
-          // <=0.20%: small, 0.20–0.60%: medium, >0.60%: big
-          let cls = "good";
-          let label = "Low spread";
-          if (A >= 0.60) { cls = "bad"; label = "High spread"; }
-          else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
-
-          pill.className = `arbPill ${cls}`;
-          pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
-
-          // Bar scale: 0%..2% mapped to 0..100 (cap)
-          const cap = 2.0; // 2%
-          const w = Math.min(100, (A / cap) * 100);
-          bar.style.width = `${w}%`;
-          bar.className = `arbBarFill ${cls}`;
-        })();
-
-        // Onchain activity via our API (/api/ton-activity)
-        try{
-          const ar = await fetch("/api/ton-activity", { cache: "no-store" });
-          const ad = await ar.json();
-          if (ad?.ok) {
-            const lvl = String(ad.level || "LOW");
-            const n = Number(ad.recentEvents || 0);
-            $("tonAct").textContent =
-              lvl === "HIGH" ? `🔥 HIGH (${n})` :
-              lvl === "MEDIUM" ? `⚡ MEDIUM (${n})` :
-              `💤 LOW (${n})`;
-          } else {
-            $("tonAct").textContent = "—";
-          }
-        }catch(e){
-          $("tonAct").textContent = "—";
-        }
-
-        $("tonSub").textContent = "Источник: TonAPI (rates + markets) + TonAPI activity";
-
+        $("tonSub").textContent = "Источник: TonAPI (rates + markets)";
       }catch(e){
         console.warn("updatePrices error:", e);
       }
@@ -589,7 +558,7 @@
           return;
         }
 
-        $("supply").textContent = (d.total_supply ?? "—") + " tgBTC";
+        $("supply").textContent = `${d.total_supply} ${d.symbol || "tgBTC"}`;
         $("supplySub").textContent = "Источник: TonAPI (server)";
       }catch(e){
         $("supply").textContent = "—";
@@ -616,7 +585,6 @@
     $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
     $("btnDocs").onclick = () => openLink(LINKS.docs);
 
-    // Popover logic
     (function initHelpPopover(){
       const btn = $("helpBtn");
       const pop = $("helpPop");
