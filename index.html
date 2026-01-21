@@ -4,11 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>tgBTC Fi — Status</title>
+
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
       --bg:#0b0f17;
+      --card:#0f172a;
       --text:#e5e7eb;
       --muted:#94a3b8;
       --line:rgba(148,163,184,.18);
@@ -16,8 +18,6 @@
       --good:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
-      --btn:#2ea6ff;
-      --btnText:#ffffff;
     }
     *{box-sizing:border-box}
     body{
@@ -43,102 +43,9 @@
       border-radius:999px;color:var(--muted);
       font-size:12px;
       background:rgba(255,255,255,.02);
-      position:relative;
     }
     .dot{font-size:12px;line-height:1}
     .mono{font-variant-numeric:tabular-nums}
-
-    .helpBtn{
-      width:18px;height:18px;
-      display:inline-flex;align-items:center;justify-content:center;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-weight:900;
-      font-size:12px;
-      cursor:pointer;
-      user-select:none;
-      flex:0 0 auto;
-    }
-
-    .overlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.45);
-      backdrop-filter: blur(2px);
-      display:none;
-      z-index:80;
-    }
-    .overlay.show{display:block}
-
-    .popover{
-      position:absolute;
-      right:0;
-      top:calc(100% + 10px);
-      width:min(360px, 92vw);
-      background:rgba(15,23,42,.98);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:10px 10px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);
-      display:none;
-      z-index:90;
-      white-space:normal;
-    }
-    .popover.show{display:block}
-
-    .popHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:6px;
-    }
-    .popTitle{
-      font-weight:950;
-      font-size:12px;
-      color:var(--text);
-      letter-spacing:.2px;
-      margin:0;
-    }
-    .popClose{
-      width:22px;height:22px;
-      display:inline-flex;align-items:center;justify-content:center;
-      border-radius:10px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-weight:900;
-      cursor:pointer;
-      flex:0 0 auto;
-    }
-
-    .popText{
-      font-size:11px;
-      color:var(--muted);
-      line-height:1.35;
-      word-break:break-word;
-    }
-    .popList{margin:8px 0 0; padding:0; list-style:none}
-    .popList li{margin:6px 0}
-    .k{font-weight:900}
-    .g{color:var(--good)}
-    .y{color:var(--warn)}
-    .r{color:var(--bad)}
-
-    @media(max-width:640px){
-      .popover{
-        position:fixed;
-        left:12px;
-        right:12px;
-        top:74px;
-        width:auto;
-        max-height:calc(100vh - 110px);
-        overflow:auto;
-        -webkit-overflow-scrolling: touch;
-      }
-    }
 
     .grid{
       display:grid;
@@ -155,7 +62,6 @@
       border-radius:16px;
       padding:12px;
     }
-
     .label{color:var(--muted);font-size:12px;margin-bottom:6px}
     .value{
       font-weight:950;
@@ -171,38 +77,6 @@
       line-height:1.35;
     }
 
-    .rowLine{
-      display:flex;
-      align-items:baseline;
-      justify-content:space-between;
-      gap:10px;
-      margin-top:6px;
-    }
-    .rowLine .left{color:var(--muted);font-size:11px}
-    .rowLine .right{color:var(--text);font-size:11px;font-weight:900}
-    .rowLine .right.muted{color:var(--muted);font-weight:700}
-
-    .rowBtns{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:10px;
-    }
-    button{
-      width:100%;
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:12px 12px;
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-      font-weight:900;
-      cursor:pointer;
-    }
-    button.primary{
-      background:rgba(46,166,255,.16);
-      border-color:rgba(46,166,255,.35);
-    }
-
     .footer{
       margin-top:12px;
       padding-top:12px;
@@ -214,221 +88,68 @@
       color:var(--muted);
       font-size:12px;
     }
-
-    /* Arbitrage indicator */
-    .arb{
-      margin-top:10px;
-      padding-top:10px;
-      border-top:1px dashed var(--line);
-    }
-    .arbTop{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .arbTitle{
-      font-size:12px;
-      color:var(--muted);
-      font-weight:900;
-    }
-    .arbPill{
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      font-size:11px;
-      font-weight:950;
-      background:rgba(255,255,255,.02);
-      color:var(--muted);
-    }
-    .arbPill.good{ color:var(--good); border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.08); }
-    .arbPill.warn{ color:var(--warn); border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.08); }
-    .arbPill.bad { color:var(--bad);  border-color:rgba(239,68,68,.35);  background:rgba(239,68,68,.08); }
-
-    .arbRows{ margin-top:8px; display:grid; gap:6px; }
-    .arbRow{
-      display:flex;
-      align-items:baseline;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .arbRow .left{ color:var(--muted); font-size:11px; }
-    .arbRow .right{ color:var(--text); font-size:11px; font-weight:950; }
-
-    .arbBar{
-      margin-top:10px;
-      height:10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.02);
-      overflow:hidden;
-    }
-    .arbBarFill{
-      height:100%;
-      width:0%;
-      border-radius:999px;
-      background:rgba(148,163,184,.35);
-      transition:width .25s ease;
-    }
-    .arbBarFill.good{ background:rgba(34,197,94,.55); }
-    .arbBarFill.warn{ background:rgba(245,158,11,.55); }
-    .arbBarFill.bad { background:rgba(239,68,68,.55); }
   </style>
 </head>
 
 <body>
-  <div class="overlay" id="helpOverlay"></div>
-
   <div class="wrap">
     <div class="top">
       <div class="brand">tgBTC Fi • Status</div>
 
       <div class="pills">
-        <div class="pill" id="statusPill" title="Окна BTC-адреса: первые 10 минут и последние 30 минут адрес скрыт.">
-          <span class="dot" id="stDot">●</span>
-          <span id="stText">—</span>
+        <div class="pill" id="statusPill" title="Окно BTC-адреса: первые 10 минут и последние 30 минут адрес скрыт.">
+          <span class="dot mono" id="stDot">●</span>
+          <span class="mono" id="stText">—</span>
           <span class="mono" id="stTime">--:--:--</span>
-
-          <span class="helpBtn" id="helpBtn" title="Что означает индикатор?">?</span>
-
-          <div class="popover" id="helpPop" role="dialog" aria-label="Пояснение индикатора">
-            <div class="popHeader">
-              <h3 class="popTitle">Окно BTC → tgBTC (4 часа)</h3>
-              <div class="popClose" id="helpClose" title="Закрыть">×</div>
-            </div>
-
-            <div class="popText">
-              Адрес BTC для депозита живёт <span class="k">4 часа</span>.
-              В начале и конце цикла адрес скрывается (в Teleport он может не отображаться).
-            </div>
-
-            <ul class="popList">
-              <li><span class="k g">🟢 Safe</span> — адрес BTC <span class="k">виден</span> и актуален. Таймер показывает, сколько осталось до скрытия.</li>
-              <li><span class="k y">🟡 Updating</span> — <span class="k">первые 10 минут</span> цикла адрес скрыт (обновление).</li>
-              <li><span class="k r">🔴 Hidden</span> — <span class="k">последние 30 минут</span> цикла адрес скрыт.</li>
-            </ul>
-
-            <div class="popText" style="margin-top:8px;">
-              Важно: это индикатор по таймеру. Перед действием всё равно сверяй Teleport.
-            </div>
-          </div>
         </div>
       </div>
     </div>
 
     <div class="grid">
-
       <div class="card">
-        <div class="label">1) Количество tgBTC сейчас в TON (supply)</div>
+        <div class="label">Количество tgBTC</div>
         <div class="value mono" id="supply">—</div>
-        <div class="sub" id="supplySub">Источник: /api/tgbtc-supply</div>
+        <div class="sub">Источник: TonAPI (server) → /api/tgbtc-supply</div>
       </div>
 
       <div class="card">
-        <div class="label">2) Курс BTC в USDT</div>
+        <div class="label">BTC / USDT</div>
         <div class="value mono" id="btc">—</div>
         <div class="sub">Источник: Binance public API</div>
       </div>
 
       <div class="card">
-        <div class="label">3) Курс TON в USDT</div>
+        <div class="label">TON / USDT</div>
         <div class="value mono" id="tonMain">—</div>
-
-        <div class="rowLine">
-          <div class="left mono">Onchain (TonAPI rates)</div>
-          <div class="right mono" id="tonOnchain">—</div>
-        </div>
-        <div class="rowLine">
-          <div class="left mono">Markets (TonAPI)</div>
-          <div class="right mono muted" id="tonMarkets">—</div>
-        </div>
-
-        <div class="arb">
-          <div class="arbTop">
-            <div class="arbTitle">Arbitrage (Markets − Onchain)</div>
-            <div class="arbPill" id="arbPill">—</div>
-          </div>
-
-          <div class="arbRows">
-            <div class="arbRow">
-              <div class="left mono">Δ (USD)</div>
-              <div class="right mono" id="arbDiffAbs">—</div>
-            </div>
-            <div class="arbRow">
-              <div class="left mono">Δ % (от Onchain)</div>
-              <div class="right mono" id="arbDiffPct">—</div>
-            </div>
-          </div>
-
-          <div class="arbBar" aria-label="Spread bar">
-            <div class="arbBarFill" id="arbBarFill"></div>
-          </div>
-
-          <div class="sub mono" id="arbHint">Если спред большой — может быть арбитраж (с учётом комиссий/времени).</div>
-        </div>
-
-        <div class="sub" id="tonSub">Источник: TonAPI (rates + markets)</div>
+        <div class="sub">Источник: Binance public API</div>
       </div>
 
       <div class="card">
-        <div class="label">4) Курс tgBTC в USDT</div>
-        <div class="value mono" id="tgbtc">—</div>
-        <div class="sub">Пока заглушка — подключим позже</div>
+        <div class="label">Пользователь</div>
+        <div class="value mono" id="userLine">—</div>
+        <div class="sub">Mini App context</div>
       </div>
-
-      <div class="card">
-        <div class="label">5) Курс tgBTC в TON</div>
-        <div class="value mono" id="tgbtcTon">—</div>
-        <div class="sub">Пока заглушка — подключим позже</div>
-      </div>
-
-      <div class="card">
-        <div class="label">Teleport / Links</div>
-        <div class="rowBtns">
-          <button class="primary" id="btnTeleport">Teleport (main)</button>
-          <button id="btnSandbox">Teleport (sandbox)</button>
-        </div>
-        <div class="rowBtns">
-          <button id="btnDashStatus">Sandbox DashStatus</button>
-          <button id="btnDocs">tgBTC Docs</button>
-        </div>
-        <div class="sub">Если ссылка откроется во внешнем браузере — это нормально.</div>
-      </div>
-
     </div>
 
     <div class="footer">
-      <div id="userLine">Пользователь: —</div>
       <div>Bot: <b>@tgbtcfibot</b></div>
+      <div class="mono" id="lastUpd">Обновление: —</div>
     </div>
   </div>
 
   <script>
-    const LINKS = {
-      docs: "https://tgbtc.gitbook.io/docs",
-      dashStatus: "https://sandbox.teleport.tg/app/dashStatus",
-      teleportMain: "https://teleport.tg/",
-      teleportSandbox: "https://sandbox.teleport.tg/",
-    };
+    // Окна видимости BTC-адреса
+    const CYCLE = 4 * 60 * 60;      // 4 часа
+    const HIDE_FIRST = 10 * 60;     // первые 10 минут скрыт
+    const HIDE_LAST  = 30 * 60;     // последние 30 минут скрыт
 
-    const CYCLE = 4 * 60 * 60;
-    const HIDE_FIRST = 10 * 60;
-    const HIDE_LAST  = 30 * 60;
-
-    const tg = window.Telegram?.WebApp;
     const $ = (id) => document.getElementById(id);
-
-    function openLink(url){
-      if (tg && typeof tg.openLink === "function") tg.openLink(url);
-      else window.open(url, "_blank", "noopener,noreferrer");
-    }
+    const tg = window.Telegram?.WebApp;
 
     function fmtUsd(x){
       if (!Number.isFinite(x)) return "—";
-      // показываем как USDT (по факту USD ~ USDT)
       return x.toLocaleString(undefined, { maximumFractionDigits: 6 }) + " $";
     }
-
     function formatTime(sec){
       sec = Math.max(0, sec|0);
       const h = String((sec/3600)|0).padStart(2,'0');
@@ -440,7 +161,7 @@
       sec = Math.max(0, sec|0);
       const m = (sec/60)|0;
       const s = sec%60;
-      return `${m}m : ${String(s).padStart(2,'0')}s`;
+      return `${m}m:${String(s).padStart(2,'0')}s`;
     }
 
     function updateAddressWindow(){
@@ -473,75 +194,20 @@
     }
 
     async function fetchBinance(symbol){
-      const r = await fetch(
-        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
-        { cache: "no-store" }
-      );
+      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, { cache: "no-store" });
       const d = await r.json();
       return Number(d.price);
     }
 
-    function setArbUI(onchain, markets, spreadAbs, spreadPct){
-      const pill = $("arbPill");
-      const absEl = $("arbDiffAbs");
-      const pctEl = $("arbDiffPct");
-      const bar = $("arbBarFill");
-
-      if (!Number.isFinite(onchain) || !Number.isFinite(markets) || !Number.isFinite(spreadAbs) || !Number.isFinite(spreadPct)) {
-        pill.textContent = "—";
-        pill.className = "arbPill";
-        absEl.textContent = "—";
-        pctEl.textContent = "—";
-        bar.style.width = "0%";
-        bar.className = "arbBarFill";
-        return;
-      }
-
-      const sign = spreadAbs >= 0 ? "+" : "−";
-      const A = Math.abs(spreadPct);
-
-      absEl.textContent = `${sign}${Math.abs(spreadAbs).toFixed(6)} $`;
-      pctEl.textContent = `${sign}${A.toFixed(3)} %`;
-
-      // пороги под арбитраж (настраивай)
-      // <=0.20% small, 0.20–0.60% medium, >0.60% big
-      let cls = "good";
-      let label = "Low spread";
-      if (A >= 0.60) { cls = "bad"; label = "High spread"; }
-      else if (A >= 0.20) { cls = "warn"; label = "Medium spread"; }
-
-      pill.className = `arbPill ${cls}`;
-      pill.textContent = `${label} (${sign}${A.toFixed(3)}%)`;
-
-      // шкала бара: 0..2% => 0..100%
-      const cap = 2.0;
-      const w = Math.min(100, (A / cap) * 100);
-      bar.style.width = `${w}%`;
-      bar.className = `arbBarFill ${cls}`;
-    }
-
     async function updatePrices(){
       try{
-        // BTC/USDT (Binance)
         const btc = await fetchBinance("BTCUSDT");
         $("btc").textContent = fmtUsd(btc);
 
-        // TON prices from our server (TonAPI key inside)
-        const rr = await fetch("/api/ton-prices", { cache: "no-store" });
-        const dd = await rr.json();
+        const ton = await fetchBinance("TONUSDT");
+        $("tonMain").textContent = fmtUsd(ton);
 
-        const onchain = Number(dd?.onchain_usd);
-        const markets = Number(dd?.markets_usd);
-        const spreadAbs = Number(dd?.spread_abs_usd);
-        const spreadPct = Number(dd?.spread_pct);
-
-        $("tonMain").textContent = Number.isFinite(onchain) ? fmtUsd(onchain) : "—";
-        $("tonOnchain").textContent = Number.isFinite(onchain) ? fmtUsd(onchain) : "—";
-        $("tonMarkets").textContent = Number.isFinite(markets) ? fmtUsd(markets) : "—";
-
-        setArbUI(onchain, markets, spreadAbs, spreadPct);
-
-        $("tonSub").textContent = "Источник: TonAPI (rates + markets)";
+        $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
       }catch(e){
         console.warn("updatePrices error:", e);
       }
@@ -551,25 +217,17 @@
       try{
         const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
         const d = await r.json();
-
-        if (!d?.ok) {
-          $("supply").textContent = "—";
-          $("supplySub").textContent = "Supply API error: " + (d?.error || "unknown");
-          return;
-        }
-
-        $("supply").textContent = `${d.total_supply} ${d.symbol || "tgBTC"}`;
-        $("supplySub").textContent = "Источник: TonAPI (server)";
+        $("supply").textContent = d?.ok ? (d.supply + " tgBTC") : "—";
       }catch(e){
+        console.warn("updateSupply error:", e);
         $("supply").textContent = "—";
-        $("supplySub").textContent = "Ошибка загрузки supply.";
       }
     }
 
     function initTelegram(){
       const userLine = $("userLine");
       if (!tg){
-        userLine.textContent = "Пользователь: Гость";
+        userLine.textContent = "Гость";
         return;
       }
       tg.ready();
@@ -577,42 +235,10 @@
       const u = tg.initDataUnsafe?.user;
       const uname = u?.username ? "@" + u.username : "";
       const first = u?.first_name || "Гость";
-      userLine.textContent = uname ? `Пользователь: ${first} ${uname}` : `Пользователь: ${first}`;
+      userLine.textContent = uname ? `${first} ${uname}` : `${first}`;
     }
 
-    $("btnTeleport").onclick = () => openLink(LINKS.teleportMain);
-    $("btnSandbox").onclick = () => openLink(LINKS.teleportSandbox);
-    $("btnDashStatus").onclick = () => openLink(LINKS.dashStatus);
-    $("btnDocs").onclick = () => openLink(LINKS.docs);
-
-    (function initHelpPopover(){
-      const btn = $("helpBtn");
-      const pop = $("helpPop");
-      const closeBtn = $("helpClose");
-      const overlay = $("helpOverlay");
-
-      function open(){
-        pop.classList.add("show");
-        overlay.classList.add("show");
-        btn.setAttribute("aria-expanded", "true");
-      }
-      function close(){
-        pop.classList.remove("show");
-        overlay.classList.remove("show");
-        btn.setAttribute("aria-expanded", "false");
-      }
-      function toggle(){
-        pop.classList.contains("show") ? close() : open();
-      }
-
-      btn.setAttribute("aria-expanded", "false");
-      btn.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
-      closeBtn.addEventListener("click", (e) => { e.stopPropagation(); close(); });
-      overlay.addEventListener("click", () => close());
-      document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-    })();
-
-    let tPrices=null, tSupply=null, tWin=null;
+    let tWin=null, tPrices=null, tSupply=null;
 
     function start(){
       updateAddressWindow();
@@ -625,7 +251,7 @@
     }
     function stop(){
       clearInterval(tWin); clearInterval(tPrices); clearInterval(tSupply);
-      tWin = tPrices = tSupply = null;
+      tWin=tPrices=tSupply=null;
     }
 
     document.addEventListener("visibilitychange", () => {
