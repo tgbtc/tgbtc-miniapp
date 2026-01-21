@@ -2,46 +2,29 @@ export default async function handler(req, res) {
   try {
     const KEY = process.env.TONAPI_KEY;
     const MASTER = process.env.TGBTC_JETTON_MASTER;
-
-    if (!KEY) return res.status(500).json({ ok: false, error: "TONAPI_KEY missing" });
-    if (!MASTER) return res.status(500).json({ ok: false, error: "TGBTC_JETTON_MASTER missing" });
-
-    const r = await fetch(`https://tonapi.io/v2/jettons/${encodeURIComponent(MASTER)}`, {
-      headers: { Authorization: `Bearer ${KEY}`, accept: "application/json" },
-    });
-
-    const txt = await r.text();
-    let d = null;
-    try { d = JSON.parse(txt); } catch {}
-
-    if (!r.ok || !d) {
-      return res.status(502).json({ ok: false, error: "TonAPI jetton fetch failed", status: r.status });
+    if (!KEY || !MASTER) {
+      return res.status(500).json({ ok:false, error:"env missing" });
     }
 
-    // TonAPI jetton object usually has: total_supply (string), decimals (number), metadata.symbol
-    const totalSupplyRaw = d.total_supply;
-    const decimals = Number(d.decimals ?? d.metadata?.decimals ?? 0);
-
-    // convert to human
-    const rawBig = BigInt(totalSupplyRaw || "0");
-    const base = 10n ** BigInt(Math.max(0, decimals));
-    const whole = rawBig / base;
-    const frac = rawBig % base;
-
-    // show up to 8 decimals for UI
-    const fracStr = decimals > 0 ? frac.toString().padStart(decimals, "0").slice(0, 8) : "";
-    const human = decimals > 0 ? `${whole.toString()}.${fracStr}` : whole.toString();
-
-    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
-    return res.json({
-      ok: true,
-      symbol: (d.metadata?.symbol || "tgBTC"),
-      decimals,
-      total_supply_raw: totalSupplyRaw,
-      total_supply: human,
-      source: "tonapi(jettons)",
+    const r = await fetch(`https://tonapi.io/v2/jettons/${MASTER}`, {
+      headers: { Authorization: `Bearer ${KEY}` }
     });
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: String(e?.message || e) });
+    const d = await r.json();
+
+    const raw = BigInt(d.total_supply || "0");
+    const decimals = Number(d.decimals || 0);
+    const base = 10n ** BigInt(decimals);
+
+    const whole = raw / base;
+    const frac = raw % base;
+
+    const supply =
+      decimals > 0
+        ? `${whole}.${frac.toString().padStart(decimals,"0").slice(0,8)}`
+        : whole.toString();
+
+    res.json({ ok:true, supply });
+  } catch(e){
+    res.status(500).json({ ok:false, error:String(e) });
   }
 }
