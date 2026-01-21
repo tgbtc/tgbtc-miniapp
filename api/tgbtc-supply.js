@@ -12,46 +12,34 @@ export default async function handler(req, res) {
     });
 
     const data = await r.json().catch(() => null);
-
     if (!r.ok || !data) {
-      return res.status(502).json({
-        ok: false,
-        error: "TonAPI jetton fetch failed",
-        status: r.status,
-        details: data,
-      });
+      return res.status(502).json({ ok: false, error: "TonAPI jetton failed", status: r.status, details: data });
     }
 
-    // TonAPI обычно возвращает total_supply строкой (иногда очень большой)
-    const total_supply = data?.total_supply ?? data?.supply ?? null;
+    const totalRaw = data?.total_supply ?? data?.supply ?? null;
     const decimals = Number(data?.metadata?.decimals ?? data?.decimals ?? 0);
 
-    // Нормализуем в “человеческий” формат, если supply строкой
-    let total_supply_human = null;
-    if (typeof total_supply === "string" && /^\d+$/.test(total_supply) && Number.isFinite(decimals)) {
-      // безопасно: делаем строковое деление
-      const s = total_supply;
-      const d = decimals;
-
-      if (d === 0) total_supply_human = s;
+    // string -> human
+    let human = null;
+    if (typeof totalRaw === "string" && /^\d+$/.test(totalRaw)) {
+      const s = totalRaw;
+      const d = Number.isFinite(decimals) ? decimals : 0;
+      if (d === 0) human = s;
       else {
         const pad = s.padStart(d + 1, "0");
         const intPart = pad.slice(0, -d);
         const fracPart = pad.slice(-d).replace(/0+$/, "");
-        total_supply_human = fracPart ? `${intPart}.${fracPart}` : intPart;
+        human = fracPart ? `${intPart}.${fracPart}` : intPart;
       }
-    } else if (typeof total_supply === "number") {
-      total_supply_human = String(total_supply);
     }
 
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.json({
       ok: true,
-      jetton_master: master,
-      total_supply_raw: total_supply,
+      total_supply: human ?? totalRaw,
+      total_supply_raw: totalRaw,
       decimals,
-      total_supply: total_supply_human ?? total_supply, // то, что ты показываешь в UI
-      source: "tonapi",
+      source: "tonapi:/v2/jettons/{master}",
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
