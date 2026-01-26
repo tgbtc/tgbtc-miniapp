@@ -154,22 +154,60 @@ const $ = id => document.getElementById(id);
 const tg = window.Telegram?.WebApp;
 if (tg){ try{ tg.ready(); tg.expand(); }catch{} }
 
-// ===== Top window indicator (4h)
-const CYCLE = 4*60*60;
-const HIDE_FIRST = 10*60;
-const HIDE_LAST = 30*60;
+// ===== Teleport window indicator (1h) — sync by observation
+const CYCLE = 60 * 60;      // 1 час
+const HIDE_FIRST = 10 * 60; // первые 10 минут скрыт
+const HIDE_LAST  = 30 * 60; // последние 30 минут скрыт
+
+// Ты заметил: адрес ПОЯВИЛСЯ, когда Teleport показывал 51:19
+// Это означает "примерно начало Active-окна" (после первых 10 минут)
+const OBS_TO_UPDATE = (51 * 60) + 19; // 51:19
+
+const LS_OFFSET = "tgbtc_tp_offset_1h";
 
 function fmt(sec){
-  sec=Math.max(0,sec|0);
-  const h=String(sec/3600|0).padStart(2,'0');
-  const m=String(sec%3600/60|0).padStart(2,'0');
-  const s=String(sec%60).padStart(2,'0');
+  sec = Math.max(0, sec|0);
+  const h = String((sec/3600)|0).padStart(2,'0');
+  const m = String((sec%3600/60)|0).padStart(2,'0');
+  const s = String((sec%60)|0).padStart(2,'0');
   return `${h}:${m}:${s}`;
 }
-function updateWindow(){
-  const pos = (Date.now()/1000|0) % CYCLE;
 
-  // 🔴 первые 10 минут
+let OFFSET = 0;
+
+// Калибровка: в момент наблюдения "toUpdate = 51:19" мы считаем, что pos = HIDE_FIRST
+(function initOffset(){
+  try{
+    const saved = localStorage.getItem(LS_OFFSET);
+    if (saved !== null){
+      OFFSET = Number(saved) || 0;
+      return;
+    }
+  }catch{}
+
+  const now = (Date.now()/1000)|0;
+
+  // если toUpdate = CYCLE - pos, то pos = CYCLE - toUpdate
+  const posFromObs = (CYCLE - OBS_TO_UPDATE); // позиция цикла в момент наблюдения
+  // мы хотим, чтобы эта позиция стала равна HIDE_FIRST (начало Active)
+  // значит нужно сдвинуть на: (HIDE_FIRST - posFromObs)
+  let off = (HIDE_FIRST - posFromObs) - (now % CYCLE);
+
+  // нормализация в [0..CYCLE)
+  off = ((off % CYCLE) + CYCLE) % CYCLE;
+
+  OFFSET = off;
+  try{ localStorage.setItem(LS_OFFSET, String(OFFSET)); }catch{}
+})();
+
+function updateWindow(){
+  const now = (Date.now()/1000)|0;
+  let pos = (now + OFFSET) % CYCLE;
+  if (pos < 0) pos += CYCLE;
+
+  const toUpdate = CYCLE - pos; // это будет "как в Teleport" (примерно)
+
+  // 🔴 первые 10 минут после обновления
   if (pos < HIDE_FIRST){
     stDot.style.color = 'var(--bad)';
     stText.textContent = '🔴 Hidden';
@@ -181,19 +219,21 @@ function updateWindow(){
   if (pos > CYCLE - HIDE_LAST){
     stDot.style.color = 'var(--bad)';
     stText.textContent = '🔴 Hidden';
-    stTime.textContent = fmt(CYCLE - pos);
+    stTime.textContent = fmt(toUpdate);
     return;
   }
 
-  // 🟢 всё остальное
+  // 🟢 Active (показываем "до обновления", как Teleport)
   stDot.style.color = 'var(--good)';
   stText.textContent = '🟢 Active';
-  stTime.textContent = fmt(CYCLE - HIDE_LAST - pos);
+  stTime.textContent = fmt(toUpdate);
 }
 
-
-setInterval(updateWindow,1000);
+setInterval(updateWindow, 1000);
 updateWindow();
+
+
+  
 
 // popover
 helpBtn.onclick=e=>{
@@ -301,5 +341,6 @@ setInterval(updateSupply, 5000);
 </script>
 </body>
 </html>
+
 
 
