@@ -1,320 +1,249 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC Fi — Supply Realtime</title>
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>tgBTC Fi — Realtime Supply</title>
 
-  <style>
-    :root{
-      --bg:#0b0f17; --text:#e5e7eb; --muted:#94a3b8; --line:rgba(148,163,184,.18);
-      --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:820px;margin:0 auto;padding:14px}
+<script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0 12px;}
-    .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
+<style>
+:root{
+  --bg:#0b0f17;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --line:rgba(148,163,184,.18);
+  --good:#22c55e;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.wrap{max-width:820px;margin:0 auto;padding:14px}
 
-    .pill{
-      display:flex;align-items:center;gap:8px;
-      padding:8px 10px;border:1px solid var(--line);
-      border-radius:999px;color:var(--muted);
-      font-size:12px;background:rgba(255,255,255,.02);
-      user-select:none;
-    }
-    .dot{font-size:12px;line-height:1}
-    .mono{font-variant-numeric:tabular-nums}
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding-bottom:12px;
+}
+.brand{font-weight:950;font-size:16px}
 
-    .grid{display:grid;grid-template-columns:1fr;gap:12px;}
-    @media(min-width:640px){ .grid{grid-template-columns:1fr 1fr;} }
+.pill{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  font-size:12px;
+  color:var(--muted);
+  background:rgba(255,255,255,.02);
+  position:relative;
+}
+.dot{font-size:12px}
+.mono{font-variant-numeric:tabular-nums}
 
-    .card{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:16px;padding:12px;}
-    .label{color:var(--muted);font-size:12px;margin-bottom:6px}
-    .value{font-weight:950;font-size:22px;line-height:1.15;letter-spacing:.2px;word-break:break-word;}
-    .sub{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.35;}
+.helpBtn{
+  width:18px;height:18px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:999px;
+  border:1px solid var(--line);
+  font-weight:900;
+  cursor:pointer;
+  color:var(--muted);
+}
 
-    .supplyRow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-    .trendWrap{display:inline-flex;align-items:baseline;gap:6px}
-    .arrow{font-weight:950;font-size:14px;line-height:1}
-    .arrow.up{color:var(--good)}
-    .arrow.down{color:var(--bad)}
-    .delta{font-weight:900;font-size:12px}
-    .delta.up{color:var(--good)}
-    .delta.down{color:var(--bad)}
-    .delta.flat{color:var(--text)} /* белый при 0 */
+.popover{
+  position:absolute;
+  right:0;
+  top:calc(100% + 8px);
+  width:260px;
+  background:#0f172a;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  font-size:11px;
+  line-height:1.4;
+  color:var(--muted);
+  display:none;
+  z-index:20;
+}
+.popover.show{display:block}
+.popover b{color:var(--text)}
 
-    .log{
-      margin-top:10px;
-      border-top:1px dashed var(--line);
-      padding-top:10px;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .logLine{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-    .tag{font-weight:900;color:var(--text)}
-    .tag.good{color:var(--good)}
-    .tag.bad{color:var(--bad)}
-    .tag.warn{color:var(--warn)}
-  </style>
+.card{
+  background:rgba(255,255,255,.02);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+}
+.label{font-size:12px;color:var(--muted)}
+.value{
+  margin-top:6px;
+  font-weight:950;
+  font-size:22px;
+  display:flex;
+  gap:10px;
+  align-items:baseline;
+}
+.arrow{font-size:14px;font-weight:900}
+.arrow.up{color:var(--good)}
+.arrow.down{color:var(--bad)}
+
+.delta{
+  font-size:12px;
+  font-weight:900;
+}
+.delta.up{color:var(--good)}
+.delta.down{color:var(--bad)}
+.delta.flat{color:var(--text)}
+
+.sub{margin-top:8px;font-size:11px;color:var(--muted)}
+</style>
 </head>
 
 <body>
-  <div class="wrap">
+<div class="wrap">
 
-    <div class="top">
-      <div class="brand">tgBTC Fi • Realtime</div>
+  <!-- TOP INDICATOR -->
+  <div class="top">
+    <div class="brand">tgBTC Fi</div>
 
-      <div class="pill">
-        <span class="dot" id="netDot">●</span>
-        <span id="netText">—</span>
-        <span class="mono" id="netTime">--:--:--</span>
+    <div class="pill">
+      <span class="dot" id="stDot">●</span>
+      <span id="stText">—</span>
+      <span class="mono" id="stTime">--:--:--</span>
+      <span class="helpBtn" id="helpBtn">?</span>
+
+      <div class="popover" id="helpPop">
+        <b>Окно BTC → tgBTC</b><br><br>
+        🟢 Safe — адрес активен<br>
+        🟡 Updating — первые 10 минут<br>
+        🔴 Hidden — последние 30 минут<br><br>
+        Цикл живёт <b>4 часа</b>
       </div>
     </div>
-
-    <div class="grid">
-      <div class="card">
-        <div class="label">Количество tgBTC (total supply)</div>
-
-        <div class="value mono supplyRow">
-          <span id="supply">—</span>
-          <span class="trendWrap">
-            <span id="supplyArrow" class="arrow"></span>
-            <span id="supplyDelta" class="delta flat">+0.00 tgBTC</span>
-          </span>
-        </div>
-
-        <div class="sub" id="meta">Источник: TON Center (server) • testnet</div>
-
-        <div class="log">
-          <div class="logLine">
-            <span>Статус:</span>
-            <span id="statusTag" class="tag">—</span>
-          </div>
-          <div class="logLine">
-            <span>Последнее изменение:</span>
-            <span class="mono" id="lastChange">—</span>
-          </div>
-          <div class="logLine">
-            <span>Обновление данных:</span>
-            <span class="mono" id="lastFetch">—</span>
-          </div>
-          <div class="logLine">
-            <span>Интервал опроса:</span>
-            <span class="mono" id="pollEvery">—</span>
-          </div>
-          <div class="logLine">
-            <span>Без изменений подряд:</span>
-            <span class="mono" id="sameCount">0</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
+  <!-- SUPPLY CARD -->
+  <div class="card">
+    <div class="label">Количество tgBTC (total supply)</div>
 
-    const $ = (id) => document.getElementById(id);
+    <div class="value mono">
+      <span id="supply">—</span>
+      <span id="supplyArrow" class="arrow"></span>
+      <span id="supplyDelta" class="delta flat">+0.00 tgBTC</span>
+    </div>
 
-    // ====== formatting ======
-    function formatUnitsFixed(rawBig, decimals, fixed = 2){
-      const neg = rawBig < 0n;
-      const x = neg ? -rawBig : rawBig;
+    <div class="sub" id="meta">Источник: TON Center</div>
+  </div>
 
-      const base = 10n ** BigInt(decimals);
-      const i = x / base;
-      const f = x % base;
+</div>
 
-      const fracAll = f.toString().padStart(decimals, "0");
-      const fracFixed = fixed > 0 ? fracAll.slice(0, fixed).padEnd(fixed, "0") : "";
+<script>
+const $ = id => document.getElementById(id);
 
-      return (neg ? "-" : "") + i.toString() + (fixed > 0 ? "." + fracFixed : "");
+// ===== Telegram
+const tg = window.Telegram?.WebApp;
+if (tg){ try{ tg.ready(); tg.expand(); }catch{} }
+
+// ===== Top window indicator (4h)
+const CYCLE = 4*60*60;
+const HIDE_FIRST = 10*60;
+const HIDE_LAST = 30*60;
+
+function fmt(sec){
+  sec=Math.max(0,sec|0);
+  const h=String(sec/3600|0).padStart(2,'0');
+  const m=String(sec%3600/60|0).padStart(2,'0');
+  const s=String(sec%60).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
+function updateWindow(){
+  const pos=(Date.now()/1000|0)%CYCLE;
+  if(pos<HIDE_FIRST){
+    stDot.style.color='var(--warn)';
+    stText.textContent='🟡 Updating';
+    stTime.textContent=fmt(HIDE_FIRST-pos);
+  }else if(pos<=CYCLE-HIDE_LAST){
+    stDot.style.color='var(--good)';
+    stText.textContent='🟢 Safe';
+    stTime.textContent=fmt(CYCLE-HIDE_LAST-pos);
+  }else{
+    stDot.style.color='var(--bad)';
+    stText.textContent='🔴 Hidden';
+    stTime.textContent=fmt(CYCLE-pos);
+  }
+}
+setInterval(updateWindow,1000);
+updateWindow();
+
+// popover
+helpBtn.onclick=e=>{
+  e.stopPropagation();
+  helpPop.classList.toggle('show');
+};
+document.onclick=()=>helpPop.classList.remove('show');
+
+// ===== Supply realtime
+const LS_KEY="tgbtc_supply_raw";
+let lastRaw=null;
+try{ lastRaw=BigInt(localStorage.getItem(LS_KEY)||""); }catch{}
+
+function format2(raw,dec){
+  const b=10n**BigInt(dec);
+  const i=raw/b;
+  const f=(raw%b).toString().padStart(dec,"0").slice(0,2);
+  return `${i}.${f}`;
+}
+function delta2(diff,dec){
+  const sign=diff>0n?"+":diff<0n?"-":"";
+  diff=diff<0n?-diff:diff;
+  const b=10n**BigInt(dec);
+  const i=diff/b;
+  const f=(diff%b).toString().padStart(dec,"0").slice(0,2);
+  return `${sign}${i}.${f}`;
+}
+
+async function updateSupply(){
+  const r=await fetch("/api/tgbtc-supply",{cache:"no-store"});
+  const d=await r.json();
+  if(!d?.ok)return;
+
+  const raw=BigInt(d.supply_raw);
+  supply.textContent=format2(raw,d.decimals);
+
+  if(lastRaw!==null){
+    const diff=raw-lastRaw;
+    if(diff>0n){
+      supplyArrow.textContent="▲";
+      supplyArrow.className="arrow up";
+      supplyDelta.textContent=`${delta2(diff,d.decimals)} tgBTC`;
+      supplyDelta.className="delta up";
+    }else if(diff<0n){
+      supplyArrow.textContent="▼";
+      supplyArrow.className="arrow down";
+      supplyDelta.textContent=`${delta2(diff,d.decimals)} tgBTC`;
+      supplyDelta.className="delta down";
+    }else{
+      supplyArrow.textContent="";
+      supplyDelta.textContent="+0.00 tgBTC";
+      supplyDelta.className="delta flat";
     }
+  }
 
-    function formatDeltaFixed(deltaRawBig, decimals, fixed = 2){
-      const sign = deltaRawBig > 0n ? "+" : deltaRawBig < 0n ? "-" : "";
-      const abs = deltaRawBig < 0n ? -deltaRawBig : deltaRawBig;
+  lastRaw=raw;
+  localStorage.setItem(LS_KEY,raw.toString());
+  meta.textContent=`Источник: TON Center • ${d.network}`;
+}
 
-      const base = 10n ** BigInt(decimals);
-      const i = abs / base;
-      const f = abs % base;
-
-      const fracAll = f.toString().padStart(decimals, "0");
-      const fracFixed = fixed > 0 ? fracAll.slice(0, fixed).padEnd(fixed, "0") : "";
-
-      return sign + i.toString() + (fixed > 0 ? "." + fracFixed : "");
-    }
-
-    function setTrend(dir, deltaText){
-      const arrow = $("supplyArrow");
-      const delta = $("supplyDelta");
-
-      if (dir === "up") {
-        arrow.textContent = "▲";
-        arrow.className = "arrow up";
-        delta.textContent = `${deltaText} tgBTC`;
-        delta.className = "delta up";
-      } else if (dir === "down") {
-        arrow.textContent = "▼";
-        arrow.className = "arrow down";
-        delta.textContent = `${deltaText} tgBTC`;
-        delta.className = "delta down";
-      } else {
-        arrow.textContent = "";
-        arrow.className = "arrow";
-        delta.textContent = `+0.00 tgBTC`;
-        delta.className = "delta flat";
-      }
-    }
-
-    function setStatus(kind, text){
-      const tag = $("statusTag");
-      tag.textContent = text;
-      tag.className = "tag " + (kind || "");
-    }
-
-    function fmtClock(){
-      return new Date().toLocaleTimeString();
-    }
-
-    // ====== realtime polling with backoff ======
-    const LS_KEY = "tgbtc_supply_raw_v2";
-    const LS_LASTCHANGE = "tgbtc_supply_lastchange_v2";
-
-    let lastSupplyRaw = null;
-    let lastChangeAt = null;
-    let sameInRow = 0;
-
-    // polling interval logic
-    let pollMs = 5000; // start 5s
-    let timer = null;
-
-    // restore
-    try{
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) lastSupplyRaw = BigInt(saved);
-      const savedLc = localStorage.getItem(LS_LASTCHANGE);
-      if (savedLc) lastChangeAt = savedLc;
-    }catch(e){}
-
-    if (lastChangeAt) $("lastChange").textContent = lastChangeAt;
-
-    function updateNet(ok){
-      $("netDot").style.color = ok ? "var(--good)" : "var(--bad)";
-      $("netText").textContent = ok ? "Online" : "Offline";
-      $("netTime").textContent = fmtClock();
-    }
-
-    function scheduleNext(){
-      clearTimeout(timer);
-      $("pollEvery").textContent = (pollMs/1000).toFixed(0) + "s";
-      timer = setTimeout(tick, pollMs);
-    }
-
-    async function tick(){
-      try{
-        const r = await fetch("/api/tgbtc-supply", { cache:"no-store" });
-        const d = await r.json();
-        $("lastFetch").textContent = fmtClock();
-
-        if (!d?.ok) {
-          updateNet(false);
-          setStatus("bad", "Ошибка данных");
-          // backoff on errors
-          pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
-          scheduleNext();
-          return;
-        }
-
-        updateNet(true);
-        $("meta").textContent = `Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
-
-        const decimals = Number(d.decimals || 0);
-        let raw = null;
-        try{ raw = BigInt(String(d.supply_raw ?? "")); }catch(e){ raw = null; }
-
-        if (raw === null) {
-          setStatus("bad", "Парсинг supply");
-          pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
-          scheduleNext();
-          return;
-        }
-
-        // show main supply (2 decimals)
-        $("supply").textContent = formatUnitsFixed(raw, decimals, 2);
-
-        // compare + display what is happening
-        if (lastSupplyRaw !== null) {
-          const diff = raw - lastSupplyRaw;
-
-          if (diff > 0n) {
-            const deltaTxt = formatDeltaFixed(diff, decimals, 2);
-            setTrend("up", deltaTxt);
-            setStatus("good", "Supply растёт");
-            sameInRow = 0;
-            lastChangeAt = fmtClock();
-            $("lastChange").textContent = lastChangeAt;
-
-            // speed up on activity
-            pollMs = 5000;
-          }
-          else if (diff < 0n) {
-            const deltaTxt = formatDeltaFixed(diff, decimals, 2);
-            setTrend("down", deltaTxt);
-            setStatus("bad", "Supply уменьшается");
-            sameInRow = 0;
-            lastChangeAt = fmtClock();
-            $("lastChange").textContent = lastChangeAt;
-
-            pollMs = 5000;
-          }
-          else {
-            setTrend("flat");
-            sameInRow++;
-            setStatus("", "Стабильно");
-            pollMs = sameInRow >= 10 ? 30000 : sameInRow >= 4 ? 15000 : 5000;
-          }
-        } else {
-          // first run
-          setTrend("flat");
-          setStatus("", "Стабильно");
-        }
-
-        $("sameCount").textContent = String(sameInRow);
-
-        // store
-        lastSupplyRaw = raw;
-        try{
-          localStorage.setItem(LS_KEY, raw.toString());
-          if (lastChangeAt) localStorage.setItem(LS_LASTCHANGE, lastChangeAt);
-        }catch(e){}
-
-        scheduleNext();
-      } catch (e) {
-        updateNet(false);
-        setStatus("bad", "Нет связи");
-        pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
-        scheduleNext();
-      }
-    }
-
-    // start
-    $("pollEvery").textContent = (pollMs/1000).toFixed(0) + "s";
-    tick();
-
-    // pause/resume (экономит ресурсы)
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) clearTimeout(timer);
-      else scheduleNext();
-    });
-  </script>
+updateSupply();
+setInterval(updateSupply,5000);
+</script>
 </body>
 </html>
