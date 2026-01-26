@@ -167,21 +167,31 @@ function fmt(sec){
   return `${h}:${m}:${s}`;
 }
 function updateWindow(){
-  const pos=(Date.now()/1000|0)%CYCLE;
-  if(pos<HIDE_FIRST){
-    stDot.style.color='var(--warn)';
-    stText.textContent='🟡 Updating';
-    stTime.textContent=fmt(HIDE_FIRST-pos);
-  }else if(pos<=CYCLE-HIDE_LAST){
-    stDot.style.color='var(--good)';
-    stText.textContent='🟢 Safe';
-    stTime.textContent=fmt(CYCLE-HIDE_LAST-pos);
-  }else{
-    stDot.style.color='var(--bad)';
-    stText.textContent='🔴 Hidden';
-    stTime.textContent=fmt(CYCLE-pos);
+  const pos = (Date.now()/1000|0) % CYCLE;
+
+  // 🔴 первые 10 минут
+  if (pos < HIDE_FIRST){
+    stDot.style.color = 'var(--bad)';
+    stText.textContent = '🔴 Hidden';
+    stTime.textContent = fmt(HIDE_FIRST - pos);
+    return;
   }
+
+  // 🔴 последние 30 минут
+  if (pos > CYCLE - HIDE_LAST){
+    stDot.style.color = 'var(--bad)';
+    stText.textContent = '🔴 Hidden';
+    stTime.textContent = fmt(CYCLE - pos);
+    return;
+  }
+
+  // 🟢 всё остальное
+  stDot.style.color = 'var(--good)';
+  stText.textContent = '🟢 Active';
+  stTime.textContent = fmt(CYCLE - HIDE_LAST - pos);
 }
+
+
 setInterval(updateWindow,1000);
 updateWindow();
 
@@ -291,4 +301,5 @@ setInterval(updateSupply, 5000);
 </script>
 </body>
 </html>
+
 
