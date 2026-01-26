@@ -26,24 +26,25 @@ body{
 }
 .wrap{max-width:820px;margin:0 auto;padding:14px}
 
+/* top: keep title on the left, indicator on the right (same row) */
 .top{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
+  gap:12px;
   padding-bottom:12px;
 }
 .brand{font-weight:950;font-size:16px}
 
-.pill{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 10px;
-  border:1px solid var(--line);
-  border-radius:999px;
+/* compact indicator (no big pill look, but still neat) */
+.statusInline{
+  display:flex;
+  align-items:center;
+  gap:6px;
   font-size:12px;
   color:var(--muted);
-  background:rgba(255,255,255,.02);
   position:relative;
+  white-space:nowrap;
 }
 .dot{font-size:12px}
 .mono{font-variant-numeric:tabular-nums}
@@ -56,6 +57,7 @@ body{
   font-weight:900;
   cursor:pointer;
   color:var(--muted);
+  margin-left:2px;
 }
 
 .popover{
@@ -110,11 +112,11 @@ body{
 <body>
 <div class="wrap">
 
-  <!-- TOP INDICATOR -->
+  <!-- TOP (title left, indicator right, same line) -->
   <div class="top">
-    <div class="brand">tgBTC Fi</div>
+    <div class="brand">tgBTC Fi • Realtime</div>
 
-    <div class="pill">
+    <div class="statusInline" id="statusInline">
       <span class="dot" id="stDot">●</span>
       <span id="stText">—</span>
       <span class="mono" id="stTime">--:--:--</span>
@@ -140,7 +142,7 @@ body{
       <span id="supplyDelta" class="delta flat">+0.00 tgBTC</span>
     </div>
 
-    <div class="sub" id="meta">Источник: TON Center</div>
+    <div class="sub" id="meta">Источник: TON Center (server) • — • tgBTC</div>
   </div>
 
 </div>
@@ -239,7 +241,9 @@ async function updateSupply(){
 
   lastRaw=raw;
   localStorage.setItem(LS_KEY,raw.toString());
-  meta.textContent=`Источник: TON Center • ${d.network}`;
+
+  // match your preferred meta line
+  meta.textContent=`Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
 }
 
 updateSupply();
