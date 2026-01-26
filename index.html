@@ -239,18 +239,30 @@
       }
     }
 
-    // === Supply ===
-    async function updateSupply(){
-      try{
-        const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
-        const d = await r.json();
-        $("supply").textContent = d?.ok ? `${d.supply} ${d.symbol || "tgBTC"}` : "—";
-        $("supplyMeta").textContent = d?.ok ? `Источник: TON Center (server) • ${d.network}` : "Источник: TON Center (server)";
-        $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
-      }catch(e){
-        $("supply").textContent = "—";
-      }
+async function updateSupply(){
+  try{
+    const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
+    const d = await r.json();
+
+    if (!d?.ok) {
+      $("supply").textContent = "—";
+      return;
     }
+
+    // d.supply приходит строкой. Превратим в number для красивого формата.
+    const n = Number(d.supply);
+    const pretty = Number.isFinite(n)
+      ? n.toLocaleString(undefined, { maximumFractionDigits: 4 })
+      : d.supply;
+
+    $("supply").textContent = `${pretty} ${d.symbol || "tgBTC"}`;
+    $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network}`;
+    $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
+  }catch(e){
+    $("supply").textContent = "—";
+  }
+}
+
 
     // === Popover ===
     (function initHelpPopover(){
@@ -286,3 +298,4 @@
   </script>
 </body>
 </html>
+
