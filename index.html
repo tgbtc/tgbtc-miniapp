@@ -119,6 +119,17 @@
     .value{font-weight:950;font-size:20px;line-height:1.15;letter-spacing:.2px;word-break:break-word;}
     .sub{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.35;}
 
+    /* Supply trend */
+    .supplyRow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+    .trendWrap{display:inline-flex;align-items:baseline;gap:6px}
+    .arrow{font-weight:950;font-size:14px;line-height:1}
+    .arrow.up{color:var(--good)}
+    .arrow.down{color:var(--bad)}
+    .delta{font-weight:900;font-size:12px}
+    .delta.up{color:var(--good)}
+    .delta.down{color:var(--bad)}
+    .delta.flat{color:var(--muted)}
+
     .footer{
       margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);
       display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;
@@ -169,7 +180,16 @@
     <div class="grid">
       <div class="card">
         <div class="label">Количество tgBTC (total supply)</div>
-        <div class="value mono" id="supply">—</div>
+
+        <div class="value mono supplyRow">
+          <span id="supply">—</span>
+
+          <span class="trendWrap" aria-label="trend">
+            <span id="supplyArrow" class="arrow"></span>
+            <span id="supplyDelta" class="delta flat"></span>
+          </span>
+        </div>
+
         <div class="sub" id="supplyMeta">Источник: TON Center (server)</div>
       </div>
     </div>
@@ -188,11 +208,7 @@
       try{ tg.ready(); tg.expand(); }catch(e){}
     }
 
-    // === Индикатор окна (4 часа) ===
-    const CYCLE = 4 * 60 * 60;   // 4 hours
-    const HIDE_FIRST = 10 * 60;  // first 10 min
-    const HIDE_LAST  = 30 * 60;  // last 30 min
-
+    // === Helpers ===
     const $ = (id) => document.getElementById(id);
 
     function formatTime(sec){
@@ -202,13 +218,72 @@
       const s = String((sec%60)|0).padStart(2,'0');
       return `${h}:${m}:${s}`;
     }
-
     function formatMinSec(sec){
       sec = Math.max(0, sec|0);
       const m = (sec/60)|0;
       const s = sec%60;
       return `${m}m:${String(s).padStart(2,'0')}s`;
     }
+
+    // BigInt -> decimal string with decimals
+    function formatUnits(rawBig, decimals){
+      const neg = rawBig < 0n;
+      const x = neg ? -rawBig : rawBig;
+
+      if (!decimals) return (neg ? "-" : "") + x.toString();
+
+      const base = 10n ** BigInt(decimals);
+      const i = x / base;
+      const f = x % base;
+
+      let frac = f.toString().padStart(decimals, "0");
+      frac = frac.replace(/0+$/, ""); // trim trailing zeros
+
+      return (neg ? "-" : "") + i.toString() + (frac ? "." + frac : "");
+    }
+
+    // decimal string -> nice "+0.0021 tgBTC" with fixed digits
+    function formatDelta(deltaRawBig, decimals, digits = 4){
+      const sign = deltaRawBig > 0n ? "+" : deltaRawBig < 0n ? "-" : "";
+      const abs = deltaRawBig < 0n ? -deltaRawBig : deltaRawBig;
+
+      // convert to decimal string, then cut to digits
+      const full = formatUnits(abs, decimals); // string
+      // ensure fixed digits after decimal
+      if (digits <= 0) return sign + full;
+
+      const parts = full.split(".");
+      const intPart = parts[0] || "0";
+      const fracPart = (parts[1] || "").padEnd(digits, "0").slice(0, digits);
+      return sign + intPart + (digits ? "." + fracPart : "");
+    }
+
+    function setTrend(dir, deltaText){
+      const arrow = $("supplyArrow");
+      const delta = $("supplyDelta");
+
+      if (dir === "up") {
+        arrow.textContent = "▲";
+        arrow.className = "arrow up";
+        delta.textContent = deltaText ? `${deltaText} tgBTC` : "";
+        delta.className = "delta up";
+      } else if (dir === "down") {
+        arrow.textContent = "▼";
+        arrow.className = "arrow down";
+        delta.textContent = deltaText ? `${deltaText} tgBTC` : "";
+        delta.className = "delta down";
+      } else {
+        arrow.textContent = "";
+        arrow.className = "arrow";
+        delta.textContent = "";
+        delta.className = "delta flat";
+      }
+    }
+
+    // === Индикатор окна (4 часа) ===
+    const CYCLE = 4 * 60 * 60;
+    const HIDE_FIRST = 10 * 60;
+    const HIDE_LAST  = 30 * 60;
 
     function updateAddressWindow(){
       const now = (Date.now()/1000)|0;
@@ -239,30 +314,69 @@
       }
     }
 
-async function updateSupply(){
-  try{
-    const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
-    const d = await r.json();
+    // === Supply + Trend (with localStorage) ===
+    const LS_KEY = "tgbtc_supply_raw_v1";
 
-    if (!d?.ok) {
-      $("supply").textContent = "—";
-      return;
+    // restore last raw from localStorage
+    let lastSupplyRaw = null;
+    try{
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) lastSupplyRaw = BigInt(saved);
+    }catch(e){
+      lastSupplyRaw = null;
     }
 
-    // d.supply приходит строкой. Превратим в number для красивого формата.
-    const n = Number(d.supply);
-    const pretty = Number.isFinite(n)
-      ? n.toLocaleString(undefined, { maximumFractionDigits: 4 })
-      : d.supply;
+    async function updateSupply(){
+      try{
+        const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
+        const d = await r.json();
 
-    $("supply").textContent = `${pretty} ${d.symbol || "tgBTC"}`;
-    $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network}`;
-    $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
-  }catch(e){
-    $("supply").textContent = "—";
-  }
-}
+        if (!d?.ok) {
+          $("supply").textContent = "—";
+          setTrend("flat");
+          return;
+        }
 
+        const decimals = Number(d.decimals || 0);
+
+        // show supply
+        $("supply").textContent = `${d.supply} ${d.symbol || "tgBTC"}`;
+
+        // parse raw
+        let raw = null;
+        try { raw = BigInt(String(d.supply_raw ?? "")); } catch { raw = null; }
+
+        if (raw !== null) {
+          if (lastSupplyRaw !== null) {
+            const diff = raw - lastSupplyRaw;
+
+            if (diff > 0n) {
+              const deltaTxt = formatDelta(diff, decimals, 4); // +0.0021
+              setTrend("up", deltaTxt);
+            } else if (diff < 0n) {
+              const deltaTxt = formatDelta(diff, decimals, 4); // -0.0021
+              setTrend("down", deltaTxt);
+            } else {
+              setTrend("flat");
+            }
+          } else {
+            setTrend("flat"); // first run
+          }
+
+          // store for next time (and after refresh)
+          lastSupplyRaw = raw;
+          try{ localStorage.setItem(LS_KEY, raw.toString()); }catch(e){}
+        } else {
+          setTrend("flat");
+        }
+
+        $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network}`;
+        $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
+      }catch(e){
+        $("supply").textContent = "—";
+        setTrend("flat");
+      }
+    }
 
     // === Popover ===
     (function initHelpPopover(){
@@ -298,4 +412,3 @@ async function updateSupply(){
   </script>
 </body>
 </html>
-
