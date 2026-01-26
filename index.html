@@ -3,39 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC Fi — Supply</title>
-
+  <title>tgBTC Fi — Supply Realtime</title>
   <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
-      --bg:#0b0f17;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
-      --line:rgba(148,163,184,.18);
-
-      --good:#22c55e;
-      --warn:#f59e0b;
-      --bad:#ef4444;
+      --bg:#0b0f17; --text:#e5e7eb; --muted:#94a3b8; --line:rgba(148,163,184,.18);
+      --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      -webkit-font-smoothing:antialiased;
-      text-rendering:optimizeLegibility;
-    }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
     .wrap{max-width:820px;margin:0 auto;padding:14px}
 
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:6px 0 12px;
-    }
+    .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0 12px;}
     .brand{font-weight:950;letter-spacing:.4px;font-size:16px}
 
     .pill{
@@ -43,83 +23,19 @@
       padding:8px 10px;border:1px solid var(--line);
       border-radius:999px;color:var(--muted);
       font-size:12px;background:rgba(255,255,255,.02);
-      position:relative;
       user-select:none;
     }
     .dot{font-size:12px;line-height:1}
     .mono{font-variant-numeric:tabular-nums}
 
-    .helpBtn{
-      width:18px;height:18px;
-      display:inline-flex;align-items:center;justify-content:center;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-weight:900;
-      font-size:12px;
-      cursor:pointer;
-      user-select:none;
-      flex:0 0 auto;
-    }
-    .overlay{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.45);
-      backdrop-filter: blur(2px);
-      display:none;
-      z-index:80;
-    }
-    .overlay.show{display:block}
-    .popover{
-      position:absolute;
-      right:0;
-      top:calc(100% + 10px);
-      width:min(360px, 92vw);
-      background:rgba(15,23,42,.98);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:10px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);
-      display:none;
-      z-index:90;
-      white-space:normal;
-    }
-    .popover.show{display:block}
-    .popHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
-    .popTitle{font-weight:950;font-size:12px;color:var(--text);margin:0;}
-    .popClose{
-      width:22px;height:22px;
-      display:inline-flex;align-items:center;justify-content:center;
-      border-radius:10px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-weight:900;
-      cursor:pointer;
-      flex:0 0 auto;
-    }
-    .popText{font-size:11px;color:var(--muted);line-height:1.35;}
-    .popList{margin:8px 0 0;padding:0;list-style:none}
-    .popList li{margin:6px 0}
-    .k{font-weight:900}
-    .g{color:var(--good)}
-    .y{color:var(--warn)}
-    .r{color:var(--bad)}
-
     .grid{display:grid;grid-template-columns:1fr;gap:12px;}
     @media(min-width:640px){ .grid{grid-template-columns:1fr 1fr;} }
 
-    .card{
-      background:rgba(255,255,255,.02);
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:12px;
-    }
+    .card{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:16px;padding:12px;}
     .label{color:var(--muted);font-size:12px;margin-bottom:6px}
     .value{font-weight:950;font-size:22px;line-height:1.15;letter-spacing:.2px;word-break:break-word;}
     .sub{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.35;}
 
-    /* Supply trend */
     .supplyRow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
     .trendWrap{display:inline-flex;align-items:baseline;gap:6px}
     .arrow{font-weight:950;font-size:14px;line-height:1}
@@ -128,52 +44,36 @@
     .delta{font-weight:900;font-size:12px}
     .delta.up{color:var(--good)}
     .delta.down{color:var(--bad)}
-    .delta.flat{color:var(--muted)}
+    .delta.flat{color:var(--text)} /* белый при 0 */
 
-    .footer{
-      margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);
-      display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;
-      color:var(--muted);font-size:12px;
+    .log{
+      margin-top:10px;
+      border-top:1px dashed var(--line);
+      padding-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
     }
+    .logLine{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+    .tag{font-weight:900;color:var(--text)}
+    .tag.good{color:var(--good)}
+    .tag.bad{color:var(--bad)}
+    .tag.warn{color:var(--warn)}
   </style>
 </head>
 
 <body>
-  <div class="overlay" id="helpOverlay"></div>
-
   <div class="wrap">
 
     <div class="top">
-      <div class="brand">tgBTC Fi</div>
+      <div class="brand">tgBTC Fi • Realtime</div>
 
-      <div class="pill" id="statusPill">
-        <span class="dot" id="stDot">●</span>
-        <span id="stText">—</span>
-        <span class="mono" id="stTime">--:--:--</span>
-
-        <span class="helpBtn" id="helpBtn" title="Что означает индикатор?">?</span>
-
-        <div class="popover" id="helpPop" role="dialog" aria-label="Пояснение индикатора">
-          <div class="popHeader">
-            <h3 class="popTitle">Окно BTC → tgBTC (4 часа)</h3>
-            <div class="popClose" id="helpClose" title="Закрыть">×</div>
-          </div>
-
-          <div class="popText">
-            Адрес BTC для депозита живёт <span class="k">4 часа</span>.
-            В начале и конце цикла адрес скрывается.
-          </div>
-
-          <ul class="popList">
-            <li><span class="k g">🟢 Safe</span> — адрес виден и актуален.</li>
-            <li><span class="k y">🟡 Updating</span> — первые 10 минут адрес скрыт.</li>
-            <li><span class="k r">🔴 Hidden</span> — последние 30 минут адрес скрыт.</li>
-          </ul>
-
-          <div class="popText" style="margin-top:8px;">
-            Перед действием всё равно сверяй Teleport.
-          </div>
-        </div>
+      <div class="pill">
+        <span class="dot" id="netDot">●</span>
+        <span id="netText">—</span>
+        <span class="mono" id="netTime">--:--:--</span>
       </div>
     </div>
 
@@ -183,83 +83,63 @@
 
         <div class="value mono supplyRow">
           <span id="supply">—</span>
-
-          <span class="trendWrap" aria-label="trend">
+          <span class="trendWrap">
             <span id="supplyArrow" class="arrow"></span>
-            <span id="supplyDelta" class="delta flat"></span>
+            <span id="supplyDelta" class="delta flat">+0.00 tgBTC</span>
           </span>
         </div>
 
-        <div class="sub" id="supplyMeta">Источник: TON Center (server)</div>
-      </div>
-    </div>
+        <div class="sub" id="meta">Источник: TON Center (server) • testnet</div>
 
-    <div class="footer">
-      <div>Bot: <b>@tgbtcfibot</b></div>
-      <div class="mono" id="lastUpd">Обновление: —</div>
+        <div class="log">
+          <div class="logLine">
+            <span>Статус:</span>
+            <span id="statusTag" class="tag">—</span>
+          </div>
+          <div class="logLine">
+            <span>Последнее изменение:</span>
+            <span class="mono" id="lastChange">—</span>
+          </div>
+          <div class="logLine">
+            <span>Обновление данных:</span>
+            <span class="mono" id="lastFetch">—</span>
+          </div>
+          <div class="logLine">
+            <span>Интервал опроса:</span>
+            <span class="mono" id="pollEvery">—</span>
+          </div>
+          <div class="logLine">
+            <span>Без изменений подряд:</span>
+            <span class="mono" id="sameCount">0</span>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
 
   <script>
-    // === Telegram Mini App init ===
     const tg = window.Telegram?.WebApp;
-    if (tg){
-      try{ tg.ready(); tg.expand(); }catch(e){}
-    }
+    if (tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
 
     const $ = (id) => document.getElementById(id);
 
-    function formatTime(sec){
-      sec = Math.max(0, sec|0);
-      const h = String((sec/3600)|0).padStart(2,'0');
-      const m = String(((sec%3600)/60)|0).padStart(2,'0');
-      const s = String((sec%60)|0).padStart(2,'0');
-      return `${h}:${m}:${s}`;
-    }
-    function formatMinSec(sec){
-      sec = Math.max(0, sec|0);
-      const m = (sec/60)|0;
-      const s = sec%60;
-      return `${m}m:${String(s).padStart(2,'0')}s`;
-    }
-
-    // BigInt -> decimal string with decimals
-    function formatUnits(rawBig, decimals){
-      const neg = rawBig < 0n;
-      const x = neg ? -rawBig : rawBig;
-
-      if (!decimals) return (neg ? "-" : "") + x.toString();
-
-      const base = 10n ** BigInt(decimals);
-      const i = x / base;
-      const f = x % base;
-
-      let frac = f.toString().padStart(decimals, "0");
-      frac = frac.replace(/0+$/, ""); // trim trailing zeros
-
-      return (neg ? "-" : "") + i.toString() + (frac ? "." + frac : "");
-    }
-
-    // Supply display: exactly 2 decimals (without losing precision)
+    // ====== formatting ======
     function formatUnitsFixed(rawBig, decimals, fixed = 2){
       const neg = rawBig < 0n;
       const x = neg ? -rawBig : rawBig;
 
-      // integer part + fractional part
       const base = 10n ** BigInt(decimals);
       const i = x / base;
       const f = x % base;
 
-      // take first "fixed" digits from fraction (truncate, not round)
       const fracAll = f.toString().padStart(decimals, "0");
       const fracFixed = fixed > 0 ? fracAll.slice(0, fixed).padEnd(fixed, "0") : "";
 
       return (neg ? "-" : "") + i.toString() + (fixed > 0 ? "." + fracFixed : "");
     }
 
-    // Delta display: show 4 decimals (+0.0021)
-    function formatDeltaFixed(deltaRawBig, decimals, fixed = 4){
+    function formatDeltaFixed(deltaRawBig, decimals, fixed = 2){
       const sign = deltaRawBig > 0n ? "+" : deltaRawBig < 0n ? "-" : "";
       const abs = deltaRawBig < 0n ? -deltaRawBig : deltaRawBig;
 
@@ -280,152 +160,161 @@
       if (dir === "up") {
         arrow.textContent = "▲";
         arrow.className = "arrow up";
-        delta.textContent = deltaText ? `${deltaText} tgBTC` : "";
+        delta.textContent = `${deltaText} tgBTC`;
         delta.className = "delta up";
       } else if (dir === "down") {
         arrow.textContent = "▼";
         arrow.className = "arrow down";
-        delta.textContent = deltaText ? `${deltaText} tgBTC` : "";
+        delta.textContent = `${deltaText} tgBTC`;
         delta.className = "delta down";
       } else {
         arrow.textContent = "";
         arrow.className = "arrow";
-        delta.textContent = "";
+        delta.textContent = `+0.00 tgBTC`;
         delta.className = "delta flat";
       }
     }
 
-    // === Индикатор окна (4 часа) ===
-    const CYCLE = 4 * 60 * 60;
-    const HIDE_FIRST = 10 * 60;
-    const HIDE_LAST  = 30 * 60;
-
-    function updateAddressWindow(){
-      const now = (Date.now()/1000)|0;
-      const pos = now % CYCLE;
-
-      const stDot = $("stDot");
-      const stText = $("stText");
-      const stTime = $("stTime");
-
-      const visibleStart = HIDE_FIRST;
-      const visibleEnd   = CYCLE - HIDE_LAST;
-
-      if (pos < visibleStart) {
-        const left = visibleStart - pos;
-        stDot.style.color = "var(--warn)";
-        stText.textContent = "🟡 Updating";
-        stTime.textContent = formatTime(left);
-      } else if (pos <= visibleEnd) {
-        const left = visibleEnd - pos;
-        stDot.style.color = "var(--good)";
-        stText.textContent = "🟢 Safe";
-        stTime.textContent = formatTime(left);
-      } else {
-        const left = CYCLE - pos;
-        stDot.style.color = "var(--bad)";
-        stText.textContent = "🔴 Hidden";
-        stTime.textContent = formatMinSec(left);
-      }
+    function setStatus(kind, text){
+      const tag = $("statusTag");
+      tag.textContent = text;
+      tag.className = "tag " + (kind || "");
     }
 
-    // === Supply + Trend (with localStorage) ===
-    const LS_KEY = "tgbtc_supply_raw_v1";
+    function fmtClock(){
+      return new Date().toLocaleTimeString();
+    }
+
+    // ====== realtime polling with backoff ======
+    const LS_KEY = "tgbtc_supply_raw_v2";
+    const LS_LASTCHANGE = "tgbtc_supply_lastchange_v2";
 
     let lastSupplyRaw = null;
+    let lastChangeAt = null;
+    let sameInRow = 0;
+
+    // polling interval logic
+    let pollMs = 5000; // start 5s
+    let timer = null;
+
+    // restore
     try{
       const saved = localStorage.getItem(LS_KEY);
       if (saved) lastSupplyRaw = BigInt(saved);
-    }catch(e){
-      lastSupplyRaw = null;
+      const savedLc = localStorage.getItem(LS_LASTCHANGE);
+      if (savedLc) lastChangeAt = savedLc;
+    }catch(e){}
+
+    if (lastChangeAt) $("lastChange").textContent = lastChangeAt;
+
+    function updateNet(ok){
+      $("netDot").style.color = ok ? "var(--good)" : "var(--bad)";
+      $("netText").textContent = ok ? "Online" : "Offline";
+      $("netTime").textContent = fmtClock();
     }
 
-    async function updateSupply(){
+    function scheduleNext(){
+      clearTimeout(timer);
+      $("pollEvery").textContent = (pollMs/1000).toFixed(0) + "s";
+      timer = setTimeout(tick, pollMs);
+    }
+
+    async function tick(){
       try{
-        const r = await fetch("/api/tgbtc-supply", { cache: "no-store" });
+        const r = await fetch("/api/tgbtc-supply", { cache:"no-store" });
         const d = await r.json();
+        $("lastFetch").textContent = fmtClock();
 
         if (!d?.ok) {
-          $("supply").textContent = "—";
-          setTrend("flat");
+          updateNet(false);
+          setStatus("bad", "Ошибка данных");
+          // backoff on errors
+          pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
+          scheduleNext();
           return;
         }
+
+        updateNet(true);
+        $("meta").textContent = `Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
 
         const decimals = Number(d.decimals || 0);
-
-        // parse raw
         let raw = null;
-        try { raw = BigInt(String(d.supply_raw ?? "")); } catch { raw = null; }
+        try{ raw = BigInt(String(d.supply_raw ?? "")); }catch(e){ raw = null; }
 
         if (raw === null) {
-          $("supply").textContent = "—";
-          setTrend("flat");
+          setStatus("bad", "Парсинг supply");
+          pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
+          scheduleNext();
           return;
         }
 
-        // show supply like "4257.03"
-        const prettySupply = formatUnitsFixed(raw, decimals, 2);
-        $("supply").textContent = prettySupply;
+        // show main supply (2 decimals)
+        $("supply").textContent = formatUnitsFixed(raw, decimals, 2);
 
-        // trend compare
+        // compare + display what is happening
         if (lastSupplyRaw !== null) {
           const diff = raw - lastSupplyRaw;
 
           if (diff > 0n) {
-            const deltaTxt = formatDeltaFixed(diff, decimals, 4);
+            const deltaTxt = formatDeltaFixed(diff, decimals, 2);
             setTrend("up", deltaTxt);
-          } else if (diff < 0n) {
-            const deltaTxt = formatDeltaFixed(diff, decimals, 4);
+            setStatus("good", "Supply растёт");
+            sameInRow = 0;
+            lastChangeAt = fmtClock();
+            $("lastChange").textContent = lastChangeAt;
+
+            // speed up on activity
+            pollMs = 5000;
+          }
+          else if (diff < 0n) {
+            const deltaTxt = formatDeltaFixed(diff, decimals, 2);
             setTrend("down", deltaTxt);
-          } else {
+            setStatus("bad", "Supply уменьшается");
+            sameInRow = 0;
+            lastChangeAt = fmtClock();
+            $("lastChange").textContent = lastChangeAt;
+
+            pollMs = 5000;
+          }
+          else {
             setTrend("flat");
+            sameInRow++;
+            setStatus("", "Стабильно");
+            pollMs = sameInRow >= 10 ? 30000 : sameInRow >= 4 ? 15000 : 5000;
           }
         } else {
+          // first run
           setTrend("flat");
+          setStatus("", "Стабильно");
         }
+
+        $("sameCount").textContent = String(sameInRow);
 
         // store
         lastSupplyRaw = raw;
-        try{ localStorage.setItem(LS_KEY, raw.toString()); }catch(e){}
+        try{
+          localStorage.setItem(LS_KEY, raw.toString());
+          if (lastChangeAt) localStorage.setItem(LS_LASTCHANGE, lastChangeAt);
+        }catch(e){}
 
-        $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
-        $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
-      }catch(e){
-        $("supply").textContent = "—";
-        setTrend("flat");
+        scheduleNext();
+      } catch (e) {
+        updateNet(false);
+        setStatus("bad", "Нет связи");
+        pollMs = Math.min(60000, Math.floor(pollMs * 1.5));
+        scheduleNext();
       }
     }
 
-    // === Popover ===
-    (function initHelpPopover(){
-      const btn = $("helpBtn");
-      const pop = $("helpPop");
-      const closeBtn = $("helpClose");
-      const overlay = $("helpOverlay");
+    // start
+    $("pollEvery").textContent = (pollMs/1000).toFixed(0) + "s";
+    tick();
 
-      function open(){
-        pop.classList.add("show");
-        overlay.classList.add("show");
-        btn.setAttribute("aria-expanded", "true");
-      }
-      function close(){
-        pop.classList.remove("show");
-        overlay.classList.remove("show");
-        btn.setAttribute("aria-expanded", "false");
-      }
-      function toggle(){ pop.classList.contains("show") ? close() : open(); }
-
-      btn.setAttribute("aria-expanded", "false");
-      btn.addEventListener("click", (e)=>{ e.stopPropagation(); toggle(); });
-      closeBtn.addEventListener("click", (e)=>{ e.stopPropagation(); close(); });
-      overlay.addEventListener("click", ()=>close());
-      document.addEventListener("keydown", (e)=>{ if (e.key === "Escape") close(); });
-    })();
-
-    updateAddressWindow();
-    updateSupply();
-    setInterval(updateAddressWindow, 1000);
-    setInterval(updateSupply, 30000);
+    // pause/resume (экономит ресурсы)
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) clearTimeout(timer);
+      else scheduleNext();
+    });
   </script>
 </body>
 </html>
