@@ -1,41 +1,86 @@
 export default async function handler(req, res) {
   try {
-    const KEY = process.env.TONAPI_KEY;
-    const MASTER = process.env.TGBTC_JETTON_MASTER;
+    const network = (process.env.TON_NETWORK || "testnet").toLowerCase();
+    const master = process.env.JETTON_MASTER;
+    const decimals = Number(process.env.JETTON_DECIMALS || 0);
 
-    if (!KEY) return res.status(500).json({ ok:false, error:"TONAPI_KEY missing" });
-    if (!MASTER) return res.status(500).json({ ok:false, error:"TGBTC_JETTON_MASTER missing" });
+    if (!master) return res.status(400).json({ ok: false, error: "JETTON_MASTER missing" });
 
-    const url = `https://tonapi.io/v2/jettons/${encodeURIComponent(MASTER)}`;
+    const base = network === "mainnet" ? "https://toncenter.com" : "https://testnet.toncenter.com";
+    const apiKey =
+      network === "mainnet"
+        ? (process.env.TONCENTER_API_KEY_MAINNET || "")
+        : (process.env.TONCENTER_API_KEY_TESTNET || "");
+
+    const url = `${base}/api/v2/runGetMethod`;
+
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey) headers["X-API-Key"] = apiKey;
+
     const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${KEY}`, accept: "application/json" }
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        address: master,
+        method: "get_jetton_data",
+        stack: [],
+      }),
+      cache: "no-store",
     });
 
-    const d = await r.json().catch(() => null);
-    if (!r.ok || !d) {
-      return res.status(502).json({ ok:false, error:"TonAPI jetton fetch failed", status:r.status });
+    const j = await r.json().catch(() => null);
+    const result = j?.result || j;
+    const exit = result?.exit_code;
+    const stack = result?.stack;
+
+    if (!r.ok || !result || exit !== 0 || !Array.isArray(stack) || stack.length === 0) {
+      return res.status(502).json({
+        ok: false,
+        error: "TON Center bad response",
+        status: r.status,
+        exit_code: exit,
+        raw: j,
+      });
     }
 
-    const totalRawStr = String(d.total_supply ?? "0");
-    const decimals = Number(d.decimals ?? d.metadata?.decimals ?? 0);
-    const symbol = d.metadata?.symbol || "tgBTC";
+    // get_jetton_data returns: (total_supply, mintable, admin, content, wallet_code)
+    const first = stack[0];
+    let supplyRawStr = null;
 
-    let raw = 0n;
-    try { raw = BigInt(totalRawStr); } catch {}
+    // toncenter stack usually: ["num","0x..."] or ["num","123"]
+    if (Array.isArray(first) && first.length >= 2) supplyRawStr = String(first[1]);
+    else if (first && typeof first === "object") supplyRawStr = String(first.value ?? "");
 
-    const base = 10n ** BigInt(Math.max(0, decimals));
-    const whole = raw / base;
-    const frac = raw % base;
+    if (!supplyRawStr) {
+      return res.status(502).json({ ok: false, error: "Cannot parse supply", raw: j });
+    }
 
-    const fracStr = decimals > 0
-      ? frac.toString().padStart(decimals, "0").slice(0, 8)
-      : "";
+    const raw = supplyRawStr.startsWith("0x") || supplyRawStr.startsWith("-0x")
+      ? BigInt(supplyRawStr)
+      : BigInt(supplyRawStr);
 
-    const supply = decimals > 0 ? `${whole}.${fracStr}` : whole.toString();
+    const formatUnits = (bi, dec) => {
+      const neg = bi < 0n;
+      const x = neg ? -bi : bi;
+      const base10 = 10n ** BigInt(dec);
+      const i = x / base10;
+      const f = x % base10;
+      if (dec === 0) return (neg ? "-" : "") + i.toString();
+      const frac = f.toString().padStart(dec, "0").replace(/0+$/, "");
+      return (neg ? "-" : "") + i.toString() + (frac ? "." + frac : "");
+    };
 
-    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
-    return res.json({ ok:true, symbol, supply, decimals });
+    return res.json({
+      ok: true,
+      network,
+      jetton_master: master,
+      supply_raw: raw.toString(),
+      supply: formatUnits(raw, decimals),
+      decimals,
+      symbol: "tgBTC",
+      source: "toncenter runGetMethod(get_jetton_data)",
+    });
   } catch (e) {
-    return res.status(500).json({ ok:false, error:String(e?.message || e) });
+    return res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
