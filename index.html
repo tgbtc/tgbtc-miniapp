@@ -116,7 +116,7 @@
       padding:12px;
     }
     .label{color:var(--muted);font-size:12px;margin-bottom:6px}
-    .value{font-weight:950;font-size:20px;line-height:1.15;letter-spacing:.2px;word-break:break-word;}
+    .value{font-weight:950;font-size:22px;line-height:1.15;letter-spacing:.2px;word-break:break-word;}
     .sub{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.35;}
 
     /* Supply trend */
@@ -208,7 +208,6 @@
       try{ tg.ready(); tg.expand(); }catch(e){}
     }
 
-    // === Helpers ===
     const $ = (id) => document.getElementById(id);
 
     function formatTime(sec){
@@ -242,20 +241,36 @@
       return (neg ? "-" : "") + i.toString() + (frac ? "." + frac : "");
     }
 
-    // decimal string -> nice "+0.0021 tgBTC" with fixed digits
-    function formatDelta(deltaRawBig, decimals, digits = 4){
+    // Supply display: exactly 2 decimals (without losing precision)
+    function formatUnitsFixed(rawBig, decimals, fixed = 2){
+      const neg = rawBig < 0n;
+      const x = neg ? -rawBig : rawBig;
+
+      // integer part + fractional part
+      const base = 10n ** BigInt(decimals);
+      const i = x / base;
+      const f = x % base;
+
+      // take first "fixed" digits from fraction (truncate, not round)
+      const fracAll = f.toString().padStart(decimals, "0");
+      const fracFixed = fixed > 0 ? fracAll.slice(0, fixed).padEnd(fixed, "0") : "";
+
+      return (neg ? "-" : "") + i.toString() + (fixed > 0 ? "." + fracFixed : "");
+    }
+
+    // Delta display: show 4 decimals (+0.0021)
+    function formatDeltaFixed(deltaRawBig, decimals, fixed = 4){
       const sign = deltaRawBig > 0n ? "+" : deltaRawBig < 0n ? "-" : "";
       const abs = deltaRawBig < 0n ? -deltaRawBig : deltaRawBig;
 
-      // convert to decimal string, then cut to digits
-      const full = formatUnits(abs, decimals); // string
-      // ensure fixed digits after decimal
-      if (digits <= 0) return sign + full;
+      const base = 10n ** BigInt(decimals);
+      const i = abs / base;
+      const f = abs % base;
 
-      const parts = full.split(".");
-      const intPart = parts[0] || "0";
-      const fracPart = (parts[1] || "").padEnd(digits, "0").slice(0, digits);
-      return sign + intPart + (digits ? "." + fracPart : "");
+      const fracAll = f.toString().padStart(decimals, "0");
+      const fracFixed = fixed > 0 ? fracAll.slice(0, fixed).padEnd(fixed, "0") : "";
+
+      return sign + i.toString() + (fixed > 0 ? "." + fracFixed : "");
     }
 
     function setTrend(dir, deltaText){
@@ -317,7 +332,6 @@
     // === Supply + Trend (with localStorage) ===
     const LS_KEY = "tgbtc_supply_raw_v1";
 
-    // restore last raw from localStorage
     let lastSupplyRaw = null;
     try{
       const saved = localStorage.getItem(LS_KEY);
@@ -339,38 +353,42 @@
 
         const decimals = Number(d.decimals || 0);
 
-        // show supply
-        $("supply").textContent = `${d.supply} ${d.symbol || "tgBTC"}`;
-
         // parse raw
         let raw = null;
         try { raw = BigInt(String(d.supply_raw ?? "")); } catch { raw = null; }
 
-        if (raw !== null) {
-          if (lastSupplyRaw !== null) {
-            const diff = raw - lastSupplyRaw;
+        if (raw === null) {
+          $("supply").textContent = "—";
+          setTrend("flat");
+          return;
+        }
 
-            if (diff > 0n) {
-              const deltaTxt = formatDelta(diff, decimals, 4); // +0.0021
-              setTrend("up", deltaTxt);
-            } else if (diff < 0n) {
-              const deltaTxt = formatDelta(diff, decimals, 4); // -0.0021
-              setTrend("down", deltaTxt);
-            } else {
-              setTrend("flat");
-            }
+        // show supply like "4257.03"
+        const prettySupply = formatUnitsFixed(raw, decimals, 2);
+        $("supply").textContent = prettySupply;
+
+        // trend compare
+        if (lastSupplyRaw !== null) {
+          const diff = raw - lastSupplyRaw;
+
+          if (diff > 0n) {
+            const deltaTxt = formatDeltaFixed(diff, decimals, 4);
+            setTrend("up", deltaTxt);
+          } else if (diff < 0n) {
+            const deltaTxt = formatDeltaFixed(diff, decimals, 4);
+            setTrend("down", deltaTxt);
           } else {
-            setTrend("flat"); // first run
+            setTrend("flat");
           }
-
-          // store for next time (and after refresh)
-          lastSupplyRaw = raw;
-          try{ localStorage.setItem(LS_KEY, raw.toString()); }catch(e){}
         } else {
           setTrend("flat");
         }
 
-        $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network}`;
+        // store
+        lastSupplyRaw = raw;
+        try{ localStorage.setItem(LS_KEY, raw.toString()); }catch(e){}
+
+        $("supplyMeta").textContent = `Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
         $("lastUpd").textContent = "Обновление: " + new Date().toLocaleTimeString();
       }catch(e){
         $("supply").textContent = "—";
@@ -404,7 +422,6 @@
       document.addEventListener("keydown", (e)=>{ if (e.key === "Escape") close(); });
     })();
 
-    // старт
     updateAddressWindow();
     updateSupply();
     setInterval(updateAddressWindow, 1000);
