@@ -192,10 +192,19 @@ helpBtn.onclick=e=>{
 };
 document.onclick=()=>helpPop.classList.remove('show');
 
-// ===== Supply realtime
-const LS_KEY="tgbtc_supply_raw";
-let lastRaw=null;
-try{ lastRaw=BigInt(localStorage.getItem(LS_KEY)||""); }catch{}
+// ===== Supply realtime (persist last change across reload)
+const LS_CUR  = "tgbtc_supply_raw_cur";
+const LS_PREV = "tgbtc_supply_raw_prev";
+
+let curRaw = null;
+let prevRaw = null;
+
+try{
+  const c = localStorage.getItem(LS_CUR);
+  const p = localStorage.getItem(LS_PREV);
+  if (c) curRaw = BigInt(c);
+  if (p) prevRaw = BigInt(p);
+}catch{}
 
 function format2(raw,dec){
   const b=10n**BigInt(dec);
@@ -212,42 +221,74 @@ function delta2(diff,dec){
   return `${sign}${i}.${f}`;
 }
 
+function renderDelta(diff, dec){
+  if (diff > 0n){
+    supplyArrow.textContent="▲";
+    supplyArrow.className="arrow up";
+    supplyDelta.textContent=`${delta2(diff,dec)} tgBTC`;
+    supplyDelta.className="delta up";
+  } else if (diff < 0n){
+    supplyArrow.textContent="▼";
+    supplyArrow.className="arrow down";
+    supplyDelta.textContent=`${delta2(diff,dec)} tgBTC`;
+    supplyDelta.className="delta down";
+  } else {
+    supplyArrow.textContent="";
+    supplyDelta.textContent="+0.00 tgBTC";
+    supplyDelta.className="delta flat";
+  }
+}
+
 async function updateSupply(){
   const r=await fetch("/api/tgbtc-supply",{cache:"no-store"});
   const d=await r.json();
-  if(!d?.ok)return;
+  if(!d?.ok) return;
 
-  const raw=BigInt(d.supply_raw);
-  supply.textContent=format2(raw,d.decimals);
+  const raw = BigInt(d.supply_raw);
+  const dec = Number(d.decimals || 0);
 
-  if(lastRaw!==null){
-    const diff=raw-lastRaw;
-    if(diff>0n){
-      supplyArrow.textContent="▲";
-      supplyArrow.className="arrow up";
-      supplyDelta.textContent=`${delta2(diff,d.decimals)} tgBTC`;
-      supplyDelta.className="delta up";
-    }else if(diff<0n){
-      supplyArrow.textContent="▼";
-      supplyArrow.className="arrow down";
-      supplyDelta.textContent=`${delta2(diff,d.decimals)} tgBTC`;
-      supplyDelta.className="delta down";
-    }else{
-      supplyArrow.textContent="";
-      supplyDelta.textContent="+0.00 tgBTC";
-      supplyDelta.className="delta flat";
+  // supply number (2 decimals)
+  supply.textContent = format2(raw, dec);
+
+  // if first ever run: just set curRaw
+  if (curRaw === null) {
+    curRaw = raw;
+    try{ localStorage.setItem(LS_CUR, curRaw.toString()); }catch{}
+    renderDelta(0n, dec);
+  } else {
+    const diffNow = raw - curRaw;
+
+    if (diffNow !== 0n) {
+      // update prev/cur so last change persists after reload
+      prevRaw = curRaw;
+      curRaw = raw;
+
+      try{
+        localStorage.setItem(LS_PREV, prevRaw.toString());
+        localStorage.setItem(LS_CUR, curRaw.toString());
+      }catch{}
+
+      // show the change that just happened
+      renderDelta(diffNow, dec);
+    } else {
+      // no new change right now
+      // BUT if we have a persisted last change (cur != prev), keep showing it after reload too
+      if (prevRaw !== null && curRaw !== prevRaw) {
+        const lastChange = curRaw - prevRaw;
+        renderDelta(lastChange, dec);
+      } else {
+        renderDelta(0n, dec);
+      }
     }
   }
 
-  lastRaw=raw;
-  localStorage.setItem(LS_KEY,raw.toString());
-
-  // match your preferred meta line
   meta.textContent=`Источник: TON Center (server) • ${d.network} • ${d.symbol || "tgBTC"}`;
 }
 
 updateSupply();
-setInterval(updateSupply,5000);
+setInterval(updateSupply, 5000);
+
 </script>
 </body>
 </html>
+
