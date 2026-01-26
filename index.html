@@ -119,15 +119,14 @@ body{
     <div class="statusInline" id="statusInline">
       <span class="dot" id="stDot">●</span>
       <span id="stText">—</span>
-      <span class="mono" id="stTime">--:--:--</span>
+      <span class="mono" id="stTime">--:--</span>
       <span class="helpBtn" id="helpBtn">?</span>
 
       <div class="popover" id="helpPop">
         <b>Окно BTC → tgBTC</b><br><br>
         🟢 Active — адрес видим<br>
-        🔴 Hidden — первые 10 минут<br>
         🔴 Hidden — последние 30 минут<br><br>
-        Цикл живёт <b>1 час</b>
+        Таймер берём из Teleport (сейчас задан старт 23:23)
       </div>
     </div>
   </div>
@@ -154,78 +153,35 @@ const $ = id => document.getElementById(id);
 const tg = window.Telegram?.WebApp;
 if (tg){ try{ tg.ready(); tg.expand(); }catch{} }
 
-// ===== Teleport window indicator (1h) — sync by observation
+// ===== SIMPLE TELEPORT TIMER (manual start, no sync logic)
 const CYCLE = 60 * 60;      // 1 час
-const HIDE_FIRST = 10 * 60; // первые 10 минут скрыт
-const HIDE_LAST  = 30 * 60; // последние 30 минут скрыт
+const HIDE_LAST = 30 * 60;  // последние 30 минут = Hidden
 
-// Наблюдение: адрес появился, когда Teleport показывал 51:19
-const OBS_TO_UPDATE = (51 * 60) + 19; // 51:19
+// СЕЙЧАС Teleport: "The address will be updated in 23m : 23s"
+let secondsToUpdate = (23 * 60) + 23; // 23:23
 
-const LS_OFFSET = "tgbtc_tp_offset_1h";
-
-function fmt(sec){
+function fmtMMSS(sec){
   sec = Math.max(0, sec|0);
-  const h = String((sec/3600)|0).padStart(2,'0');
-  const m = String((sec%3600/60)|0).padStart(2,'0');
+  const m = String((sec/60)|0).padStart(2,'0');
   const s = String((sec%60)|0).padStart(2,'0');
-  return `${h}:${m}:${s}`;
+  return `${m}:${s}`;
 }
 
-let OFFSET = 0;
-
-// Калибровка: в момент наблюдения "toUpdate = 51:19" считаем, что это начало Active (pos = HIDE_FIRST)
-(function initOffset(){
-  try{
-    const saved = localStorage.getItem(LS_OFFSET);
-    if (saved !== null){
-      OFFSET = Number(saved) || 0;
-      return;
-    }
-  }catch{}
-
-  const now = (Date.now()/1000)|0;
-
-  // pos = CYCLE - toUpdate
-  const posFromObs = (CYCLE - OBS_TO_UPDATE);
-
-  // хотим pos == HIDE_FIRST
-  let off = (HIDE_FIRST - posFromObs) - (now % CYCLE);
-
-  off = ((off % CYCLE) + CYCLE) % CYCLE;
-
-  OFFSET = off;
-  try{ localStorage.setItem(LS_OFFSET, String(OFFSET)); }catch{}
-})();
-
 function updateWindow(){
-  const now = (Date.now()/1000)|0;
-  let pos = (now + OFFSET) % CYCLE;
-  if (pos < 0) pos += CYCLE;
-
-  const toUpdate = CYCLE - pos; // "время до обновления" (как в Teleport)
-
-  // 🔴 первые 10 минут после обновления
-  if (pos < HIDE_FIRST){
+  if (secondsToUpdate <= HIDE_LAST){
     stDot.style.color = 'var(--bad)';
     stText.textContent = '🔴 Hidden';
-    stTime.textContent = fmt(HIDE_FIRST - pos);
-    return;
+    stTime.textContent = fmtMMSS(secondsToUpdate);
+  } else {
+    stDot.style.color = 'var(--good)';
+    stText.textContent = '🟢 Active';
+    stTime.textContent = fmtMMSS(secondsToUpdate);
   }
 
-  // 🔴 последние 30 минут (ВАЖНО: ориентируемся по toUpdate)
-  // Teleport может скрывать уже на 30:01, если нужно — поменяй на (HIDE_LAST + 1)
-  if (toUpdate <= HIDE_LAST){
-    stDot.style.color = 'var(--bad)';
-    stText.textContent = '🔴 Hidden';
-    stTime.textContent = fmt(toUpdate);
-    return;
+  secondsToUpdate--;
+  if (secondsToUpdate < 0){
+    secondsToUpdate = CYCLE; // новый цикл
   }
-
-  // 🟢 Active
-  stDot.style.color = 'var(--good)';
-  stText.textContent = '🟢 Active';
-  stTime.textContent = fmt(toUpdate);
 }
 
 setInterval(updateWindow, 1000);
@@ -293,10 +249,8 @@ async function updateSupply(){
   const raw = BigInt(d.supply_raw);
   const dec = Number(d.decimals || 0);
 
-  // supply number (2 decimals)
   supply.textContent = format2(raw, dec);
 
-  // if first ever run: just set curRaw
   if (curRaw === null) {
     curRaw = raw;
     try{ localStorage.setItem(LS_CUR, curRaw.toString()); }catch{}
@@ -305,7 +259,6 @@ async function updateSupply(){
     const diffNow = raw - curRaw;
 
     if (diffNow !== 0n) {
-      // update prev/cur so last change persists after reload
       prevRaw = curRaw;
       curRaw = raw;
 
@@ -314,11 +267,8 @@ async function updateSupply(){
         localStorage.setItem(LS_CUR, curRaw.toString());
       }catch{}
 
-      // show the change that just happened
       renderDelta(diffNow, dec);
     } else {
-      // no new change right now
-      // BUT if we have a persisted last change (cur != prev), keep showing it after reload too
       if (prevRaw !== null && curRaw !== prevRaw) {
         const lastChange = curRaw - prevRaw;
         renderDelta(lastChange, dec);
@@ -333,7 +283,6 @@ async function updateSupply(){
 
 updateSupply();
 setInterval(updateSupply, 5000);
-
 </script>
 </body>
 </html>
