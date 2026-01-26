@@ -124,10 +124,10 @@ body{
 
       <div class="popover" id="helpPop">
         <b>Окно BTC → tgBTC</b><br><br>
-        🟢 Safe — адрес активен<br>
-        🟡 Updating — первые 10 минут<br>
+        🟢 Active — адрес видим<br>
+        🔴 Hidden — первые 10 минут<br>
         🔴 Hidden — последние 30 минут<br><br>
-        Цикл живёт <b>4 часа</b>
+        Цикл живёт <b>1 час</b>
       </div>
     </div>
   </div>
@@ -159,8 +159,7 @@ const CYCLE = 60 * 60;      // 1 час
 const HIDE_FIRST = 10 * 60; // первые 10 минут скрыт
 const HIDE_LAST  = 30 * 60; // последние 30 минут скрыт
 
-// Ты заметил: адрес ПОЯВИЛСЯ, когда Teleport показывал 51:19
-// Это означает "примерно начало Active-окна" (после первых 10 минут)
+// Наблюдение: адрес появился, когда Teleport показывал 51:19
 const OBS_TO_UPDATE = (51 * 60) + 19; // 51:19
 
 const LS_OFFSET = "tgbtc_tp_offset_1h";
@@ -175,7 +174,7 @@ function fmt(sec){
 
 let OFFSET = 0;
 
-// Калибровка: в момент наблюдения "toUpdate = 51:19" мы считаем, что pos = HIDE_FIRST
+// Калибровка: в момент наблюдения "toUpdate = 51:19" считаем, что это начало Active (pos = HIDE_FIRST)
 (function initOffset(){
   try{
     const saved = localStorage.getItem(LS_OFFSET);
@@ -187,13 +186,12 @@ let OFFSET = 0;
 
   const now = (Date.now()/1000)|0;
 
-  // если toUpdate = CYCLE - pos, то pos = CYCLE - toUpdate
-  const posFromObs = (CYCLE - OBS_TO_UPDATE); // позиция цикла в момент наблюдения
-  // мы хотим, чтобы эта позиция стала равна HIDE_FIRST (начало Active)
-  // значит нужно сдвинуть на: (HIDE_FIRST - posFromObs)
+  // pos = CYCLE - toUpdate
+  const posFromObs = (CYCLE - OBS_TO_UPDATE);
+
+  // хотим pos == HIDE_FIRST
   let off = (HIDE_FIRST - posFromObs) - (now % CYCLE);
 
-  // нормализация в [0..CYCLE)
   off = ((off % CYCLE) + CYCLE) % CYCLE;
 
   OFFSET = off;
@@ -205,7 +203,7 @@ function updateWindow(){
   let pos = (now + OFFSET) % CYCLE;
   if (pos < 0) pos += CYCLE;
 
-  const toUpdate = CYCLE - pos; // это будет "как в Teleport" (примерно)
+  const toUpdate = CYCLE - pos; // "время до обновления" (как в Teleport)
 
   // 🔴 первые 10 минут после обновления
   if (pos < HIDE_FIRST){
@@ -215,15 +213,16 @@ function updateWindow(){
     return;
   }
 
-  // 🔴 последние 30 минут
-  if (pos > CYCLE - HIDE_LAST){
+  // 🔴 последние 30 минут (ВАЖНО: ориентируемся по toUpdate)
+  // Teleport может скрывать уже на 30:01, если нужно — поменяй на (HIDE_LAST + 1)
+  if (toUpdate <= HIDE_LAST){
     stDot.style.color = 'var(--bad)';
     stText.textContent = '🔴 Hidden';
     stTime.textContent = fmt(toUpdate);
     return;
   }
 
-  // 🟢 Active (показываем "до обновления", как Teleport)
+  // 🟢 Active
   stDot.style.color = 'var(--good)';
   stText.textContent = '🟢 Active';
   stTime.textContent = fmt(toUpdate);
@@ -231,9 +230,6 @@ function updateWindow(){
 
 setInterval(updateWindow, 1000);
 updateWindow();
-
-
-  
 
 // popover
 helpBtn.onclick=e=>{
@@ -341,6 +337,3 @@ setInterval(updateSupply, 5000);
 </script>
 </body>
 </html>
-
-
-
