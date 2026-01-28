@@ -1,259 +1,97 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>tgBTC (testnet) — Balance & History</title>
-  <style>
-    :root{
-      --bg:#0b0f17; --card:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --line:rgba(148,163,184,.18);
-      --good:#22c55e; --bad:#ef4444; --btn:#2ea6ff; --btnText:#fff;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:920px;margin:0 auto;padding:14px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
-    .muted{color:var(--muted);font-size:13px}
-    h1{font-size:18px;margin:0 0 6px}
-    h2{font-size:15px;margin:0 0 10px}
-    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#0b1224;color:var(--text);outline:none}
-    button{padding:10px 12px;border-radius:12px;border:0;background:var(--btn);color:var(--btnText);cursor:pointer;font-weight:700}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .grid{display:grid;grid-template-columns:1fr;gap:10px}
-    @media (min-width:880px){.grid{grid-template-columns:1fr 1fr}}
-    .kv{display:grid;grid-template-columns:140px 1fr;gap:6px;align-items:center}
-    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:6px 10px}
-    .dot{width:9px;height:9px;border-radius:99px;background:var(--good)}
-    .err{color:#fecaca}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}
-    th{color:var(--muted);font-weight:600}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .right{text-align:right}
-    a{color:#93c5fd;text-decoration:none}
-    a:hover{text-decoration:underline}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>tgBTC · Testnet</title>
+
+<style>
+body{
+  margin:0;
+  background:#0b0f17;
+  color:#e5e7eb;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+}
+.wrap{max-width:820px;margin:auto;padding:14px}
+.card{
+  background:#0f172a;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:12px;
+}
+h1{font-size:18px;margin:0 0 6px}
+h2{font-size:15px;margin:0 0 10px;color:#94a3b8}
+.mono{font-family:ui-monospace,monospace}
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px;border-bottom:1px solid rgba(148,163,184,.18);font-size:13px}
+th{color:#94a3b8;text-align:left}
+.right{text-align:right}
+</style>
 </head>
+
 <body>
 <div class="wrap">
 
-  <div class="row" style="justify-content:space-between;margin-bottom:10px">
-    <div>
-      <h1>tgBTC (testnet) — Balance & History</h1>
-      <div class="muted">Источник данных: TON Center API v3 (через Vercel /api прокси)</div>
-    </div>
-    <div class="pill">
-      <span class="dot" id="dot"></span>
-      <span class="mono" id="status">ready</span>
-    </div>
+  <h1>tgBTC · Testnet</h1>
+
+  <!-- SUPPLY -->
+  <div class="card">
+    <h2>Total Supply</h2>
+    <div class="mono" id="supply">loading…</div>
   </div>
 
-  <div class="card" style="margin-bottom:10px">
-    <h2>Настройки</h2>
-    <div class="grid">
-      <div>
-        <div class="muted">Owner address (кошелёк пользователя в TON, любой формат)</div>
-        <input id="owner" placeholder="Напр.: UQ..., EQ..., kQ..." />
-      </div>
-      <div>
-        <div class="muted">Jetton master (tgBTC testnet)</div>
-        <input id="master" />
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:10px;justify-content:space-between">
-      <div class="muted">Decimals (если нужно): <input id="decimals" style="max-width:120px;display:inline-block" value="8" /></div>
-      <div class="row">
-        <button id="btn">Обновить</button>
-      </div>
-    </div>
-
-    <div id="error" class="muted err" style="margin-top:8px;display:none"></div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h2>Баланс tgBTC</h2>
-      <div class="kv"><div class="muted">Raw</div><div class="mono" id="balRaw">—</div></div>
-      <div class="kv"><div class="muted">Formatted</div><div class="mono" id="balFmt">—</div></div>
-      <div class="kv"><div class="muted">Jetton wallet</div><div class="mono" id="jettonWallet">—</div></div>
-    </div>
-
-    <div class="card">
-      <h2>История переводов (последние 20)</h2>
-      <div class="muted" style="margin-bottom:8px">Показываются transfer-события jetton’а по owner_address + jetton_master.</div>
-      <div style="overflow:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Время</th>
-              <th>Направление</th>
-              <th class="right">Сумма</th>
-              <th>From → To</th>
-              <th>Tx</th>
-            </tr>
-          </thead>
-          <tbody id="txs">
-            <tr><td colspan="5" class="muted">—</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <!-- TX HISTORY -->
+  <div class="card">
+    <h2>Transaction history</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>From → To</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody id="txs">
+        <tr><td colspan="3">loading…</td></tr>
+      </tbody>
+    </table>
   </div>
 
 </div>
 
 <script>
-  // tgBTC testnet master (из твоего сообщения)
-  const DEFAULT_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
+const DECIMALS = 8;
 
-  const el = (id) => document.getElementById(id);
-  const dot = el("dot");
-  const statusEl = el("status");
-  const errEl = el("error");
+function fmt(raw){
+  raw = String(raw || "0").padStart(DECIMALS+1,"0");
+  return raw.slice(0,-DECIMALS) + "." + raw.slice(-DECIMALS);
+}
 
-  el("master").value = DEFAULT_MASTER;
+// SUPPLY
+fetch("/api/supply")
+  .then(r=>r.json())
+  .then(d=>{
+    document.getElementById("supply").textContent =
+      fmt(d.total_supply) + " tgBTC";
+  });
 
-  function setStatus(s, ok=true){
-    statusEl.textContent = s;
-    dot.style.background = ok ? "var(--good)" : "var(--bad)";
-  }
-
-  function showError(msg){
-    errEl.style.display = msg ? "block" : "none";
-    errEl.textContent = msg || "";
-  }
-
-  function toNumStr(raw, decimals){
-    // raw приходит строкой (большие числа)
-    raw = String(raw ?? "0");
-    if (!/^\d+$/.test(raw)) return raw;
-    decimals = Number(decimals);
-    if (!Number.isFinite(decimals) || decimals < 0) decimals = 0;
-
-    if (decimals === 0) return raw;
-    const pad = decimals + 1;
-    let s = raw.padStart(pad, "0");
-    const i = s.length - decimals;
-    let out = s.slice(0, i) + "." + s.slice(i);
-    out = out.replace(/\.?0+$/,""); // убираем хвостовые нули
-    return out;
-  }
-
-  // Мягкий разбор ответа TON Center (на случай, если поля немного отличаются)
-  function pickFirstArray(obj){
-    if (!obj || typeof obj !== "object") return [];
-    for (const k of Object.keys(obj)){
-      if (Array.isArray(obj[k])) return obj[k];
-    }
-    return [];
-  }
-
-  async function apiGet(path, params){
-    const url = new URL(path, location.origin);
-    Object.entries(params || {}).forEach(([k,v]) => {
-      if (v !== undefined && v !== null && String(v).trim() !== "") url.searchParams.set(k, v);
+// TRANSFERS
+fetch("/api/transfers")
+  .then(r=>r.json())
+  .then(d=>{
+    const tbody = document.getElementById("txs");
+    tbody.innerHTML = "";
+    d.forEach(t=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${new Date(t.utime*1000).toLocaleString()}</td>
+        <td class="mono">${t.from.slice(0,10)}… → ${t.to.slice(0,10)}…</td>
+        <td class="mono right">${fmt(t.amount)}</td>
+      `;
+      tbody.appendChild(tr);
     });
-    const r = await fetch(url.toString(), { headers: { "accept": "application/json" }});
-    const txt = await r.text();
-    let data = null;
-    try { data = JSON.parse(txt); } catch {}
-    if (!r.ok) throw new Error((data && (data.error || data.message)) || txt || ("HTTP " + r.status));
-    return data;
-  }
-
-  async function load(){
-    showError("");
-    const owner = el("owner").value.trim();
-    const master = el("master").value.trim();
-    const decimals = el("decimals").value.trim();
-
-    if (!owner){
-      showError("Вставь owner address (адрес кошелька пользователя), иначе нечего искать.");
-      return;
-    }
-    if (!master){
-      showError("Нет jetton master.");
-      return;
-    }
-
-    setStatus("loading…");
-    el("btn").disabled = true;
-
-    try{
-      // 1) balance
-      const bal = await apiGet("/api/jetton-balance", { owner, master });
-
-      // ожидаем, что где-то есть массив jetton wallets
-      const wallets = pickFirstArray(bal);
-      const w0 = wallets[0] || null;
-
-      const rawBal =
-        (w0 && (w0.balance ?? w0.balance_str ?? w0.amount ?? w0.jetton_balance)) ??
-        (bal.balance ?? bal.amount ?? "0");
-
-      const jw =
-        (w0 && (w0.address ?? w0.jetton_wallet ?? w0.wallet_address)) ??
-        (bal.jetton_wallet ?? "—");
-
-      el("balRaw").textContent = String(rawBal ?? "0");
-      el("balFmt").textContent = toNumStr(rawBal ?? "0", decimals) + " tgBTC";
-      el("jettonWallet").textContent = jw || "—";
-
-      // 2) transfers
-      const tr = await apiGet("/api/jetton-transfers", { owner, master, limit: 20 });
-
-      const transfers = pickFirstArray(tr);
-
-      const tbody = el("txs");
-      tbody.innerHTML = "";
-
-      if (!transfers.length){
-        tbody.innerHTML = `<tr><td colspan="5" class="muted">Транзакций не найдено.</td></tr>`;
-      } else {
-        for (const t of transfers){
-          const utime = t.utime ?? t.transaction_utime ?? t.timestamp ?? null;
-          const dt = utime ? new Date(Number(utime) * 1000).toLocaleString() : "—";
-
-          const dir = t.direction ?? (t.is_in ? "in" : (t.is_out ? "out" : "—"));
-          const amountRaw = t.amount ?? t.quantity ?? t.value ?? t.jetton_amount ?? "0";
-          const amountFmt = toNumStr(amountRaw, decimals);
-
-          const from = t.from ?? t.sender ?? t.source ?? t.from_address ?? "";
-          const to = t.to ?? t.recipient ?? t.destination ?? t.to_address ?? "";
-
-          const tx = t.tx_hash ?? t.transaction_hash ?? t.hash ?? "";
-          const txShort = tx ? (String(tx).slice(0,8) + "…" + String(tx).slice(-6)) : "—";
-
-          // tonviewer link: оставим как быстрый переход на аккаунт/поиск
-          const txLink = tx ? `https://testnet.tonviewer.com/search/${encodeURIComponent(tx)}` : "";
-
-          const trEl = document.createElement("tr");
-          trEl.innerHTML = `
-            <td>${dt}</td>
-            <td class="mono">${dir || "—"}</td>
-            <td class="mono right">${amountFmt}</td>
-            <td class="mono">${(from||"—").slice(0,18)}… → ${(to||"—").slice(0,18)}…</td>
-            <td class="mono">${txLink ? `<a target="_blank" rel="noreferrer" href="${txLink}">${txShort}</a>` : "—"}</td>
-          `;
-          tbody.appendChild(trEl);
-        }
-      }
-
-      setStatus("ok", true);
-    } catch(e){
-      showError("Ошибка: " + (e?.message || e));
-      setStatus("error", false);
-    } finally{
-      el("btn").disabled = false;
-    }
-  }
-
-  el("btn").addEventListener("click", load);
-
-  // автозагрузка если owner уже вставлен
-  if (el("owner").value.trim()) load();
+  });
 </script>
 </body>
 </html>
