@@ -19,8 +19,13 @@ export default async function handler(req, res) {
 
   const j = await r.json();
 
-  // stack[1] = total_supply
-  const totalSupply = j.result.stack[1][1];
+  // stack[0] = total_supply
+  let raw = j.result.stack[0][1];
 
-  res.json({ total_supply: totalSupply });
+  // hex → decimal
+  if (typeof raw === "string" && raw.startsWith("0x")) {
+    raw = BigInt(raw).toString();
+  }
+
+  res.json({ total_supply: raw });
 }
