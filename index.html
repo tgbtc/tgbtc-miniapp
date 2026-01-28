@@ -82,16 +82,26 @@ fetch("/api/transfers")
   .then(d=>{
     const tbody = document.getElementById("txs");
     tbody.innerHTML = "";
+    if(!d.length){
+      tbody.innerHTML = `<tr><td colspan="3">No transactions yet</td></tr>`;
+      return;
+    }
     d.forEach(t=>{
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${new Date(t.utime*1000).toLocaleString()}</td>
-        <td class="mono">${t.from.slice(0,10)}… → ${t.to.slice(0,10)}…</td>
-        <td class="mono right">${fmt(t.amount)}</td>
+        <td colspan="2" class="mono">
+          <a target="_blank"
+             href="https://testnet.tonviewer.com/transaction/${t.hash}">
+            ${t.hash.slice(0,12)}…
+          </a>
+        </td>
       `;
       tbody.appendChild(tr);
     });
   });
+
 </script>
 </body>
 </html>
+
