@@ -34,6 +34,23 @@ th{color:#94a3b8;text-align:left}
 <div class="wrap">
 
   <h1>tgBTC · Testnet</h1>
+<!-- TELEPORT INDICATOR -->
+<div class="card" id="teleport">
+  <h2>BTC → tgBTC Teleport</h2>
+
+  <div class="mono" id="teleportStatus">loading…</div>
+  <div class="mono muted" id="teleportTimer"></div>
+
+  <div style="margin-top:10px;height:10px;border-radius:6px;
+              background:rgba(148,163,184,.18);overflow:hidden">
+    <div id="teleportBar"
+         style="height:100%;width:0%;background:#22c55e"></div>
+  </div>
+
+  <div class="muted" style="margin-top:8px;font-size:12px">
+    ⚠ Testnet only. Do not send real BTC.
+  </div>
+</div>
 
   <!-- SUPPLY -->
   <div class="card">
@@ -99,7 +116,45 @@ fetch("/api/transfers")
 
 
 </script>
+  <script>
+const CYCLE = 60 * 60;        // 1 час
+const OPEN_FROM = 10 * 60;   // 10 мин
+const OPEN_TO   = 30 * 60;   // 30 мин
+
+function teleportTick(){
+  const now = Math.floor(Date.now() / 1000);
+  const cyclePos = now % CYCLE;
+
+  const bar = document.getElementById("teleportBar");
+  const status = document.getElementById("teleportStatus");
+  const timer = document.getElementById("teleportTimer");
+
+  // прогресс цикла
+  bar.style.width = (cyclePos / CYCLE * 100).toFixed(2) + "%";
+
+  // статус
+  if (cyclePos >= OPEN_FROM && cyclePos <= OPEN_TO) {
+    status.textContent = "🟢 Mint window OPEN";
+    bar.style.background = "#22c55e";
+  } else {
+    status.textContent = "🔴 Mint window CLOSED";
+    bar.style.background = "#ef4444";
+  }
+
+  // таймер
+  const m = Math.floor(cyclePos / 60);
+  const s = cyclePos % 60;
+  timer.textContent =
+    `Cycle time: ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} / 60:00`;
+}
+
+// обновление каждую секунду
+setInterval(teleportTick, 1000);
+teleportTick();
+</script>
+
 </body>
 </html>
+
 
 
