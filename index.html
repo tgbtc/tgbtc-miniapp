@@ -117,44 +117,57 @@ fetch("/api/transfers")
 
 </script>
   <script>
-const CYCLE = 60 * 60;        // 1 час
-const OPEN_FROM = 10 * 60;   // 10 мин
-const OPEN_TO   = 30 * 60;   // 30 мин
+<script>
+const CYCLE = 60 * 60;         // 60:00
+const OPEN_MIN = 30 * 60;      // remaining > 30:00
+const OPEN_MAX = 50 * 60;      // remaining <= 50:00
 
-function teleportTick(){
-  const now = Math.floor(Date.now() / 1000);
-  const cyclePos = now % CYCLE;
-
-  const bar = document.getElementById("teleportBar");
-  const status = document.getElementById("teleportStatus");
-  const timer = document.getElementById("teleportTimer");
-
-  // прогресс цикла
-  bar.style.width = (cyclePos / CYCLE * 100).toFixed(2) + "%";
-
-  // статус
-  if (cyclePos >= OPEN_FROM && cyclePos <= OPEN_TO) {
-    status.textContent = "🟢 Mint window OPEN";
-    bar.style.background = "#22c55e";
-  } else {
-    status.textContent = "🔴 Mint window CLOSED";
-    bar.style.background = "#ef4444";
-  }
-
-  // таймер
-  const m = Math.floor(cyclePos / 60);
-  const s = cyclePos % 60;
-  timer.textContent =
-    `Cycle time: ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} / 60:00`;
+function fmtMMSS(sec){
+  const m = Math.floor(sec/60);
+  const s = sec%60;
+  return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
 }
 
-// обновление каждую секунду
-setInterval(teleportTick, 1000);
+async function teleportTick(){
+  const status = document.getElementById("teleportStatus");
+  const timer  = document.getElementById("teleportTimer");
+  const bar    = document.getElementById("teleportBar");
+
+  try{
+    const r = await fetch("/api/teleport");
+    const j = await r.json();
+    if(!j.ok || !Number.isFinite(j.remaining_seconds)) throw new Error(j.error || "No timer");
+
+    const rem = j.remaining_seconds;
+
+    // Индикатор прогресса цикла по remaining (чем меньше remaining, тем дальше прогресс)
+    const progress = (1 - (rem / CYCLE)) * 100;
+    bar.style.width = Math.max(0, Math.min(100, progress)).toFixed(2) + "%";
+
+    const open = (rem > OPEN_MIN && rem <= OPEN_MAX);
+
+    status.textContent = open ? "🟢 Mint window OPEN" : "🔴 Mint window CLOSED";
+    bar.style.background = open ? "#22c55e" : "#ef4444";
+
+    timer.textContent = `Address updates in: ${fmtMMSS(rem)} (cycle 60:00)`;
+  } catch(e){
+    status.textContent = "⚠ Teleport timer unavailable";
+    timer.textContent = "";
+    bar.style.width = "0%";
+    bar.style.background = "#ef4444";
+  }
+}
+
+// обновляем часто, но без фанатизма
+setInterval(teleportTick, 5000);
 teleportTick();
+</script>
+
 </script>
 
 </body>
 </html>
+
 
 
 
