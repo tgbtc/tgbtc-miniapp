@@ -3,7 +3,7 @@ export default async function handler(req, res) {
 
   const url =
     "https://testnet.toncenter.com/api/v2/getTransactions" +
-    `?address=${MASTER}&limit=20`;
+    `?address=${MASTER}&limit=5`;
 
   const r = await fetch(url, {
     headers: {
