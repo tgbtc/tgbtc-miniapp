@@ -46,12 +46,12 @@ th{color:#94a3b8;text-align:left}
     <h2>Transaction history</h2>
     <table>
       <thead>
-        <tr>
-          <th>Time</th>
-          <th>From → To</th>
-          <th class="right">Amount</th>
-        </tr>
-      </thead>
+<tr>
+  <th>Time</th>
+  <th>Transaction</th>
+</tr>
+</thead>
+
       <tbody id="txs">
         <tr><td colspan="3">loading…</td></tr>
       </tbody>
@@ -82,18 +82,14 @@ fetch("/api/transfers")
   .then(d=>{
     const tbody = document.getElementById("txs");
     tbody.innerHTML = "";
-    if(!d.length){
-      tbody.innerHTML = `<tr><td colspan="3">No transactions yet</td></tr>`;
-      return;
-    }
     d.forEach(t=>{
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${new Date(t.utime*1000).toLocaleString()}</td>
-        <td colspan="2" class="mono">
+        <td class="mono">
           <a target="_blank"
              href="https://testnet.tonviewer.com/transaction/${t.hash}">
-            ${t.hash.slice(0,12)}…
+            ${t.hash.slice(0,14)}…
           </a>
         </td>
       `;
@@ -101,7 +97,9 @@ fetch("/api/transfers")
     });
   });
 
+
 </script>
 </body>
 </html>
+
 
