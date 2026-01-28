@@ -2,24 +2,21 @@ export default async function handler(req, res) {
   const MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
 
   const url =
-    "https://testnet.toncenter.com/api/v3/jetton/transfers" +
-    `?jetton_master=${MASTER}&limit=20&sort=desc`;
+    "https://testnet.toncenter.com/api/v2/getTransactions" +
+    `?address=${MASTER}&limit=20`;
 
-  const r = await fetch(url,{
-    headers:{
+  const r = await fetch(url, {
+    headers: {
       "X-API-Key": process.env.TONCENTER_TESTNET_API_KEY
     }
   });
 
   const j = await r.json();
 
-  const out = j.items.map(t=>({
-    utime: t.utime,
-    from: t.from,
-    to: t.to,
-    amount: t.amount
+  const out = j.result.map(tx => ({
+    utime: tx.utime,
+    hash: tx.transaction_id.hash
   }));
 
-  res.setHeader("Cache-Control","no-store");
   res.json(out);
 }
