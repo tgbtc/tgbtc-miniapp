@@ -2,30 +2,36 @@ export default async function handler(req, res) {
   try {
     const TELEPORT_URL = process.env.TELEPORT_TESTNET_URL;
     if (!TELEPORT_URL) {
-      return res.status(500).json({ ok: false, error: "Missing env TELEPORT_TESTNET_URL" });
+      return res.status(500).json({ ok: false, error: "Missing TELEPORT_TESTNET_URL env" });
     }
 
     const r = await fetch(TELEPORT_URL, {
-      headers: { "user-agent": "tgBTCfi/1.0" }
+      headers: {
+        "user-agent": "Mozilla/5.0",
+        "accept": "text/html,application/xhtml+xml"
+      }
     });
 
     const html = await r.text();
 
-    // 1) BTC address (tb1p... taproot / tb1q... segwit — на всякий)
-    const addrMatch = html.match(/\b(tb1[qp][a-z0-9]{20,})\b/i);
-    const btc_address = addrMatch ? addrMatch[1] : null;
+    // попробуем найти любые URL внутри HTML (часто там есть /api/... или json endpoint)
+    const urls = Array.from(html.matchAll(/https?:\/\/[^\s"'<>]+/g)).slice(0, 50).map(m => m[0]);
 
-    // 2) Remaining time like: "47m : 35s"
-    const timeMatch = html.match(/(\d{1,3})\s*m\s*:\s*(\d{1,2})\s*s/i);
-    const mm = timeMatch ? parseInt(timeMatch[1], 10) : null;
-    const ss = timeMatch ? parseInt(timeMatch[2], 10) : null;
-
-    const remaining_seconds =
-      (Number.isFinite(mm) && Number.isFinite(ss)) ? (mm * 60 + ss) : null;
+    // также попробуем найти относительные api пути
+    const apiPaths = Array.from(html.matchAll(/["'`](\/[^"'`]*api[^"'`]*)["'`]/gi))
+      .slice(0, 50)
+      .map(m => m[1]);
 
     res.setHeader("Cache-Control", "no-store");
-    res.json({ ok: true, btc_address, remaining_seconds });
+    return res.status(200).json({
+      ok: true,
+      note: "diag",
+      status: r.status,
+      sample: html.slice(0, 4000),
+      found_urls: urls,
+      found_api_paths: apiPaths
+    });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e?.message || String(e) });
+    return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
 }
