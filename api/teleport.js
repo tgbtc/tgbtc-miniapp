@@ -1,56 +1,127 @@
 export default async function handler(req, res) {
   try {
-    const TELEPORT_URL = process.env.TELEPORT_TESTNET_URL;
-    if (!TELEPORT_URL) {
-      return res.status(500).json({ ok: false, error: "Missing TELEPORT_TESTNET_URL env" });
+    const RPC = "https://sandbox.teleport.tg/api/v2/jsonRPC";
+
+    async function call(method, params = {}) {
+      const r = await fetch(RPC, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "user-agent": "Mozilla/5.0"
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method,
+          params
+        })
+      });
+
+      const j = await r.json().catch(() => null);
+      return { ok: r.ok, status: r.status, json: j };
     }
 
-    const page = new URL(TELEPORT_URL);
+    function findInObject(obj) {
+      // ищем tb1... и remaining в любом месте ответа
+      const s = JSON.stringify(obj);
 
-    const r1 = await fetch(page.toString(), {
-      headers: { "user-agent": "Mozilla/5.0", "accept": "text/html" }
-    });
-    const html = await r1.text();
+      const addrMatch = s.match(/\b(tb1[qp][a-z0-9]{20,})\b/i);
+      let btc_address = addrMatch ? addrMatch[1] : null;
 
-    // найти главный модуль /assets/index-XXXX.js
-    const m = html.match(/<script[^>]+type="module"[^>]+src="([^"]+)"/i);
-    const mainJsPath = m ? m[1] : null;
+      // remaining может быть:
+      // - seconds: 2855
+      // - ms: 2855000
+      // - {minutes: 47, seconds: 35}
+      // - "47m : 35s" (редко в json)
+      let remaining_seconds = null;
 
-    if (!mainJsPath) {
-      return res.status(200).json({ ok: false, error: "Main module script not found in HTML" });
+      // seconds key
+      const secMatch = s.match(/"remaining(?:_)?seconds"\s*:\s*(\d{1,6})/i)
+        || s.match(/"expires(?:_)?in"\s*:\s*(\d{1,6})/i)
+        || s.match(/"ttl"\s*:\s*(\d{1,6})/i);
+
+      if (secMatch) remaining_seconds = parseInt(secMatch[1], 10);
+
+      // ms key
+      if (!remaining_seconds) {
+        const msMatch = s.match(/"remaining(?:_)?ms"\s*:\s*(\d{1,9})/i)
+          || s.match(/"expires(?:_)?in(?:_)?ms"\s*:\s*(\d{1,9})/i);
+        if (msMatch) remaining_seconds = Math.floor(parseInt(msMatch[1], 10) / 1000);
+      }
+
+      // minutes + seconds
+      if (!remaining_seconds) {
+        const mMatch = s.match(/"minutes"\s*:\s*(\d{1,3})/i);
+        const sMatch = s.match(/"seconds"\s*:\s*(\d{1,2})/i);
+        if (mMatch && sMatch) {
+          remaining_seconds = parseInt(mMatch[1], 10) * 60 + parseInt(sMatch[1], 10);
+        }
+      }
+
+      // "47m : 35s"
+      if (!remaining_seconds) {
+        const txt = s.match(/(\d{1,3})\s*m\s*:\s*(\d{1,2})\s*s/i);
+        if (txt) remaining_seconds = parseInt(txt[1], 10) * 60 + parseInt(txt[2], 10);
+      }
+
+      // sanity: remaining должен быть 1..3600
+      if (remaining_seconds !== null) {
+        if (!(remaining_seconds >= 0 && remaining_seconds <= 3600)) {
+          remaining_seconds = null;
+        }
+      }
+
+      return { btc_address, remaining_seconds };
     }
 
-    const mainJsUrl = new URL(mainJsPath, page.origin).toString();
+    // набор вероятных методов (Teleport/Bridge обычно так называют)
+    const methods = [
+      "getDepositAddress",
+      "getDeposit",
+      "getDepositCreds",
+      "getDepositCredentials",
+      "getPeginAddress",
+      "getPeginCredentials",
+      "getPeginCreds",
+      "getMintAddress",
+      "getBridgeState",
+      "getConfig",
+      "getAppState",
+      "getState",
+      "getSession",
+      "getDashboard"
+    ];
 
-    const r2 = await fetch(mainJsUrl, {
-      headers: { "user-agent": "Mozilla/5.0", "accept": "*/*" }
-    });
-    const js = await r2.text();
+    let best = { btc_address: null, remaining_seconds: null };
+    let debugTried = [];
 
-    // 1) абсолютные URL
-    const abs = Array.from(js.matchAll(/https?:\/\/[^\s"'<>\\]+/g)).map(x => x[0]);
+    for (const m of methods) {
+      const resp = await call(m, {});
+      debugTried.push({ method: m, ok: resp.ok, status: resp.status });
 
-    // 2) относительные пути, похожие на API/JSON/bridge
-    const rel = Array.from(js.matchAll(/["'`](\/[^"'`\\]*(api|v1|v2|v3|bridge|deposit|mint|btc|address|session|order)[^"'`\\]*)["'`]/gi))
-      .map(x => x[1]);
+      if (!resp.ok || !resp.json) continue;
 
-    // 3) домены / базовые урлы (иногда лежат как teleportApiBase="...")
-    const bases = Array.from(js.matchAll(/(baseURL|apiBase|endpoint|host|origin)["']?\s*[:=]\s*["']([^"']+)["']/gi))
-      .map(x => ({ key: x[1], value: x[2] }));
+      const found = findInObject(resp.json);
 
-    // уникализируем + ограничим
-    const uniq = (arr) => [...new Set(arr)].slice(0, 80);
+      if (found.btc_address) best.btc_address = found.btc_address;
+      if (found.remaining_seconds !== null) best.remaining_seconds = found.remaining_seconds;
+
+      if (best.btc_address && best.remaining_seconds !== null) break;
+    }
 
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({
-      ok: true,
-      status_html: r1.status,
-      status_js: r2.status,
-      main_js: mainJsUrl,
-      found_abs_urls: uniq(abs),
-      found_rel_paths: uniq(rel),
-      found_base_candidates: bases.slice(0, 40)
-    });
+
+    // если не нашли — вернём debug, чтобы за 1 шаг добить точным методом
+    if (!best.btc_address && best.remaining_seconds === null) {
+      return res.status(200).json({
+        ok: false,
+        error: "Could not extract btc_address/remaining_seconds from jsonRPC methods list",
+        tried: debugTried
+      });
+    }
+
+    return res.status(200).json({ ok: true, ...best });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
