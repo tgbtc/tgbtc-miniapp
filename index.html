@@ -8,15 +8,13 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
-    /* Используем Telegram theme vars + fallback */
     :root{
+      /* Telegram theme vars + fallback */
       --bg: var(--tg-theme-bg-color, #0b0f17);
       --card: var(--tg-theme-secondary-bg-color, #0f1626);
       --text: var(--tg-theme-text-color, #e5e7eb);
       --muted: var(--tg-theme-hint-color, #94a3b8);
       --line: rgba(148,163,184,.22);
-      --good: #22c55e;
-      --err: #ff8a8a;
 
       --safe-top: 0px;
       --safe-bottom: 0px;
@@ -33,7 +31,7 @@
     }
 
     .wrap{
-      max-width:760px;
+      max-width:720px;
       margin:0 auto;
       padding:
         calc(14px + var(--safe-top))
@@ -46,67 +44,89 @@
       background:var(--card);
       border:1px solid var(--line);
       border-radius:18px;
-      padding:16px;
+      padding:16px 16px 14px;
     }
 
-    .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .title{font-weight:800;font-size:16px;display:flex;align-items:center;gap:10px}
-    .dot{width:9px;height:9px;border-radius:999px;background:var(--good);display:inline-block}
-    .muted{color:var(--muted);font-size:12px}
-
-    .big{font-size:22px;font-weight:900;letter-spacing:.2px;margin-top:12px}
-
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .mini{
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:12px;
-      background: color-mix(in srgb, var(--card) 92%, transparent);
+    .title{
+      font-weight:800;
+      font-size:14px;
+      letter-spacing:.2px;
+      color:var(--muted);
     }
-    .k{color:var(--muted);font-size:12px}
-    .v{font-weight:800;margin-top:6px}
 
-    .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+    .value{
+      margin-top:10px;
+      font-weight:950;
+      letter-spacing:.2px;
+      line-height:1.15;
+      font-size:22px;            /* mobile */
+      word-break:break-word;
+    }
+
+    @media (min-width: 740px){
+      .card{padding:18px 18px 16px}
+      .value{font-size:26px}     /* desktop */
+    }
+
+    /* маленький индикатор обновления — без мигания текста */
+    .sub{
+      margin-top:10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .dot{
+      width:7px;height:7px;border-radius:999px;
+      background:var(--muted);
+      opacity:.6;
+    }
+    .dot.live{
+      opacity:1;
+      animation:pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{transform:scale(1); opacity:.65}
+      50%{transform:scale(1.35); opacity:1}
+    }
+
+    .err{
+      margin-top:10px;
+      font-size:12px;
+      color:#ff8a8a;
+      white-space:pre-wrap;
+      line-height:1.35;
+    }
+
     .btn{
-      padding:10px 12px;
-      border-radius:12px;
       border:1px solid var(--line);
       background:transparent;
       color:var(--text);
-      cursor:pointer;
+      padding:8px 10px;
+      border-radius:12px;
+      font-size:12px;
       font-weight:700;
-      font-size:13px;
+      cursor:pointer;
     }
-
-    .err{margin-top:12px;color:var(--err);font-size:12px;white-space:pre-wrap;line-height:1.35}
   </style>
 </head>
 
 <body>
   <div class="wrap">
     <div class="card">
-      <div class="row">
-        <div class="title"><span class="dot"></span>tgBTC (Testnet)</div>
-        <div class="muted" id="updated">—</div>
-      </div>
+      <div class="title">tgBTC (Testnet)</div>
 
-      <div class="big" id="supply">Max.supply: — tgBTC</div>
-      <div class="muted">Источник: TON Center (testnet) · /api/supply</div>
+      <div class="value" id="supply">Max.supply: — tgBTC</div>
 
-      <div class="grid">
-        <div class="mini">
-          <div class="k">Decimals</div>
-          <div class="v" id="decimals">—</div>
+      <div class="sub">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="dot" id="liveDot"></span>
+          <span id="updated">Загрузка…</span>
         </div>
-        <div class="mini">
-          <div class="k">Mintable</div>
-          <div class="v" id="mintable">—</div>
-        </div>
-      </div>
-
-      <div class="btns">
         <button class="btn" id="refresh">Обновить</button>
-        <button class="btn" id="openTonviewer">Открыть в Tonviewer</button>
       </div>
 
       <div class="err" id="err"></div>
@@ -115,14 +135,22 @@
 
 <script>
   const WebApp = window.Telegram?.WebApp;
-  const JETTON_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
-  const TONVIEWER_URL = "https://testnet.tonviewer.com/" + JETTON_MASTER;
 
-  const elSupply   = document.getElementById("supply");
-  const elUpdated  = document.getElementById("updated");
-  const elDecimals = document.getElementById("decimals");
-  const elMintable = document.getElementById("mintable");
-  const elErr      = document.getElementById("err");
+  const elSupply  = document.getElementById("supply");
+  const elUpdated = document.getElementById("updated");
+  const elErr     = document.getElementById("err");
+  const elDot     = document.getElementById("liveDot");
+
+  let lastShownSupply = null;
+  let hasShownOnce = false;
+
+  function applySafeArea() {
+    const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
+    document.documentElement.style.setProperty("--safe-top", (sa.top || 0) + "px");
+    document.documentElement.style.setProperty("--safe-bottom", (sa.bottom || 0) + "px");
+    document.documentElement.style.setProperty("--safe-left", (sa.left || 0) + "px");
+    document.documentElement.style.setProperty("--safe-right", (sa.right || 0) + "px");
+  }
 
   function formatWithSeparators(numStr) {
     const [i, f] = numStr.split(".");
@@ -141,21 +169,14 @@
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
 
-  function setUpdatedNow() {
-    elUpdated.textContent = "Обновлено: " + new Date().toLocaleString();
+  function setStatus(text, live=false) {
+    elUpdated.textContent = text;
+    elDot.classList.toggle("live", live);
   }
 
-  function applySafeArea() {
-    const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
-    document.documentElement.style.setProperty("--safe-top", (sa.top || 0) + "px");
-    document.documentElement.style.setProperty("--safe-bottom", (sa.bottom || 0) + "px");
-    document.documentElement.style.setProperty("--safe-left", (sa.left || 0) + "px");
-    document.documentElement.style.setProperty("--safe-right", (sa.right || 0) + "px");
-  }
-
-  async function loadSupply() {
+  async function loadSupply({first=false} = {}) {
     elErr.textContent = "";
-    elSupply.textContent = "Max.supply: … tgBTC";
+    if (first && !hasShownOnce) setStatus("Загрузка…", true);
 
     const res = await fetch("/api/supply", { cache: "no-store" });
     const json = await res.json();
@@ -173,44 +194,45 @@
       "0";
     const decimals = Number(decimalsStr);
 
-    const mintableRaw = r?.mintable;
-    const mintable = (mintableRaw === true || mintableRaw === 1 || mintableRaw === "1") ? "Yes" : "No";
-
     const supplyStr = toDecimalString(totalSupply, decimals);
+    const pretty = formatWithSeparators(supplyStr);
 
-    elSupply.textContent = `Max.supply: ${formatWithSeparators(supplyStr)} tgBTC`;
-    elDecimals.textContent = String(decimals);
-    elMintable.textContent = mintable;
+    // Обновляем текст ТОЛЬКО если значение изменилось или это первый показ
+    if (!hasShownOnce || lastShownSupply !== pretty) {
+      elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
+      lastShownSupply = pretty;
+      hasShownOnce = true;
+    }
 
-    setUpdatedNow();
+    setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
   }
 
   (function init() {
-    if (!WebApp) {
-      elErr.textContent = "Открой Mini App внутри Telegram.";
-      return;
+    if (WebApp) {
+      WebApp.ready();
+      WebApp.expand();
+      applySafeArea();
+      WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    WebApp.ready();
-    WebApp.expand();
-
-    // Важно: Telegram сам проставляет CSS vars --tg-theme-*
-    // Мы НЕ перезаписываем цвета, только подгоняем safe area.
-    applySafeArea();
-
-    WebApp.onEvent("viewportChanged", applySafeArea);
-
     document.getElementById("refresh").addEventListener("click", () => {
-      loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
+      setStatus("Обновляю…", true);
+      loadSupply().catch(e => {
+        setStatus("Ошибка обновления", false);
+        elErr.textContent = "Ошибка: " + e.message;
+      });
     });
 
-    document.getElementById("openTonviewer").addEventListener("click", () => {
-      if (WebApp.openLink) WebApp.openLink(TONVIEWER_URL);
-      else window.open(TONVIEWER_URL, "_blank");
+    // Первый запуск
+    loadSupply({first:true}).catch(e => {
+      setStatus("Ошибка загрузки", false);
+      elErr.textContent = "Ошибка: " + e.message;
     });
 
-    loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
-    setInterval(() => loadSupply().catch(()=>{}), 15000);
+    // Автообновление без моргания
+    setInterval(() => {
+      loadSupply().catch(()=>{});
+    }, 30000); // 30 сек
   })();
 </script>
 </body>
