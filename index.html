@@ -2,27 +2,28 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <!-- Важно для Mini Apps: viewport-fit=cover + запрет масштабирования -->
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <title>tgBTC Testnet — Max Supply</title>
+
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
+    /* Используем Telegram theme vars + fallback */
     :root{
-      --bg:#0b0f17;
-      --card:#0f1626;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
-      --line:rgba(148,163,184,.18);
-      --good:#22c55e;
-      --err:#fca5a5;
+      --bg: var(--tg-theme-bg-color, #0b0f17);
+      --card: var(--tg-theme-secondary-bg-color, #0f1626);
+      --text: var(--tg-theme-text-color, #e5e7eb);
+      --muted: var(--tg-theme-hint-color, #94a3b8);
+      --line: rgba(148,163,184,.22);
+      --good: #22c55e;
+      --err: #ff8a8a;
 
-      /* safe area fallbacks */
       --safe-top: 0px;
       --safe-bottom: 0px;
       --safe-left: 0px;
       --safe-right: 0px;
     }
+
     *{box-sizing:border-box}
     body{
       margin:0;
@@ -40,26 +41,44 @@
         calc(14px + var(--safe-bottom))
         calc(14px + var(--safe-left));
     }
+
     .card{
       background:var(--card);
       border:1px solid var(--line);
       border-radius:18px;
       padding:16px;
     }
+
     .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .title{font-weight:800;font-size:16px;display:flex;align-items:center;gap:10px}
     .dot{width:9px;height:9px;border-radius:999px;background:var(--good);display:inline-block}
     .muted{color:var(--muted);font-size:12px}
+
     .big{font-size:22px;font-weight:900;letter-spacing:.2px;margin-top:12px}
+
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .mini{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,0.02)}
+    .mini{
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+    }
     .k{color:var(--muted);font-size:12px}
     .v{font-weight:800;margin-top:6px}
-    .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-    .btn{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;font-weight:700;font-size:13px}
-    .err{margin-top:12px;color:var(--err);font-size:12px;white-space:pre-wrap;line-height:1.35}
 
-    .debug{margin-top:12px; font-size:12px; color:var(--muted); white-space:pre-wrap}
+    .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+    .btn{
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:transparent;
+      color:var(--text);
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+    }
+
+    .err{margin-top:12px;color:var(--err);font-size:12px;white-space:pre-wrap;line-height:1.35}
   </style>
 </head>
 
@@ -91,9 +110,6 @@
       </div>
 
       <div class="err" id="err"></div>
-
-      <!-- debug можно потом удалить -->
-      <div class="debug" id="debug"></div>
     </div>
   </div>
 
@@ -107,9 +123,7 @@
   const elDecimals = document.getElementById("decimals");
   const elMintable = document.getElementById("mintable");
   const elErr      = document.getElementById("err");
-  const elDebug    = document.getElementById("debug");
 
-  // ---- helpers
   function formatWithSeparators(numStr) {
     const [i, f] = numStr.split(".");
     const ii = i.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -131,18 +145,7 @@
     elUpdated.textContent = "Обновлено: " + new Date().toLocaleString();
   }
 
-  // ---- Mini App "правильная" инициализация
-  function applyTheme() {
-    const p = WebApp?.themeParams || {};
-    // Telegram может отдавать цвета, используем их если есть
-    if (p.bg_color) document.documentElement.style.setProperty("--bg", p.bg_color);
-    if (p.text_color) document.documentElement.style.setProperty("--text", p.text_color);
-    if (p.hint_color) document.documentElement.style.setProperty("--muted", p.hint_color);
-    // card/line оставляем брендовые, но можно тоже подстроить при желании
-  }
-
   function applySafeArea() {
-    // В новых клиентах есть safeAreaInset / contentSafeAreaInset (см. core.telegram.org) :contentReference[oaicite:4]{index=4}
     const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
     document.documentElement.style.setProperty("--safe-top", (sa.top || 0) + "px");
     document.documentElement.style.setProperty("--safe-bottom", (sa.bottom || 0) + "px");
@@ -182,34 +185,21 @@
     setUpdatedNow();
   }
 
-  // ---- start
   (function init() {
     if (!WebApp) {
-      elErr.textContent = "Ошибка: Telegram WebApp SDK не найден. Открой Mini App внутри Telegram.";
+      elErr.textContent = "Открой Mini App внутри Telegram.";
       return;
     }
 
-    // Must-call: ready() when UI is prepared (официальная практика)
     WebApp.ready();
     WebApp.expand();
 
-    applyTheme();
+    // Важно: Telegram сам проставляет CSS vars --tg-theme-*
+    // Мы НЕ перезаписываем цвета, только подгоняем safe area.
     applySafeArea();
 
-    // реагируем на смену темы
-    WebApp.onEvent("themeChanged", applyTheme);
-
-    // viewportChanged может приходить при разворачивании/клавиатуре и т.п.
     WebApp.onEvent("viewportChanged", applySafeArea);
 
-    // debug (можно убрать)
-    const u = WebApp.initDataUnsafe?.user;
-    elDebug.textContent =
-      "initData present: " + Boolean(WebApp.initData) + "\n" +
-      "user: " + (u ? `${u.id} ${u.username || ""}` : "—") + "\n" +
-      "platform: " + (WebApp.platform || "—");
-
-    // кнопки
     document.getElementById("refresh").addEventListener("click", () => {
       loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
     });
