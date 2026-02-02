@@ -9,12 +9,15 @@
 
   <style>
     :root{
-      /* Telegram theme vars + fallback */
       --bg:   var(--tg-theme-bg-color, #0b0f17);
       --card: var(--tg-theme-secondary-bg-color, #0f1626);
       --text: var(--tg-theme-text-color, #e5e7eb);
       --muted:var(--tg-theme-hint-color, #94a3b8);
       --line: rgba(148,163,184,.18);
+
+      --good: #22c55e;
+      --bad:  #ef4444;
+      --warn: #f59e0b;
 
       --safe-top: 0px;
       --safe-bottom: 0px;
@@ -31,7 +34,7 @@
     }
 
     .wrap{
-      max-width: 780px;
+      max-width: 820px;
       margin: 0 auto;
       padding:
         calc(18px + var(--safe-top))
@@ -65,13 +68,13 @@
 
     .dot{
       width:10px;height:10px;border-radius:999px;
-      background: #22c55e;
+      background: var(--good);
       box-shadow: 0 0 0 4px rgba(34,197,94,.12);
       flex:0 0 auto;
     }
 
     .name{
-      font-weight: 850;
+      font-weight: 900;
       letter-spacing: .2px;
       font-size: 14px;
       opacity: .92;
@@ -97,10 +100,29 @@
       word-break: break-word;
     }
 
-    .label{
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--muted);
+    .action{
+      margin-top: 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+    }
+    .action .left{min-width:0}
+    .action .t1{font-size:12px;color:var(--muted)}
+    .action .t2{margin-top:6px;font-weight:900;letter-spacing:.15px}
+    .action .t2.good{color:var(--good)}
+    .action .t2.bad{color:var(--bad)}
+    .action .t2.neutral{color:var(--text)}
+
+    .right{
+      text-align:right;
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
     }
 
     .footer{
@@ -141,7 +163,7 @@
       padding: 9px 12px;
       border-radius: 14px;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 900;
       cursor: pointer;
       transition: transform .06s ease;
       flex: 0 0 auto;
@@ -156,7 +178,7 @@
       line-height: 1.35;
     }
 
-    @media (min-width: 820px){
+    @media (min-width: 860px){
       .wrap{ padding: 26px; }
       .card{ padding: 22px; }
       .value{ font-size: 34px; }
@@ -172,11 +194,18 @@
           <span class="dot"></span>
           <div class="name">tgBTC (Testnet)</div>
         </div>
-        <div class="pill" id="pill">TON Center</div>
+        <div class="pill">Tracker</div>
       </div>
 
       <div class="value" id="supply">Max.supply: — tgBTC</div>
-      <div class="label">Данные обновляются автоматически без перерисовки текста.</div>
+
+      <div class="action">
+        <div class="left">
+          <div class="t1">Последнее действие</div>
+          <div class="t2 neutral" id="lastAction">—</div>
+        </div>
+        <div class="right" id="lastTime">—</div>
+      </div>
 
       <div class="footer">
         <div class="status">
@@ -193,14 +222,19 @@
 <script>
   const WebApp = window.Telegram?.WebApp;
 
-  const elSupply  = document.getElementById("supply");
+  const elSupply = document.getElementById("supply");
+  const elLastAction = document.getElementById("lastAction");
+  const elLastTime = document.getElementById("lastTime");
   const elUpdated = document.getElementById("updated");
-  const elPulse   = document.getElementById("pulse");
-  const elErr     = document.getElementById("err");
+  const elPulse = document.getElementById("pulse");
+  const elErr = document.getElementById("err");
 
-  let lastShown = null;
-  let hasShownOnce = false;
   let inFlight = false;
+
+  // persisted between refreshes
+  const LS_SUPPLY = "tgbtc_last_supply_pretty";
+  const LS_SUPPLY_RAW = "tgbtc_last_supply_raw";
+  const LS_DECIMALS = "tgbtc_last_decimals";
 
   function applySafeArea() {
     const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
@@ -208,6 +242,11 @@
     document.documentElement.style.setProperty("--safe-bottom", (sa.bottom || 0) + "px");
     document.documentElement.style.setProperty("--safe-left", (sa.left || 0) + "px");
     document.documentElement.style.setProperty("--safe-right", (sa.right || 0) + "px");
+  }
+
+  function setStatus(text, live) {
+    elUpdated.textContent = text;
+    elPulse.classList.toggle("live", !!live);
   }
 
   function formatWithSeparators(numStr) {
@@ -226,45 +265,86 @@
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
 
-  function setStatus(text, live) {
-    elUpdated.textContent = text;
-    elPulse.classList.toggle("live", !!live);
+  function toPrettyAmount(deltaRawBigInt, decimals) {
+    const sign = deltaRawBigInt < 0n ? "-" : "+";
+    const abs = deltaRawBigInt < 0n ? -deltaRawBigInt : deltaRawBigInt;
+    const s = toDecimalString(abs, decimals);
+    return sign + formatWithSeparators(s);
   }
 
-  async function loadSupply({ first=false } = {}) {
-    if (inFlight) return;           // защита от двойных запросов
+  function setAction(text, kind) {
+    elLastAction.textContent = text;
+    elLastAction.classList.remove("good","bad","neutral");
+    elLastAction.classList.add(kind || "neutral");
+  }
+
+  function formatTimeFromUtime(utime) {
+    if (!utime) return "—";
+    // utime is seconds
+    const d = new Date(Number(utime) * 1000);
+    return d.toLocaleString();
+  }
+
+  async function loadActivity({ first=false } = {}) {
+    if (inFlight) return;
     inFlight = true;
 
     try {
       elErr.textContent = "";
-      if (first && !hasShownOnce) setStatus("Загрузка…", true);
-      else setStatus("Обновляю…", true);
+      setStatus(first ? "Загрузка…" : "Обновляю…", true);
 
-      const res = await fetch("/api/supply", { cache: "no-store" });
+      const res = await fetch("/api/activity", { cache: "no-store" });
       const json = await res.json();
 
-      if (!json || json.ok !== true) {
-        throw new Error(json?.error ? String(json.error) : "unknown error");
-      }
+      if (!json || json.ok !== true) throw new Error(json?.error || "unknown error");
 
-      const r = json.result;
-      const totalSupply = BigInt(r.total_supply);
+      const decimals = Number(json.decimals || 0);
+      const supplyRaw = BigInt(json.total_supply);
 
-      const decimalsStr =
-        r?.jetton_content?.data?.decimals ??
-        r?.jetton_content?.decimals ??
-        "0";
-      const decimals = Number(decimalsStr);
-
-      const supplyStr = toDecimalString(totalSupply, decimals);
+      // build pretty supply
+      const supplyStr = toDecimalString(supplyRaw, decimals);
       const pretty = formatWithSeparators(supplyStr);
 
-      // ❗ Не “мигаем”: меняем текст только если реально изменился
-      if (!hasShownOnce || lastShown !== pretty) {
+      // Update supply text ONLY if changed (no blinking)
+      const prevPretty = localStorage.getItem(LS_SUPPLY);
+      if (prevPretty !== pretty) {
         elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
-        lastShown = pretty;
-        hasShownOnce = true;
+        localStorage.setItem(LS_SUPPLY, pretty);
+      } else if (!prevPretty) {
+        elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
+        localStorage.setItem(LS_SUPPLY, pretty);
       }
+
+      // Determine last action by comparing raw supplies (mint/burn)
+      const prevRawStr = localStorage.getItem(LS_SUPPLY_RAW);
+      const prevDecimalsStr = localStorage.getItem(LS_DECIMALS);
+
+      let actionText = "Без изменений";
+      let actionKind = "neutral";
+
+      if (prevRawStr && prevDecimalsStr && Number(prevDecimalsStr) === decimals) {
+        const prevRaw = BigInt(prevRawStr);
+        const delta = supplyRaw - prevRaw;
+
+        if (delta > 0n) {
+          actionText = `ВВОД · +${toPrettyAmount(delta, decimals).slice(1)} tgBTC`;
+          actionKind = "good";
+        } else if (delta < 0n) {
+          actionText = `ВЫВОД · ${toPrettyAmount(delta, decimals)} tgBTC`;
+          actionKind = "bad";
+        }
+      } else {
+        actionText = "Ожидаю следующее изменение";
+      }
+
+      setAction(actionText, actionKind);
+
+      // Show last tx time (as in explorers)
+      elLastTime.textContent = json.last_tx?.now ? formatTimeFromUtime(json.last_tx.now) : "—";
+
+      // Persist current snapshot for next comparison
+      localStorage.setItem(LS_SUPPLY_RAW, supplyRaw.toString());
+      localStorage.setItem(LS_DECIMALS, String(decimals));
 
       setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
     } catch (e) {
@@ -283,11 +363,10 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    document.getElementById("refresh").addEventListener("click", () => loadSupply());
-    loadSupply({ first:true });
+    document.getElementById("refresh").addEventListener("click", () => loadActivity());
 
-    // автообновление (без мигания)
-    setInterval(() => loadSupply(), 30000);
+    loadActivity({ first:true });
+    setInterval(() => loadActivity(), 20000); // 20 сек, без мигания
   })();
 </script>
 </body>
