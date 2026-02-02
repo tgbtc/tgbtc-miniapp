@@ -1,31 +1,39 @@
 export default async function handler(req, res) {
-  const MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
+  try {
+    const JETTON_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
+    const API_KEY = process.env.TONCENTER_TESTNET_KEY;
 
-  const r = await fetch(
-    "https://testnet.toncenter.com/api/v2/runGetMethod",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": process.env.TONCENTER_TESTNET_API_KEY
-      },
-      body: JSON.stringify({
-        address: MASTER,
-        method: "get_jetton_data",
-        stack: []
-      })
+    if (!API_KEY) {
+      return res.status(500).json({ ok: false, error: "TONCENTER_TESTNET_KEY is missing in Vercel env" });
     }
-  );
 
-  const j = await r.json();
+    const url = `https://testnet.toncenter.com/api/v2/getTokenData?address=${encodeURIComponent(JETTON_MASTER)}`;
 
-  // stack[0] = total_supply
-  let raw = j.result.stack[0][1];
+    const r = await fetch(url, {
+      headers: {
+        "accept": "application/json",
+        "X-API-Key": API_KEY,
+      },
+      cache: "no-store",
+    });
 
-  // hex → decimal
-  if (typeof raw === "string" && raw.startsWith("0x")) {
-    raw = BigInt(raw).toString();
+    const text = await r.text();
+
+    // На всякий случай: если toncenter вернул не JSON — покажем это
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ ok: false, error: "toncenter returned non-json", raw: text.slice(0, 500) });
+    }
+
+    if (!r.ok) {
+      return res.status(502).json({ ok: false, error: `toncenter_http_${r.status}`, raw: json });
+    }
+
+    // Отдаём как есть (там уже { ok: true, result: ... })
+    return res.status(200).json(json);
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
-
-  res.json({ total_supply: raw });
 }
