@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>tgBTC Testnet — Supply</title>
+  <title>tgBTC Testnet — Max Supply</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
       /* Telegram theme vars + fallback */
-      --bg: var(--tg-theme-bg-color, #0b0f17);
+      --bg:   var(--tg-theme-bg-color, #0b0f17);
       --card: var(--tg-theme-secondary-bg-color, #0f1626);
       --text: var(--tg-theme-text-color, #e5e7eb);
-      --muted: var(--tg-theme-hint-color, #94a3b8);
-      --line: rgba(148,163,184,.22);
+      --muted:var(--tg-theme-hint-color, #94a3b8);
+      --line: rgba(148,163,184,.18);
 
       --safe-top: 0px;
       --safe-bottom: 0px;
@@ -25,91 +25,141 @@
     *{box-sizing:border-box}
     body{
       margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:var(--bg);
       color:var(--text);
     }
 
     .wrap{
-      max-width:720px;
-      margin:0 auto;
+      max-width: 780px;
+      margin: 0 auto;
       padding:
-        calc(14px + var(--safe-top))
-        calc(14px + var(--safe-right))
-        calc(14px + var(--safe-bottom))
-        calc(14px + var(--safe-left));
+        calc(18px + var(--safe-top))
+        calc(18px + var(--safe-right))
+        calc(18px + var(--safe-bottom))
+        calc(18px + var(--safe-left));
     }
 
     .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:16px 16px 14px;
+      background: color-mix(in srgb, var(--card) 94%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 14px 45px rgba(0,0,0,.22);
     }
 
-    .title{
-      font-weight:800;
-      font-size:14px;
-      letter-spacing:.2px;
-      color:var(--muted);
-    }
-
-    .value{
-      margin-top:10px;
-      font-weight:950;
-      letter-spacing:.2px;
-      line-height:1.15;
-      font-size:22px;            /* mobile */
-      word-break:break-word;
-    }
-
-    @media (min-width: 740px){
-      .card{padding:18px 18px 16px}
-      .value{font-size:26px}     /* desktop */
-    }
-
-    /* маленький индикатор обновления — без мигания текста */
-    .sub{
-      margin-top:10px;
+    .top{
       display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:12px;
+      margin-bottom: 14px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
       gap:10px;
-      font-size:12px;
-      color:var(--muted);
+      min-width:0;
     }
 
     .dot{
-      width:7px;height:7px;border-radius:999px;
-      background:var(--muted);
-      opacity:.6;
+      width:10px;height:10px;border-radius:999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,.12);
+      flex:0 0 auto;
     }
-    .dot.live{
+
+    .name{
+      font-weight: 850;
+      letter-spacing: .2px;
+      font-size: 14px;
+      opacity: .92;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .value{
+      font-weight: 950;
+      letter-spacing: .2px;
+      line-height: 1.06;
+      font-size: 26px;
+      word-break: break-word;
+    }
+
+    .label{
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .footer{
+      margin-top: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color: var(--muted);
+      font-size: 12px;
+      min-width:0;
+    }
+
+    .pulse{
+      width:8px;height:8px;border-radius:999px;
+      background: var(--muted);
+      opacity:.55;
+    }
+    .pulse.live{
       opacity:1;
-      animation:pulse 1.2s ease-in-out infinite;
+      animation: pulse 1.2s ease-in-out infinite;
     }
     @keyframes pulse{
-      0%,100%{transform:scale(1); opacity:.65}
+      0%,100%{transform:scale(1); opacity:.55}
       50%{transform:scale(1.35); opacity:1}
     }
 
+    .btn{
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .06s ease;
+      flex: 0 0 auto;
+    }
+    .btn:active{ transform: scale(.98); }
+
     .err{
-      margin-top:10px;
-      font-size:12px;
-      color:#ff8a8a;
-      white-space:pre-wrap;
-      line-height:1.35;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #ff8a8a;
+      white-space: pre-wrap;
+      line-height: 1.35;
     }
 
-    .btn{
-      border:1px solid var(--line);
-      background:transparent;
-      color:var(--text);
-      padding:8px 10px;
-      border-radius:12px;
-      font-size:12px;
-      font-weight:700;
-      cursor:pointer;
+    @media (min-width: 820px){
+      .wrap{ padding: 26px; }
+      .card{ padding: 22px; }
+      .value{ font-size: 34px; }
     }
   </style>
 </head>
@@ -117,13 +167,20 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <div class="title">tgBTC (Testnet)</div>
+      <div class="top">
+        <div class="brand">
+          <span class="dot"></span>
+          <div class="name">tgBTC (Testnet)</div>
+        </div>
+        <div class="pill" id="pill">TON Center</div>
+      </div>
 
-      <div class="value" id="supply">Supply: — tgBTC</div>
+      <div class="value" id="supply">Max.supply: — tgBTC</div>
+      <div class="label">Данные обновляются автоматически без перерисовки текста.</div>
 
-      <div class="sub">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="dot" id="liveDot"></span>
+      <div class="footer">
+        <div class="status">
+          <span class="pulse" id="pulse"></span>
           <span id="updated">Загрузка…</span>
         </div>
         <button class="btn" id="refresh">Обновить</button>
@@ -138,11 +195,12 @@
 
   const elSupply  = document.getElementById("supply");
   const elUpdated = document.getElementById("updated");
+  const elPulse   = document.getElementById("pulse");
   const elErr     = document.getElementById("err");
-  const elDot     = document.getElementById("liveDot");
 
-  let lastShownSupply = null;
+  let lastShown = null;
   let hasShownOnce = false;
+  let inFlight = false;
 
   function applySafeArea() {
     const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
@@ -162,52 +220,62 @@
     const base = 10n ** BigInt(decimals);
     const intPart = totalSupplyBigInt / base;
     const fracPart = totalSupplyBigInt % base;
-
     if (decimals === 0) return intPart.toString();
     let frac = fracPart.toString().padStart(decimals, "0");
     frac = frac.replace(/0+$/, "");
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
 
-  function setStatus(text, live=false) {
+  function setStatus(text, live) {
     elUpdated.textContent = text;
-    elDot.classList.toggle("live", live);
+    elPulse.classList.toggle("live", !!live);
   }
 
-  async function loadSupply({first=false} = {}) {
-    elErr.textContent = "";
-    if (first && !hasShownOnce) setStatus("Загрузка…", true);
+  async function loadSupply({ first=false } = {}) {
+    if (inFlight) return;           // защита от двойных запросов
+    inFlight = true;
 
-    const res = await fetch("/api/supply", { cache: "no-store" });
-    const json = await res.json();
+    try {
+      elErr.textContent = "";
+      if (first && !hasShownOnce) setStatus("Загрузка…", true);
+      else setStatus("Обновляю…", true);
 
-    if (!json || json.ok !== true) {
-      throw new Error(json?.error ? String(json.error) : "unknown error");
+      const res = await fetch("/api/supply", { cache: "no-store" });
+      const json = await res.json();
+
+      if (!json || json.ok !== true) {
+        throw new Error(json?.error ? String(json.error) : "unknown error");
+      }
+
+      const r = json.result;
+      const totalSupply = BigInt(r.total_supply);
+
+      const decimalsStr =
+        r?.jetton_content?.data?.decimals ??
+        r?.jetton_content?.decimals ??
+        "0";
+      const decimals = Number(decimalsStr);
+
+      const supplyStr = toDecimalString(totalSupply, decimals);
+      const pretty = formatWithSeparators(supplyStr);
+
+      // ❗ Не “мигаем”: меняем текст только если реально изменился
+      if (!hasShownOnce || lastShown !== pretty) {
+        elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
+        lastShown = pretty;
+        hasShownOnce = true;
+      }
+
+      setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
+    } catch (e) {
+      setStatus("Ошибка", false);
+      elErr.textContent = "Ошибка: " + (e?.message || e);
+    } finally {
+      inFlight = false;
     }
-
-    const r = json.result;
-    const totalSupply = BigInt(r.total_supply);
-
-    const decimalsStr =
-      r?.jetton_content?.data?.decimals ??
-      r?.jetton_content?.decimals ??
-      "0";
-    const decimals = Number(decimalsStr);
-
-    const supplyStr = toDecimalString(totalSupply, decimals);
-    const pretty = formatWithSeparators(supplyStr);
-
-    // Обновляем текст ТОЛЬКО если значение изменилось или это первый показ
-    if (!hasShownOnce || lastShownSupply !== pretty) {
-      elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
-      lastShownSupply = pretty;
-      hasShownOnce = true;
-    }
-
-    setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
   }
 
-  (function init() {
+  (function init(){
     if (WebApp) {
       WebApp.ready();
       WebApp.expand();
@@ -215,27 +283,12 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    document.getElementById("refresh").addEventListener("click", () => {
-      setStatus("Обновляю…", true);
-      loadSupply().catch(e => {
-        setStatus("Ошибка обновления", false);
-        elErr.textContent = "Ошибка: " + e.message;
-      });
-    });
+    document.getElementById("refresh").addEventListener("click", () => loadSupply());
+    loadSupply({ first:true });
 
-    // Первый запуск
-    loadSupply({first:true}).catch(e => {
-      setStatus("Ошибка загрузки", false);
-      elErr.textContent = "Ошибка: " + e.message;
-    });
-
-    // Автообновление без моргания
-    setInterval(() => {
-      loadSupply().catch(()=>{});
-    }, 30000); // 30 сек
+    // автообновление (без мигания)
+    setInterval(() => loadSupply(), 30000);
   })();
 </script>
 </body>
 </html>
-
-
