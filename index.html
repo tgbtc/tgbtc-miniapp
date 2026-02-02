@@ -2,20 +2,50 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <!-- Важно для Mini Apps: viewport-fit=cover + запрет масштабирования -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <title>tgBTC Testnet — Max Supply</title>
-
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     :root{
-      --bg:#0b0f17; --card:#0f1626; --text:#e5e7eb; --muted:#94a3b8;
-      --line:rgba(148,163,184,.18); --good:#22c55e;
+      --bg:#0b0f17;
+      --card:#0f1626;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --line:rgba(148,163,184,.18);
+      --good:#22c55e;
+      --err:#fca5a5;
+
+      /* safe area fallbacks */
+      --safe-top: 0px;
+      --safe-bottom: 0px;
+      --safe-left: 0px;
+      --safe-right: 0px;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:760px;margin:0 auto;padding:14px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:760px;
+      margin:0 auto;
+      padding:
+        calc(14px + var(--safe-top))
+        calc(14px + var(--safe-right))
+        calc(14px + var(--safe-bottom))
+        calc(14px + var(--safe-left));
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:16px;
+    }
     .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .title{font-weight:800;font-size:16px;display:flex;align-items:center;gap:10px}
     .dot{width:9px;height:9px;border-radius:999px;background:var(--good);display:inline-block}
@@ -27,9 +57,12 @@
     .v{font-weight:800;margin-top:6px}
     .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
     .btn{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;font-weight:700;font-size:13px}
-    .err{margin-top:12px;color:#fca5a5;font-size:12px;white-space:pre-wrap;line-height:1.35}
+    .err{margin-top:12px;color:var(--err);font-size:12px;white-space:pre-wrap;line-height:1.35}
+
+    .debug{margin-top:12px; font-size:12px; color:var(--muted); white-space:pre-wrap}
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="card">
@@ -58,14 +91,14 @@
       </div>
 
       <div class="err" id="err"></div>
+
+      <!-- debug можно потом удалить -->
+      <div class="debug" id="debug"></div>
     </div>
   </div>
 
 <script>
-  const tg = window.Telegram?.WebApp;
-  tg?.ready();
-  tg?.expand();
-
+  const WebApp = window.Telegram?.WebApp;
   const JETTON_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
   const TONVIEWER_URL = "https://testnet.tonviewer.com/" + JETTON_MASTER;
 
@@ -74,7 +107,9 @@
   const elDecimals = document.getElementById("decimals");
   const elMintable = document.getElementById("mintable");
   const elErr      = document.getElementById("err");
+  const elDebug    = document.getElementById("debug");
 
+  // ---- helpers
   function formatWithSeparators(numStr) {
     const [i, f] = numStr.split(".");
     const ii = i.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -87,14 +122,32 @@
     const fracPart = totalSupplyBigInt % base;
 
     if (decimals === 0) return intPart.toString();
-
     let frac = fracPart.toString().padStart(decimals, "0");
-    frac = frac.replace(/0+$/, ""); // trim trailing zeros
+    frac = frac.replace(/0+$/, "");
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
 
   function setUpdatedNow() {
     elUpdated.textContent = "Обновлено: " + new Date().toLocaleString();
+  }
+
+  // ---- Mini App "правильная" инициализация
+  function applyTheme() {
+    const p = WebApp?.themeParams || {};
+    // Telegram может отдавать цвета, используем их если есть
+    if (p.bg_color) document.documentElement.style.setProperty("--bg", p.bg_color);
+    if (p.text_color) document.documentElement.style.setProperty("--text", p.text_color);
+    if (p.hint_color) document.documentElement.style.setProperty("--muted", p.hint_color);
+    // card/line оставляем брендовые, но можно тоже подстроить при желании
+  }
+
+  function applySafeArea() {
+    // В новых клиентах есть safeAreaInset / contentSafeAreaInset (см. core.telegram.org) :contentReference[oaicite:4]{index=4}
+    const sa = WebApp?.safeAreaInset || { top:0, bottom:0, left:0, right:0 };
+    document.documentElement.style.setProperty("--safe-top", (sa.top || 0) + "px");
+    document.documentElement.style.setProperty("--safe-bottom", (sa.bottom || 0) + "px");
+    document.documentElement.style.setProperty("--safe-left", (sa.left || 0) + "px");
+    document.documentElement.style.setProperty("--safe-right", (sa.right || 0) + "px");
   }
 
   async function loadSupply() {
@@ -129,17 +182,46 @@
     setUpdatedNow();
   }
 
-  document.getElementById("refresh").addEventListener("click", () => {
+  // ---- start
+  (function init() {
+    if (!WebApp) {
+      elErr.textContent = "Ошибка: Telegram WebApp SDK не найден. Открой Mini App внутри Telegram.";
+      return;
+    }
+
+    // Must-call: ready() when UI is prepared (официальная практика)
+    WebApp.ready();
+    WebApp.expand();
+
+    applyTheme();
+    applySafeArea();
+
+    // реагируем на смену темы
+    WebApp.onEvent("themeChanged", applyTheme);
+
+    // viewportChanged может приходить при разворачивании/клавиатуре и т.п.
+    WebApp.onEvent("viewportChanged", applySafeArea);
+
+    // debug (можно убрать)
+    const u = WebApp.initDataUnsafe?.user;
+    elDebug.textContent =
+      "initData present: " + Boolean(WebApp.initData) + "\n" +
+      "user: " + (u ? `${u.id} ${u.username || ""}` : "—") + "\n" +
+      "platform: " + (WebApp.platform || "—");
+
+    // кнопки
+    document.getElementById("refresh").addEventListener("click", () => {
+      loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
+    });
+
+    document.getElementById("openTonviewer").addEventListener("click", () => {
+      if (WebApp.openLink) WebApp.openLink(TONVIEWER_URL);
+      else window.open(TONVIEWER_URL, "_blank");
+    });
+
     loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
-  });
-
-  document.getElementById("openTonviewer").addEventListener("click", () => {
-    if (tg?.openLink) tg.openLink(TONVIEWER_URL);
-    else window.open(TONVIEWER_URL, "_blank");
-  });
-
-  loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
-  setInterval(() => loadSupply().catch(()=>{}), 15000);
+    setInterval(() => loadSupply().catch(()=>{}), 15000);
+  })();
 </script>
 </body>
 </html>
