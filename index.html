@@ -9,61 +9,25 @@
 
   <style>
     :root{
-      --bg:#0b0f17;
-      --card:#0f1626;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
-      --line:rgba(148,163,184,.18);
-      --good:#22c55e;
-      --warn:#f59e0b;
-      --bad:#ef4444;
+      --bg:#0b0f17; --card:#0f1626; --text:#e5e7eb; --muted:#94a3b8;
+      --line:rgba(148,163,184,.18); --good:#22c55e;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:var(--bg);
-      color:var(--text);
-    }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
     .wrap{max-width:760px;margin:0 auto;padding:14px}
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:16px;
-    }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
     .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .title{font-weight:800;font-size:16px;display:flex;align-items:center;gap:10px}
     .dot{width:9px;height:9px;border-radius:999px;background:var(--good);display:inline-block}
     .muted{color:var(--muted);font-size:12px}
     .big{font-size:22px;font-weight:900;letter-spacing:.2px;margin-top:12px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .mini{
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:12px;
-      background:rgba(255,255,255,0.02);
-    }
+    .mini{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,0.02)}
     .k{color:var(--muted);font-size:12px}
     .v{font-weight:800;margin-top:6px}
     .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-    .btn{
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--line);
-      background:transparent;
-      color:var(--text);
-      cursor:pointer;
-      font-weight:700;
-      font-size:13px;
-    }
-    .err{
-      margin-top:12px;
-      color:#fca5a5;
-      font-size:12px;
-      white-space:pre-wrap;
-      line-height:1.35;
-    }
+    .btn{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;font-weight:700;font-size:13px}
+    .err{margin-top:12px;color:#fca5a5;font-size:12px;white-space:pre-wrap;line-height:1.35}
   </style>
 </head>
 <body>
@@ -75,7 +39,7 @@
       </div>
 
       <div class="big" id="supply">Max.supply: — tgBTC</div>
-      <div class="muted">Источник: TON Center (testnet) · Key.php</div>
+      <div class="muted">Источник: TON Center (testnet) · /api/supply</div>
 
       <div class="grid">
         <div class="mini">
@@ -98,15 +62,12 @@
   </div>
 
 <script>
-  // === НАСТРОЙКИ ===
-  const ENDPOINT = "./Key.php"; // оба файла рядом
-  const JETTON_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
-  const TONVIEWER_URL = "https://testnet.tonviewer.com/" + JETTON_MASTER;
-
-  // Telegram WebApp UX
   const tg = window.Telegram?.WebApp;
   tg?.ready();
   tg?.expand();
+
+  const JETTON_MASTER = "kQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdAAR";
+  const TONVIEWER_URL = "https://testnet.tonviewer.com/" + JETTON_MASTER;
 
   const elSupply   = document.getElementById("supply");
   const elUpdated  = document.getElementById("updated");
@@ -121,51 +82,43 @@
   }
 
   function toDecimalString(totalSupplyBigInt, decimals) {
-    const d = BigInt(decimals);
-    const base = 10n ** d;
+    const base = 10n ** BigInt(decimals);
     const intPart = totalSupplyBigInt / base;
     const fracPart = totalSupplyBigInt % base;
 
     if (decimals === 0) return intPart.toString();
 
     let frac = fracPart.toString().padStart(decimals, "0");
-    frac = frac.replace(/0+$/, ""); // убираем хвостовые нули
+    frac = frac.replace(/0+$/, ""); // trim trailing zeros
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
 
   function setUpdatedNow() {
-    const now = new Date();
-    elUpdated.textContent = "Обновлено: " + now.toLocaleString();
+    elUpdated.textContent = "Обновлено: " + new Date().toLocaleString();
   }
 
   async function loadSupply() {
     elErr.textContent = "";
     elSupply.textContent = "Max.supply: … tgBTC";
 
-    const res = await fetch(ENDPOINT, { cache: "no-store" });
+    const res = await fetch("/api/supply", { cache: "no-store" });
     const json = await res.json();
 
     if (!json || json.ok !== true) {
-      const msg = json?.error ? String(json.error) : "unknown error";
-      throw new Error(msg);
+      throw new Error(json?.error ? String(json.error) : "unknown error");
     }
 
     const r = json.result;
-
-    // total_supply -> BigInt
     const totalSupply = BigInt(r.total_supply);
 
-    // decimals ищем в стандартном месте
     const decimalsStr =
       r?.jetton_content?.data?.decimals ??
       r?.jetton_content?.decimals ??
       "0";
     const decimals = Number(decimalsStr);
 
-    // mintable может быть boolean или 0/1 — нормализуем
     const mintableRaw = r?.mintable;
-    const mintable =
-      mintableRaw === true || mintableRaw === 1 || mintableRaw === "1" ? "Yes" : "No";
+    const mintable = (mintableRaw === true || mintableRaw === 1 || mintableRaw === "1") ? "Yes" : "No";
 
     const supplyStr = toDecimalString(totalSupply, decimals);
 
@@ -181,12 +134,10 @@
   });
 
   document.getElementById("openTonviewer").addEventListener("click", () => {
-    // В телеге лучше через tg.openLink
     if (tg?.openLink) tg.openLink(TONVIEWER_URL);
     else window.open(TONVIEWER_URL, "_blank");
   });
 
-  // Автообновление
   loadSupply().catch(e => elErr.textContent = "Ошибка: " + e.message);
   setInterval(() => loadSupply().catch(()=>{}), 15000);
 </script>
