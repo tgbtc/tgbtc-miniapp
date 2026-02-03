@@ -15,7 +15,6 @@
       --line: rgba(148,163,184,.18);
       --good:#22c55e;
       --bad:#ef4444;
-
       --safe-top:0px; --safe-bottom:0px; --safe-left:0px; --safe-right:0px;
     }
     *{box-sizing:border-box}
@@ -41,17 +40,26 @@
     @media (min-width:860px){.card{padding:22px}.value{font-size:34px}}
 
     .list{margin-top:14px;border:1px solid var(--line);border-radius:18px;overflow:hidden}
-    .item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px;border-top:1px solid var(--line);background:rgba(255,255,255,0.02)}
+    .item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;border-top:1px solid var(--line);background:rgba(255,255,255,0.02)}
     .item:first-child{border-top:none}
     .left{min-width:0}
-    .tag{font-size:11px;font-weight:900;letter-spacing:.2px}
+    .tag{font-size:11px;font-weight:950;letter-spacing:.25px}
     .tag.good{color:var(--good)}
     .tag.bad{color:var(--bad)}
-    .addr{margin-top:6px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56vw}
+    .addr{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      max-width:60vw;
+    }
+
+    .right{text-align:right;white-space:nowrap}
     .amt{font-weight:950}
     .amt.good{color:var(--good)}
     .amt.bad{color:var(--bad)}
-    .time{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap;margin-top:6px}
+    .time{margin-top:6px;font-size:11px;color:var(--muted)}
 
     .footer{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
     .status{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;min-width:0}
@@ -74,9 +82,7 @@
 
     <div class="value" id="supply">Max.supply: — tgBTC</div>
 
-    <div class="list" id="list">
-      <!-- 3 items here -->
-    </div>
+    <div class="list" id="list"></div>
 
     <div class="footer">
       <div class="status"><span class="pulse" id="pulse"></span><span id="updated">Загрузка…</span></div>
@@ -106,7 +112,6 @@
     document.documentElement.style.setProperty("--safe-left",(sa.left||0)+"px");
     document.documentElement.style.setProperty("--safe-right",(sa.right||0)+"px");
   }
-
   function setStatus(text, live){
     elUpdated.textContent = text;
     elPulse.classList.toggle("live", !!live);
@@ -117,32 +122,29 @@
     const ii=i.replace(/\B(?=(\d{3})+(?!\d))/g,",");
     return f ? `${ii}.${f}` : ii;
   }
-
-  function toDecimalString(totalSupplyBigInt, decimals){
+  function toDecimalString(big, decimals){
     const base = 10n ** BigInt(decimals);
-    const intPart = totalSupplyBigInt / base;
-    const fracPart = totalSupplyBigInt % base;
+    const intPart = big / base;
+    const fracPart = big % base;
     if (decimals === 0) return intPart.toString();
     let frac = fracPart.toString().padStart(decimals,"0");
     frac = frac.replace(/0+$/,"");
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
-
-  function shortAddr(a){
-    if (!a) return "—";
-    if (a.length <= 18) return a;
-    return a.slice(0,8) + "…" + a.slice(-6);
+  function fmtAmount(rawStr, decimals){
+    try{
+      const a = BigInt(rawStr || "0");
+      return formatWithSeparators(toDecimalString(a, decimals));
+    }catch{return "0";}
   }
-
   function fmtTime(sec){
     if (!sec) return "—";
     return new Date(Number(sec)*1000).toLocaleString();
   }
 
   function renderEvents(events, decimals){
-    const rows = (events && events.length) ? events : [];
-    // always show 3 rows
-    const padded = [...rows];
+    const rows = Array.isArray(events) ? events : [];
+    const padded = rows.slice(0,3);
     while (padded.length < 3) padded.push(null);
 
     elList.innerHTML = padded.map(ev => {
@@ -153,7 +155,7 @@
               <div class="tag">—</div>
               <div class="addr">—</div>
             </div>
-            <div style="text-align:right">
+            <div class="right">
               <div class="amt">—</div>
               <div class="time">—</div>
             </div>
@@ -162,24 +164,18 @@
 
       const isMint = ev.type === "MINT";
       const tagClass = isMint ? "good" : "bad";
-      const tagText = isMint ? "MINT → адрес получил" : "BURN → адрес сжёг";
+      const tagText  = isMint ? "MINT TOKEN" : "BURN TOKEN";
       const amtClass = isMint ? "good" : "bad";
-
-      // amount is raw (nano-like), format to decimals
-      let amountPretty = "0";
-      try {
-        const a = BigInt(ev.amount || "0");
-        amountPretty = formatWithSeparators(toDecimalString(a, decimals));
-      } catch {}
+      const sign = isMint ? "+" : "-";
 
       return `
         <div class="item">
           <div class="left">
             <div class="tag ${tagClass}">${tagText}</div>
-            <div class="addr">${ev.address} (${shortAddr(ev.address)})</div>
+            <div class="addr">${ev.address}</div>
           </div>
-          <div style="text-align:right">
-            <div class="amt ${amtClass}">${isMint ? "+" : "-"}${amountPretty} tgBTC</div>
+          <div class="right">
+            <div class="amt ${amtClass}">${sign}${fmtAmount(ev.amount, decimals)} tgBTC</div>
             <div class="time">${fmtTime(ev.now)}</div>
           </div>
         </div>`;
@@ -200,18 +196,16 @@
 
       const decimals = Number(json.decimals || 0);
 
-      // supply
+      // Supply — всегда проставляем хотя бы 1 раз, дальше только если изменился
       const supplyRaw = BigInt(json.total_supply);
       const supplyStr = toDecimalString(supplyRaw, decimals);
       const pretty = formatWithSeparators(supplyStr);
 
-      // ✅ фикс: всегда выставляем supply хотя бы 1 раз, и дальше только если меняется
       if (lastSupplyPretty === null || lastSupplyPretty !== pretty) {
         elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
         lastSupplyPretty = pretty;
       }
 
-      // events
       renderEvents(json.events || [], decimals);
 
       setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
@@ -233,7 +227,7 @@
     document.getElementById("refresh").addEventListener("click", load);
 
     load();
-    setInterval(load, 20000); // 20 сек, без мигания
+    setInterval(load, 20000);
   })();
 </script>
 </body>
