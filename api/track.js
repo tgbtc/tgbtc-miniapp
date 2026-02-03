@@ -56,22 +56,26 @@ export default async function handler(req, res) {
     const decimals = Number(decimalsStr);
     const totalSupply = String(r.total_supply);
 
-    // ---- normalize events to: type, now, address, amount
-    const transfers = Array.isArray(transfersJson?.jetton_transfers) ? transfersJson.jetton_transfers : [];
-    const burns = Array.isArray(burnsJson?.jetton_burns) ? burnsJson.jetton_burns : [];
+// Mint token (как в tonviewer):
+// transfer where mint=true OR source is null/empty
+const transfers = Array.isArray(transfersJson?.jetton_transfers)
+  ? transfersJson.jetton_transfers
+  : [];
 
-    // Mint token in tonviewer for your contract looks like "tgBTC -> receiver"
-    // We'll treat mint as transfer where source == jetton_master
-    const mints = transfers
-      .filter(t => t && t.transaction_aborted !== true)
-      .filter(t => String(t.source || "") === JETTON_MASTER)
-      .map(t => ({
-        type: "MINT",
-        now: Number(t.transaction_now || 0),
-        address: String(t.destination || ""),   // receiver
-        amount: String(t.amount || "0"),
-        tx_hash: String(t.transaction_hash || ""),
-      }));
+const mints = transfers
+  .filter(t => t && t.transaction_aborted !== true)
+  .filter(t =>
+    t.is_mint === true ||        // если поле есть
+    !t.source || t.source === "" // или source отсутствует
+  )
+  .map(t => ({
+    type: "MINT",
+    now: Number(t.transaction_now || 0),
+    address: String(t.destination || ""), // кто получил tgBTC
+    amount: String(t.amount || "0"),
+    tx_hash: String(t.transaction_hash || ""),
+  }));
+
 
     const burnsNorm = burns
       .filter(b => b && b.transaction_aborted !== true)
