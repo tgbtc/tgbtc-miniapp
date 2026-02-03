@@ -95,6 +95,10 @@ export default async function handler(req, res) {
       total_supply: totalSupply,
       master_jetton_wallet: masterJettonWallet,
       events,
+      debug: {
+    sample_transfer: transfers[0] || null,
+    sample_transfer_keys: transfers[0] ? Object.keys(transfers[0]) : [],
+  }
     });
   } catch (e) {
     return res.status(500).json({ ok:false, error: String(e?.message || e) });
