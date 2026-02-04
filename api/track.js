@@ -13,25 +13,33 @@ export default async function handler(req, res) {
     // cache for packed addresses during one request
     const packCache = new Map();
 
-    // ✅ pack raw "0:..." -> tonviewer-like "0Q..." (non-bounceable + testnet-only + url-safe)
-    async function packToTonviewerFormat(rawAddr) {
-      if (!rawAddr) return "";
-      const key = String(rawAddr);
-      if (packCache.has(key)) return packCache.get(key);
+async function packToTonviewerFormat(rawAddr) {
+  if (!rawAddr) return "";
+  const key = String(rawAddr);
+  if (packCache.has(key)) return packCache.get(key);
 
-      const url =
-        `https://testnet.toncenter.com/api/v2/packAddress?address=${encodeURIComponent(key)}` +
-        `&bounceable=false&testnet=true&url_safe=true`;
+  const url =
+    `https://testnet.toncenter.com/api/v2/packAddress?address=${encodeURIComponent(key)}` +
+    `&bounceable=false&testnet=true&url_safe=true`;
 
-      const r = await fetch(url, { headers, cache: "no-store" });
-      const j = await r.json().catch(() => null);
+  const r = await fetch(url, { headers, cache: "no-store" });
+  const j = await r.json().catch(() => null);
 
-      const out =
-        (r.ok && j && j.ok === true && typeof j.result === "string") ? j.result : key;
+  let out =
+    (r.ok && j && j.ok === true && typeof j.result === "string")
+      ? j.result
+      : key;
 
-      packCache.set(key, out);
-      return out;
-    }
+  // 🔥 FIX: tonviewer-style prefix
+  // EQ...  -> 0Q...
+  if (out.startsWith("EQ")) {
+    out = "0Q" + out.slice(2);
+  }
+
+  packCache.set(key, out);
+  return out;
+}
+
 
     // 0) friendly -> raw (for info/debug)
     const unpackUrl =
