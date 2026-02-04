@@ -10,22 +10,22 @@ export default async function handler(req, res) {
 
     const headers = { accept: "application/json", "X-API-Key": API_KEY };
 
-    // --- helpers: friendly/raw packing ---
+    // cache for packed addresses during one request
     const packCache = new Map();
 
-    async function packToFriendly(rawAddr) {
+    // ✅ pack raw "0:..." -> tonviewer-like "0Q..." (non-bounceable + testnet-only + url-safe)
+    async function packToTonviewerFormat(rawAddr) {
       if (!rawAddr) return "";
       const key = String(rawAddr);
       if (packCache.has(key)) return packCache.get(key);
 
-      // TON Center v2: packAddress turns "0:..." into user-friendly "EQ..."/"UQ..."/"0Q..."
       const url =
-        `https://testnet.toncenter.com/api/v2/packAddress?address=${encodeURIComponent(key)}`;
+        `https://testnet.toncenter.com/api/v2/packAddress?address=${encodeURIComponent(key)}` +
+        `&bounceable=false&testnet=true&url_safe=true`;
 
       const r = await fetch(url, { headers, cache: "no-store" });
       const j = await r.json().catch(() => null);
 
-      // if packAddress fails, fallback to raw
       const out =
         (r.ok && j && j.ok === true && typeof j.result === "string") ? j.result : key;
 
@@ -57,18 +57,18 @@ export default async function handler(req, res) {
     ]);
 
     const unpackJson = await unpackRes.json();
-    const supplyJson = await supplyRes.json();
-    const actionsJson = await actionsRes.json();
-    const burnsJson = await burnsRes.json();
-
     if (!unpackRes.ok || unpackJson.ok !== true) {
       return res.status(502).json({ ok: false, error: "unpackAddress error", raw: unpackJson });
     }
     const MASTER_RAW = String(unpackJson.result); // 0:...
 
+    const supplyJson = await supplyRes.json();
     if (!supplyRes.ok || supplyJson.ok !== true) {
       return res.status(502).json({ ok: false, error: "Supply error", raw: supplyJson });
     }
+
+    const actionsJson = await actionsRes.json();
+    const burnsJson = await burnsRes.json();
 
     // decimals + supply
     const r = supplyJson.result;
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
         return {
           type: "MINT",
           now: pickUtime(a, d),
-          address_raw: receiver,
+          address_raw: receiver, // raw "0:..." or already friendly depending on API
           amount: pickAmount(d),
           tx_hash: pickHash(a, d),
         };
@@ -135,12 +135,16 @@ export default async function handler(req, res) {
       .sort((a, b) => b.now - a.now)
       .slice(0, 3);
 
-    // ✅ convert addresses to friendly like "0Q..."
+    // ✅ convert addresses to tonviewer-like "0Q..." where possible
     const events = await Promise.all(
-      merged.map(async (e) => ({
-        ...e,
-        address: await packToFriendly(e.address_raw),
-      }))
+      merged.map(async (e) => {
+        const raw = String(e.address_raw || "");
+        const isRaw0 = raw.startsWith("0:");
+        return {
+          ...e,
+          address: isRaw0 ? await packToTonviewerFormat(raw) : raw, // if already friendly, keep it
+        };
+      })
     );
 
     return res.status(200).json({
