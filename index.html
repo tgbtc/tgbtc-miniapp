@@ -14,6 +14,7 @@
       --muted: var(--tg-theme-hint-color, #94a3b8);
       --line: rgba(148,163,184,.18);
       --good:#22c55e;
+      --warn:#f59e0b;
       --bad:#ef4444;
       --safe-top:0px; --safe-bottom:0px; --safe-left:0px; --safe-right:0px;
     }
@@ -30,11 +31,75 @@
       padding:18px;
       box-shadow:0 14px 45px rgba(0,0,0,.22);
     }
-    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+
+    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
     .dot{width:10px;height:10px;border-radius:999px;background:var(--good);box-shadow:0 0 0 4px rgba(34,197,94,.12)}
     .name{font-weight:900;font-size:14px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;white-space:nowrap}
+
+    /* Cycle indicator */
+    .cycle{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px;
+      background: rgba(255,255,255,0.02);
+      margin-bottom:14px;
+    }
+    .cycleRow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .cycleTitle{font-size:12px;font-weight:900;letter-spacing:.2px}
+    .cycleHint{font-size:12px;color:var(--muted);white-space:nowrap}
+    .bar{
+      margin-top:10px;
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      display:flex;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+      position:relative;
+    }
+    .seg{height:100%}
+    .seg.warn{background: color-mix(in srgb, var(--warn) 90%, transparent)}
+    .seg.good{background: color-mix(in srgb, var(--good) 90%, transparent)}
+    .seg.bad{background: color-mix(in srgb, var(--bad) 90%, transparent)}
+    .marker{
+      position:absolute;
+      top:-3px;
+      width:2px;
+      height:16px;
+      background: rgba(229,231,235,.9);
+      border-radius:999px;
+      box-shadow:0 0 0 3px rgba(229,231,235,.08);
+      transform:translateX(-1px);
+    }
+    .cycleState{
+      margin-top:10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .statePill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.15px;
+    }
+    .stateDot{width:8px;height:8px;border-radius:999px}
+    .stateDot.warn{background:var(--warn)}
+    .stateDot.good{background:var(--good)}
+    .stateDot.bad{background:var(--bad)}
+    .statePill.warn{color:color-mix(in srgb, var(--warn) 95%, #fff)}
+    .statePill.good{color:color-mix(in srgb, var(--good) 95%, #fff)}
+    .statePill.bad{color:color-mix(in srgb, var(--bad) 95%, #fff)}
+    .stateText{font-size:12px;color:var(--muted)}
 
     .value{font-weight:950;letter-spacing:.2px;line-height:1.06;font-size:26px;word-break:break-word}
     @media (min-width:860px){.card{padding:22px}.value{font-size:34px}}
@@ -80,8 +145,31 @@
       <div class="pill">TON Center</div>
     </div>
 
-    <div class="value" id="supply">Max.supply: — tgBTC</div>
+    <!-- Cycle indicator -->
+    <div class="cycle" id="cycleBox">
+      <div class="cycleRow">
+        <div class="cycleTitle">Teleport cycle (1 hour)</div>
+        <div class="cycleHint" id="cycleCountdown">—</div>
+      </div>
 
+      <!-- 0–10m yellow, 10–20m green, 20–60m red -->
+      <div class="bar" aria-label="Cycle progress">
+        <div class="seg warn" style="width:16.6667%"></div>
+        <div class="seg good" style="width:16.6667%"></div>
+        <div class="seg bad"  style="width:66.6666%"></div>
+        <div class="marker" id="cycleMarker" style="left:0%"></div>
+      </div>
+
+      <div class="cycleState">
+        <div class="statePill" id="statePill">
+          <span class="stateDot" id="stateDot"></span>
+          <span id="stateLabel">—</span>
+        </div>
+        <div class="stateText" id="stateText">—</div>
+      </div>
+    </div>
+
+    <div class="value" id="supply">Max.supply: — tgBTC</div>
     <div class="list" id="list"></div>
 
     <div class="footer">
@@ -102,8 +190,24 @@
   const elPulse = document.getElementById("pulse");
   const elErr = document.getElementById("err");
 
+  // cycle ui
+  const elCountdown = document.getElementById("cycleCountdown");
+  const elMarker = document.getElementById("cycleMarker");
+  const elStatePill = document.getElementById("statePill");
+  const elStateDot = document.getElementById("stateDot");
+  const elStateLabel = document.getElementById("stateLabel");
+  const elStateText = document.getElementById("stateText");
+
   let inFlight = false;
   let lastSupplyPretty = null;
+
+  // ---- Cycle settings (as you asked) ----
+  // 0–10 min: Yellow  (address hidden: "The address is being updated")
+  // 10–20 min: Green (good window)
+  // 20–60 min: Red   (rest of cycle)
+  const CYCLE_SECONDS = 3600;
+  const YELLOW_SECONDS = 10 * 60;
+  const GREEN_SECONDS = 10 * 60;
 
   function applySafeArea(){
     const sa = WebApp?.safeAreaInset || {top:0,bottom:0,left:0,right:0};
@@ -140,6 +244,53 @@
   function fmtTime(sec){
     if (!sec) return "—";
     return new Date(Number(sec)*1000).toLocaleString();
+  }
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function updateCycleIndicator(){
+    // Progress within the current hour (local time)
+    const now = new Date();
+    const elapsed = (now.getMinutes() * 60) + now.getSeconds(); // 0..3599
+    const remaining = CYCLE_SECONDS - elapsed;
+
+    // marker position
+    const pct = (elapsed / CYCLE_SECONDS) * 100;
+    elMarker.style.left = `${pct}%`;
+
+    // countdown text like "The address will be updated in 47m : 45s"
+    const rm = Math.floor(remaining / 60);
+    const rs = remaining % 60;
+    elCountdown.textContent = `The address will be updated in ${rm}m : ${pad2(rs)}s`;
+
+    // state color / label
+    let state = "BAD";
+    let label = "Red zone";
+    let desc = "Адрес скрыт / не рекомендуется отправлять";
+
+    if (elapsed < YELLOW_SECONDS) {
+      state = "WARN";
+      label = "The address is being updated";
+      desc = "Первые 10 минут цикла — адрес скрыт";
+    } else if (elapsed < (YELLOW_SECONDS + GREEN_SECONDS)) {
+      state = "GOOD";
+      label = "Send window";
+      desc = "Окно 10–20 минут — можно отправлять";
+    } else {
+      state = "BAD";
+      label = "Outside window";
+      desc = "После 20-й минуты — не рекомендуется";
+    }
+
+    elStateLabel.textContent = label;
+    elStateText.textContent = desc;
+
+    elStatePill.classList.remove("warn","good","bad");
+    elStateDot.classList.remove("warn","good","bad");
+
+    if (state === "WARN") { elStatePill.classList.add("warn"); elStateDot.classList.add("warn"); }
+    if (state === "GOOD") { elStatePill.classList.add("good"); elStateDot.classList.add("good"); }
+    if (state === "BAD")  { elStatePill.classList.add("bad");  elStateDot.classList.add("bad");  }
   }
 
   function renderEvents(events, decimals){
@@ -196,7 +347,7 @@
 
       const decimals = Number(json.decimals || 0);
 
-      // Supply — всегда проставляем хотя бы 1 раз, дальше только если изменился
+      // Supply — set once, then only if changed (no "blinking")
       const supplyRaw = BigInt(json.total_supply);
       const supplyStr = toDecimalString(supplyRaw, decimals);
       const pretty = formatWithSeparators(supplyStr);
@@ -207,7 +358,6 @@
       }
 
       renderEvents(json.events || [], decimals);
-
       setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
     } catch(e){
       setStatus("Ошибка", false);
@@ -223,6 +373,10 @@
       applySafeArea();
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
+
+    // cycle indicator tick (every second)
+    updateCycleIndicator();
+    setInterval(updateCycleIndicator, 1000);
 
     document.getElementById("refresh").addEventListener("click", load);
 
