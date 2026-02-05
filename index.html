@@ -34,10 +34,22 @@
 
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
-    .dot{width:10px;height:10px;border-radius:999px;background:var(--good);box-shadow:0 0 0 4px rgba(34,197,94,.12)}
+
+    /* 🔥 status dot (left of name) - will change to warn/good/bad */
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background:var(--good);
+      box-shadow:0 0 0 4px rgba(34,197,94,.12);
+      flex:0 0 auto;
+    }
+    .dot.warn{background:var(--warn);box-shadow:0 0 0 4px rgba(245,158,11,.12)}
+    .dot.good{background:var(--good);box-shadow:0 0 0 4px rgba(34,197,94,.12)}
+    .dot.bad {background:var(--bad); box-shadow:0 0 0 4px rgba(239,68,68,.12)}
+
     .name{font-weight:900;font-size:14px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;white-space:nowrap}
 
+    /* Cycle indicator */
     .cycle{
       border:1px solid var(--line);
       border-radius:18px;
@@ -62,16 +74,21 @@
     .seg.warn{background: color-mix(in srgb, var(--warn) 90%, transparent)}
     .seg.good{background: color-mix(in srgb, var(--good) 90%, transparent)}
     .seg.bad{background: color-mix(in srgb, var(--bad) 90%, transparent)}
+
+    /* ✅ marker: make it a visible ROUND knob instead of thin line */
     .marker{
       position:absolute;
-      top:-3px;
-      width:2px;
-      height:16px;
-      background: rgba(229,231,235,.9);
+      top:50%;
+      width:14px;
+      height:14px;
       border-radius:999px;
-      box-shadow:0 0 0 3px rgba(229,231,235,.08);
-      transform:translateX(-1px);
+      background: rgba(229,231,235,.95);
+      border: 2px solid rgba(11,15,23,.7);
+      box-shadow: 0 8px 18px rgba(0,0,0,.35), 0 0 0 5px rgba(229,231,235,.10);
+      transform: translate(-50%, -50%);
+      pointer-events:none;
     }
+
     .cycleState{
       margin-top:10px;
       display:flex;
@@ -140,7 +157,11 @@
 <div class="wrap">
   <div class="card">
     <div class="top">
-      <div class="brand"><span class="dot"></span><div class="name">tgBTC (Testnet)</div></div>
+      <div class="brand">
+        <!-- ⬇️ this dot will be updated by JS to warn/good/bad -->
+        <span class="dot" id="brandDot"></span>
+        <div class="name">tgBTC (Testnet)</div>
+      </div>
       <div class="pill">TON Center</div>
     </div>
 
@@ -188,6 +209,9 @@
   const elPulse = document.getElementById("pulse");
   const elErr = document.getElementById("err");
 
+  // brand status dot
+  const elBrandDot = document.getElementById("brandDot");
+
   // cycle ui
   const elCountdown = document.getElementById("cycleCountdown");
   const elMarker = document.getElementById("cycleMarker");
@@ -199,7 +223,6 @@
   let inFlight = false;
   let lastSupplyPretty = null;
 
-  // ========= SERVER TIME (из /api/track) =========
   // /api/track должен вернуть: { server_now: <unix seconds> }
   let serverNowSec = null;
   let serverNowUpdatedAtMs = 0;
@@ -210,27 +233,17 @@
     return Math.floor(serverNowSec + passed);
   }
 
-  // ========= CYCLE SHIFT (сдвиг, чтобы совпало с Teleport) =========
-  // По твоему примеру:
-  // app:  7m55s
-  // teleport: 20m33s
-  // разница = +12m38s => нужно "открутить" цикл назад на 12m38s
-  const SHIFT_KEY = "tgbtc_cycle_shift_sec";
-  const DEFAULT_SHIFT_SECONDS = (12 * 60) + 38;
+  // ---- Cycle settings ----
+  const CYCLE_SECONDS = 3600;
 
+  // (Опционально) фаза цикла, если Teleport сдвинут
+  const SHIFT_KEY = "tgbtc_cycle_shift_sec";
+  const DEFAULT_SHIFT_SECONDS = (12 * 60) + 38; // можно поменять
   let CYCLE_SHIFT_SECONDS = DEFAULT_SHIFT_SECONDS;
   try{
     const saved = localStorage.getItem(SHIFT_KEY);
     if (saved !== null && !Number.isNaN(Number(saved))) CYCLE_SHIFT_SECONDS = Number(saved);
   }catch(e){}
-
-  function setCycleShift(sec){
-    CYCLE_SHIFT_SECONDS = sec|0;
-    try{ localStorage.setItem(SHIFT_KEY, String(CYCLE_SHIFT_SECONDS)); }catch(e){}
-  }
-
-  // ---- Cycle settings ----
-  const CYCLE_SECONDS = 3600;
 
   function applySafeArea(){
     const sa = WebApp?.safeAreaInset || {top:0,bottom:0,left:0,right:0};
@@ -269,63 +282,60 @@
     return new Date(Number(sec)*1000).toLocaleString();
   }
   function pad2(n){ return String(n).padStart(2,"0"); }
+  function modPos(n, m){ return ((n % m) + m) % m; }
 
-  function modPos(n, m){
-    // положительный мод (чтобы не было -1)
-    return ((n % m) + m) % m;
+  function setBrandDot(state){ // state: "warn" | "good" | "bad"
+    elBrandDot.classList.remove("warn","good","bad");
+    elBrandDot.classList.add(state);
   }
 
-  // ✅ Teleport-style countdown: должен идти "назад" (24:50 -> 24:49 -> ... -> 23:xx)
-  // ✅ Сдвигом добиваемся совпадения с Teleport.
   function updateCycleIndicator(){
     const nowSec = nowServerSec();
-
-    // Сдвиг фазы: "откатываем" цикл назад на CYCLE_SHIFT_SECONDS
     const shifted = nowSec - CYCLE_SHIFT_SECONDS;
 
-    // 0..3599 сколько прошло в цикле
+    // 0..3599
     const elapsed = modPos(shifted, CYCLE_SECONDS);
-
-    // 1..3600 сколько осталось до "updated"
     const remaining = CYCLE_SECONDS - elapsed;
 
-    // marker
+    // marker knob position
     const pct = (elapsed / CYCLE_SECONDS) * 100;
     elMarker.style.left = `${pct}%`;
 
-    // countdown
+    // countdown like Teleport
     const rm = Math.floor(remaining / 60);
     const rs = remaining % 60;
     elCountdown.textContent = `The address will be updated in ${rm}m : ${pad2(rs)}s`;
 
-    // зоны (как ты просил)
-    let state = "BAD";
+    // zones
+    let state = "bad";
     let label = "Outside window";
     let desc  = "31–60 мин — адрес скрыт / не рекомендуется";
 
     if (elapsed < 10*60) {
-      state = "WARN";
+      state = "warn";
       label = "The address is being updated";
       desc  = "0–10 мин — адрес обновляется и скрыт";
     } else if (elapsed < 30*60) {
-      state = "GOOD";
+      state = "good";
       label = "Send window";
       desc  = "11–30 мин — адрес виден, можно пополнять";
     } else {
-      state = "BAD";
+      state = "bad";
       label = "Outside window";
       desc  = "31–60 мин — адрес скрыт / не рекомендуется";
     }
 
+    // update top dot (before tgBTC)
+    setBrandDot(state);
+
+    // update state pills
     elStateLabel.textContent = label;
     elStateText.textContent = desc;
 
     elStatePill.classList.remove("warn","good","bad");
     elStateDot.classList.remove("warn","good","bad");
-
-    if (state === "WARN") { elStatePill.classList.add("warn"); elStateDot.classList.add("warn"); }
-    if (state === "GOOD") { elStatePill.classList.add("good"); elStateDot.classList.add("good"); }
-    if (state === "BAD")  { elStatePill.classList.add("bad");  elStateDot.classList.add("bad");  }
+    elStatePill.classList.add(state);
+    elStateDot.classList.add(state);
   }
 
   function renderEvents(events, decimals){
@@ -380,7 +390,6 @@
       const json = await res.json();
       if (!json || json.ok !== true) throw new Error(json?.error || "unknown error");
 
-      // server time for perfect sync
       if (typeof json.server_now === "number") {
         serverNowSec = json.server_now;
         serverNowUpdatedAtMs = Date.now();
@@ -399,9 +408,7 @@
 
       renderEvents(json.events || [], decimals);
 
-      // обновим цикл сразу
       updateCycleIndicator();
-
       setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
     } catch(e){
       setStatus("Ошибка", false);
@@ -418,7 +425,6 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    // cycle tick
     updateCycleIndicator();
     setInterval(updateCycleIndicator, 1000);
 
@@ -430,3 +436,4 @@
 </script>
 </body>
 </html>
+
