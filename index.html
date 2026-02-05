@@ -152,15 +152,11 @@
         <div class="cycleHint" id="cycleCountdown">—</div>
       </div>
 
-      <!-- 0–10m yellow (hidden), 11–30m green (visible), 31–60m red (hidden) -->
+      <!-- 0–10m yellow, 11–30m green, 31–60m red -->
       <div class="bar" aria-label="Cycle progress">
-        <!-- 10/60 -->
-        <div class="seg warn" style="width:16.6667%"></div>
-        <!-- 20/60 -->
-        <div class="seg good" style="width:33.3333%"></div>
-        <!-- 30/60 -->
-        <div class="seg bad"  style="width:50%"></div>
-
+        <div class="seg warn" style="width:16.6667%"></div>  <!-- 10/60 -->
+        <div class="seg good" style="width:33.3333%"></div>  <!-- 20/60 -->
+        <div class="seg bad"  style="width:50%"></div>       <!-- 30/60 -->
         <div class="marker" id="cycleMarker" style="left:0%"></div>
       </div>
 
@@ -205,17 +201,20 @@
   let inFlight = false;
   let lastSupplyPretty = null;
 
+  // --------- SERVER TIME (простая синхронизация) ----------
+  // /api/track ДОЛЖЕН возвращать: { server_now: <unix seconds> }
+  // Тогда таймер будет одинаковым везде, и минуты будут “идти назад” как в Teleport.
+  let serverNowSec = null;           // unix seconds (с сервера)
+  let serverNowUpdatedAtMs = 0;      // когда получили (local ms)
+
+  function nowServerSec(){
+    if (serverNowSec === null) return Math.floor(Date.now()/1000);
+    const passed = (Date.now() - serverNowUpdatedAtMs) / 1000;
+    return Math.floor(serverNowSec + passed);
+  }
+
   // ---- Cycle settings ----
-  // Your rules:
-  // 0–10 min: Yellow  (address updating/hidden)
-  // 11–30 min: Green  (address visible / deposit allowed)
-  // 31–60 min: Red    (address hidden / not recommended)
-  //
-  // Teleport shows: "The address will be updated in 38m : 38s"
-  // i.e. countdown to the NEXT hour boundary (reverse timer).
   const CYCLE_SECONDS = 3600;
-  const YELLOW_SECONDS = 10 * 60; // 0..10:00
-  const GREEN_SECONDS  = 20 * 60; // 10:00..30:00  (11–30 min window)
 
   function applySafeArea(){
     const sa = WebApp?.safeAreaInset || {top:0,bottom:0,left:0,right:0};
@@ -224,7 +223,6 @@
     document.documentElement.style.setProperty("--safe-left",(sa.left||0)+"px");
     document.documentElement.style.setProperty("--safe-right",(sa.right||0)+"px");
   }
-
   function setStatus(text, live){
     elUpdated.textContent = text;
     elPulse.classList.toggle("live", !!live);
@@ -235,7 +233,6 @@
     const ii=i.replace(/\B(?=(\d{3})+(?!\d))/g,",");
     return f ? `${ii}.${f}` : ii;
   }
-
   function toDecimalString(big, decimals){
     const base = 10n ** BigInt(decimals);
     const intPart = big / base;
@@ -245,53 +242,51 @@
     frac = frac.replace(/0+$/,"");
     return frac.length ? `${intPart.toString()}.${frac}` : intPart.toString();
   }
-
   function fmtAmount(rawStr, decimals){
     try{
       const a = BigInt(rawStr || "0");
       return formatWithSeparators(toDecimalString(a, decimals));
     }catch{return "0";}
   }
-
   function fmtTime(sec){
     if (!sec) return "—";
     return new Date(Number(sec)*1000).toLocaleString();
   }
-
   function pad2(n){ return String(n).padStart(2,"0"); }
 
-  // Reverse countdown like Teleport:
-  // remaining = time until next hour (mm:ss), decreases every second.
-  // Zone determination is based on elapsed time within the hour (0..3599).
+  // ВАЖНО: Teleport-style countdown должен идти “назад”.
+  // Мы считаем remaining до следующего часа: 3600 - (now % 3600)
   function updateCycleIndicator(){
-    const now = new Date();
+    const nowSec = nowServerSec();
 
-    // elapsed seconds since start of hour
-    const elapsed = (now.getMinutes() * 60) + now.getSeconds(); // 0..3599
-    const remaining = CYCLE_SECONDS - elapsed;                  // 3600..1
+    // 0..3599: сколько прошло секунд в текущем часе
+    const elapsed = nowSec % CYCLE_SECONDS;
 
-    // marker position along the bar: 0% at hour start -> 100% at hour end
+    // 1..3600: сколько осталось до обновления (идёт назад)
+    const remaining = CYCLE_SECONDS - elapsed;
+
+    // marker position (идёт вперед)
     const pct = (elapsed / CYCLE_SECONDS) * 100;
     elMarker.style.left = `${pct}%`;
 
-    // Teleport-style countdown (reverse)
+    // текст как в Teleport
     const rm = Math.floor(remaining / 60);
     const rs = remaining % 60;
     elCountdown.textContent = `The address will be updated in ${rm}m : ${pad2(rs)}s`;
 
-    // State zones:
-    // 0–10:00 => WARN
-    // 10:00–30:00 => GOOD (this corresponds to minutes 11–30 in your wording)
-    // 30:00–60:00 => BAD
+    // зоны:
+    // 0–10 мин (0..599) = yellow
+    // 11–30 мин (600..1799) = green
+    // 31–60 мин (1800..3599) = red
     let state = "BAD";
     let label = "Outside window";
     let desc  = "31–60 мин — адрес скрыт / не рекомендуется";
 
-    if (elapsed < YELLOW_SECONDS) {
+    if (elapsed < 10*60) {
       state = "WARN";
       label = "The address is being updated";
       desc  = "0–10 мин — адрес обновляется и скрыт";
-    } else if (elapsed < (YELLOW_SECONDS + GREEN_SECONDS)) {
+    } else if (elapsed < 30*60) {
       state = "GOOD";
       label = "Send window";
       desc  = "11–30 мин — адрес виден, можно пополнять";
@@ -364,6 +359,12 @@
       const json = await res.json();
       if (!json || json.ok !== true) throw new Error(json?.error || "unknown error");
 
+      // ✅ Синхронизация таймера: /api/track должен вернуть server_now (unix seconds)
+      if (typeof json.server_now === "number") {
+        serverNowSec = json.server_now;
+        serverNowUpdatedAtMs = Date.now();
+      }
+
       const decimals = Number(json.decimals || 0);
 
       // Supply — set once, then only if changed (no "blinking")
@@ -377,6 +378,10 @@
       }
 
       renderEvents(json.events || [], decimals);
+
+      // обновим цикл сразу после получения server_now, чтобы не ждать 1 секунду
+      updateCycleIndicator();
+
       setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
     } catch(e){
       setStatus("Ошибка", false);
@@ -393,13 +398,14 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    // cycle indicator tick (every second)
+    // таймер — каждую секунду (идёт назад по remaining)
     updateCycleIndicator();
     setInterval(updateCycleIndicator, 1000);
 
     document.getElementById("refresh").addEventListener("click", load);
 
     load();
+    // каждые 20 сек подкачиваем server_now, чтобы было идеально синхронно
     setInterval(load, 20000);
   })();
 </script>
