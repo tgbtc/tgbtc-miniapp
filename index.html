@@ -35,7 +35,6 @@
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
 
-    /* 🔥 status dot (left of name) - will change to warn/good/bad */
     .dot{
       width:10px;height:10px;border-radius:999px;
       background:var(--good);
@@ -49,10 +48,8 @@
     .name{font-weight:900;font-size:14px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;white-space:nowrap}
 
-    /* ✅ right controls (lang + TON Center) */
     .rightControls{display:flex;align-items:center;gap:10px;flex:0 0 auto}
 
-    /* ✅ language switch */
     .lang{
       display:flex;align-items:center;
       border:1px solid var(--line);
@@ -73,7 +70,25 @@
     }
     .lang button:active{transform:scale(.98)}
 
-    /* Cycle indicator */
+    /* ✅ link button next to TON Center */
+    .linkBtn{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      text-decoration:none;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,0.02);
+      color:var(--muted);
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+      user-select:none;
+    }
+    .linkBtn:active{transform:scale(.98)}
+    .linkBtn span{opacity:.9}
+
     .cycle{
       border:1px solid var(--line);
       border-radius:18px;
@@ -98,8 +113,6 @@
     .seg.warn{background: color-mix(in srgb, var(--warn) 90%, transparent)}
     .seg.good{background: color-mix(in srgb, var(--good) 90%, transparent)}
     .seg.bad{background: color-mix(in srgb, var(--bad) 90%, transparent)}
-
-    /* ✅ marker: make it a visible ROUND knob instead of thin line */
     .marker{
       position:absolute;
       top:50%;
@@ -186,13 +199,18 @@
         <div class="name">tgBTC (Testnet)</div>
       </div>
 
-      <!-- ✅ added: language switch + TON Center -->
       <div class="rightControls">
         <div class="lang" aria-label="Language">
           <button id="btnEN" type="button">EN</button>
           <button id="btnRU" type="button">RU</button>
         </div>
+
         <div class="pill" id="tonCenterPill">TON Center</div>
+
+        <!-- ✅ added button -->
+        <a class="linkBtn" id="teleportBtn" href="https://sandbox.teleport.tg/app/start" target="_blank" rel="noreferrer">
+          <span>teleport.tg</span>
+        </a>
       </div>
     </div>
 
@@ -302,23 +320,17 @@
     document.getElementById("btnEN").classList.toggle("active", currentLang === "en");
     document.getElementById("btnRU").classList.toggle("active", currentLang === "ru");
 
-    // supply line might already have numbers; keep number, change label
     if (lastSupplyPretty !== null) {
       elSupply.textContent = `${t("maxSupply")}: ${lastSupplyPretty} tgBTC`;
     } else {
       elSupply.textContent = `${t("maxSupply")}: — tgBTC`;
     }
 
-    // updated label if still loading default
     if (elUpdated.textContent.trim() === "Загрузка…" || elUpdated.textContent.trim() === "Loading…") {
       elUpdated.textContent = t("loading");
     }
 
-    // refresh cycle texts immediately
     updateCycleIndicator();
-
-    // re-render list tags if we already have events (optional: keep as-is)
-    // simplest: do nothing; next load() will repaint with proper tags
   }
 
   document.getElementById("btnEN").addEventListener("click", () => {
@@ -328,6 +340,16 @@
   document.getElementById("btnRU").addEventListener("click", () => {
     currentLang = "ru";
     applyTranslations();
+  });
+
+  // ✅ In Telegram Mini Apps: open links via WebApp.openLink for reliability
+  const teleportUrl = "https://sandbox.teleport.tg/app/start";
+  const teleportBtn = document.getElementById("teleportBtn");
+  teleportBtn.addEventListener("click", (e) => {
+    if (WebApp?.openLink) {
+      e.preventDefault();
+      WebApp.openLink(teleportUrl);
+    }
   });
 
   /* ===============================
@@ -428,7 +450,6 @@
     const rm = Math.floor(remaining / 60);
     const rs = remaining % 60;
 
-    // ✅ i18n countdown
     elCountdown.textContent = t("countdown", rm, rs);
 
     let state = "bad";
@@ -547,7 +568,6 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
-    // ✅ apply i18n at start (default from Telegram)
     applyTranslations();
 
     updateCycleIndicator();
