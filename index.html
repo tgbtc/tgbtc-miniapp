@@ -49,6 +49,30 @@
     .name{font-weight:900;font-size:14px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 10px;border-radius:999px;white-space:nowrap}
 
+    /* ✅ right controls (lang + TON Center) */
+    .rightControls{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+
+    /* ✅ language switch */
+    .lang{
+      display:flex;align-items:center;
+      border:1px solid var(--line);
+      border-radius:999px;
+      overflow:hidden;
+      background:rgba(255,255,255,0.02);
+    }
+    .lang button{
+      appearance:none;border:0;background:transparent;
+      color:var(--muted);
+      font-size:12px;font-weight:900;
+      padding:6px 10px;
+      cursor:pointer;
+    }
+    .lang button.active{
+      color:var(--text);
+      background:rgba(255,255,255,0.04);
+    }
+    .lang button:active{transform:scale(.98)}
+
     /* Cycle indicator */
     .cycle{
       border:1px solid var(--line);
@@ -158,20 +182,26 @@
   <div class="card">
     <div class="top">
       <div class="brand">
-        <!-- ⬇️ this dot will be updated by JS to warn/good/bad -->
         <span class="dot" id="brandDot"></span>
         <div class="name">tgBTC (Testnet)</div>
       </div>
-      <div class="pill">TON Center</div>
+
+      <!-- ✅ added: language switch + TON Center -->
+      <div class="rightControls">
+        <div class="lang" aria-label="Language">
+          <button id="btnEN" type="button">EN</button>
+          <button id="btnRU" type="button">RU</button>
+        </div>
+        <div class="pill" id="tonCenterPill">TON Center</div>
+      </div>
     </div>
 
     <div class="cycle" id="cycleBox">
       <div class="cycleRow">
-        <div class="cycleTitle">Teleport cycle (1 hour)</div>
+        <div class="cycleTitle" id="cycleTitle">Teleport cycle (1 hour)</div>
         <div class="cycleHint" id="cycleCountdown">—</div>
       </div>
 
-      <!-- 0–10m yellow, 11–30m green, 31–60m red -->
       <div class="bar" aria-label="Cycle progress">
         <div class="seg warn" style="width:16.6667%"></div>
         <div class="seg good" style="width:33.3333%"></div>
@@ -203,16 +233,115 @@
 <script>
   const WebApp = window.Telegram?.WebApp;
 
+  /* ===============================
+     LANGUAGE (default from Telegram)
+  ================================*/
+  const translations = {
+    en: {
+      cycleTitle: "Teleport cycle (1 hour)",
+      countdown: (m,s) => `The address will be updated in ${m}m : ${String(s).padStart(2,"0")}s`,
+      updating: "The address is being updated",
+      sendWindow: "Send window",
+      outside: "Outside window",
+      updatingDesc: "0–10 min — address is hidden / updating",
+      sendDesc: "11–30 min — address visible, safe to send",
+      outsideDesc: "31–60 min — address hidden / not recommended",
+      maxSupply: "Max supply",
+      loading: "Loading…",
+      updatingStatus: "Updating…",
+      updatedAt: (t) => `Updated: ${t}`,
+      error: "Error",
+      errorPrefix: "Error: ",
+      refresh: "Refresh",
+      mint: "MINT TOKEN",
+      burn: "BURN TOKEN"
+    },
+    ru: {
+      cycleTitle: "Цикл Teleport (1 час)",
+      countdown: (m,s) => `Адрес обновится через ${m}м : ${String(s).padStart(2,"0")}с`,
+      updating: "Адрес обновляется",
+      sendWindow: "Окно отправки",
+      outside: "Вне окна",
+      updatingDesc: "0–10 мин — адрес скрыт / обновляется",
+      sendDesc: "11–30 мин — адрес виден, можно отправлять",
+      outsideDesc: "31–60 мин — адрес скрыт / не рекомендуется",
+      maxSupply: "Макс. эмиссия",
+      loading: "Загрузка…",
+      updatingStatus: "Обновляю…",
+      updatedAt: (t) => `Обновлено: ${t}`,
+      error: "Ошибка",
+      errorPrefix: "Ошибка: ",
+      refresh: "Обновить",
+      mint: "ЧЕКАНКА",
+      burn: "СЖИГАНИЕ"
+    }
+  };
+
+  function detectTelegramLang(){
+    try{
+      const code = WebApp?.initDataUnsafe?.user?.language_code;
+      if (!code) return "en";
+      const l = String(code).toLowerCase();
+      return l.startsWith("ru") ? "ru" : "en";
+    }catch{
+      return "en";
+    }
+  }
+
+  let currentLang = detectTelegramLang();
+
+  function t(key, ...args){
+    const v = translations[currentLang]?.[key];
+    return (typeof v === "function") ? v(...args) : (v ?? key);
+  }
+
+  function applyTranslations(){
+    document.getElementById("cycleTitle").textContent = t("cycleTitle");
+    document.getElementById("refresh").textContent = t("refresh");
+
+    document.getElementById("btnEN").classList.toggle("active", currentLang === "en");
+    document.getElementById("btnRU").classList.toggle("active", currentLang === "ru");
+
+    // supply line might already have numbers; keep number, change label
+    if (lastSupplyPretty !== null) {
+      elSupply.textContent = `${t("maxSupply")}: ${lastSupplyPretty} tgBTC`;
+    } else {
+      elSupply.textContent = `${t("maxSupply")}: — tgBTC`;
+    }
+
+    // updated label if still loading default
+    if (elUpdated.textContent.trim() === "Загрузка…" || elUpdated.textContent.trim() === "Loading…") {
+      elUpdated.textContent = t("loading");
+    }
+
+    // refresh cycle texts immediately
+    updateCycleIndicator();
+
+    // re-render list tags if we already have events (optional: keep as-is)
+    // simplest: do nothing; next load() will repaint with proper tags
+  }
+
+  document.getElementById("btnEN").addEventListener("click", () => {
+    currentLang = "en";
+    applyTranslations();
+  });
+  document.getElementById("btnRU").addEventListener("click", () => {
+    currentLang = "ru";
+    applyTranslations();
+  });
+
+  /* ===============================
+     ORIGINAL LOGIC (with i18n texts)
+  ================================*/
+
   const elSupply = document.getElementById("supply");
   const elList = document.getElementById("list");
   const elUpdated = document.getElementById("updated");
   const elPulse = document.getElementById("pulse");
   const elErr = document.getElementById("err");
 
-  // brand status dot
   const elBrandDot = document.getElementById("brandDot");
 
-  // cycle ui
   const elCountdown = document.getElementById("cycleCountdown");
   const elMarker = document.getElementById("cycleMarker");
   const elStatePill = document.getElementById("statePill");
@@ -223,7 +352,6 @@
   let inFlight = false;
   let lastSupplyPretty = null;
 
-  // /api/track должен вернуть: { server_now: <unix seconds> }
   let serverNowSec = null;
   let serverNowUpdatedAtMs = 0;
 
@@ -233,12 +361,10 @@
     return Math.floor(serverNowSec + passed);
   }
 
-  // ---- Cycle settings ----
   const CYCLE_SECONDS = 3600;
 
-  // (Опционально) фаза цикла, если Teleport сдвинут
   const SHIFT_KEY = "tgbtc_cycle_shift_sec";
-  const DEFAULT_SHIFT_SECONDS = (12 * 60) + 38; // можно поменять
+  const DEFAULT_SHIFT_SECONDS = (12 * 60) + 38;
   let CYCLE_SHIFT_SECONDS = DEFAULT_SHIFT_SECONDS;
   try{
     const saved = localStorage.getItem(SHIFT_KEY);
@@ -284,7 +410,7 @@
   function pad2(n){ return String(n).padStart(2,"0"); }
   function modPos(n, m){ return ((n % m) + m) % m; }
 
-  function setBrandDot(state){ // state: "warn" | "good" | "bad"
+  function setBrandDot(state){
     elBrandDot.classList.remove("warn","good","bad");
     elBrandDot.classList.add(state);
   }
@@ -293,42 +419,38 @@
     const nowSec = nowServerSec();
     const shifted = nowSec - CYCLE_SHIFT_SECONDS;
 
-    // 0..3599
     const elapsed = modPos(shifted, CYCLE_SECONDS);
     const remaining = CYCLE_SECONDS - elapsed;
 
-    // marker knob position
     const pct = (elapsed / CYCLE_SECONDS) * 100;
     elMarker.style.left = `${pct}%`;
 
-    // countdown like Teleport
     const rm = Math.floor(remaining / 60);
     const rs = remaining % 60;
-    elCountdown.textContent = `The address will be updated in ${rm}m : ${pad2(rs)}s`;
 
-    // zones
+    // ✅ i18n countdown
+    elCountdown.textContent = t("countdown", rm, rs);
+
     let state = "bad";
-    let label = "Outside window";
-    let desc  = "31–60 мин — адрес скрыт / не рекомендуется";
+    let label = t("outside");
+    let desc  = t("outsideDesc");
 
     if (elapsed < 10*60) {
       state = "warn";
-      label = "The address is being updated";
-      desc  = "0–10 мин — адрес обновляется и скрыт";
+      label = t("updating");
+      desc  = t("updatingDesc");
     } else if (elapsed < 30*60) {
       state = "good";
-      label = "Send window";
-      desc  = "11–30 мин — адрес виден, можно пополнять";
+      label = t("sendWindow");
+      desc  = t("sendDesc");
     } else {
       state = "bad";
-      label = "Outside window";
-      desc  = "31–60 мин — адрес скрыт / не рекомендуется";
+      label = t("outside");
+      desc  = t("outsideDesc");
     }
 
-    // update top dot (before tgBTC)
     setBrandDot(state);
 
-    // update state pills
     elStateLabel.textContent = label;
     elStateText.textContent = desc;
 
@@ -360,7 +482,7 @@
 
       const isMint = ev.type === "MINT";
       const tagClass = isMint ? "good" : "bad";
-      const tagText  = isMint ? "MINT TOKEN" : "BURN TOKEN";
+      const tagText  = isMint ? t("mint") : t("burn");
       const amtClass = isMint ? "good" : "bad";
       const sign = isMint ? "+" : "-";
 
@@ -384,7 +506,7 @@
 
     try{
       elErr.textContent = "";
-      setStatus("Обновляю…", true);
+      setStatus(t("updatingStatus"), true);
 
       const res = await fetch("/api/track", { cache:"no-store" });
       const json = await res.json();
@@ -402,17 +524,17 @@
       const pretty = formatWithSeparators(supplyStr);
 
       if (lastSupplyPretty === null || lastSupplyPretty !== pretty) {
-        elSupply.textContent = `Max.supply: ${pretty} tgBTC`;
+        elSupply.textContent = `${t("maxSupply")}: ${pretty} tgBTC`;
         lastSupplyPretty = pretty;
       }
 
       renderEvents(json.events || [], decimals);
 
       updateCycleIndicator();
-      setStatus("Обновлено: " + new Date().toLocaleTimeString(), false);
+      setStatus(t("updatedAt", new Date().toLocaleTimeString()), false);
     } catch(e){
-      setStatus("Ошибка", false);
-      elErr.textContent = "Ошибка: " + (e?.message || e);
+      setStatus(t("error"), false);
+      elErr.textContent = t("errorPrefix") + (e?.message || e);
     } finally {
       inFlight = false;
     }
@@ -425,6 +547,9 @@
       WebApp.onEvent("viewportChanged", applySafeArea);
     }
 
+    // ✅ apply i18n at start (default from Telegram)
+    applyTranslations();
+
     updateCycleIndicator();
     setInterval(updateCycleIndicator, 1000);
 
@@ -436,4 +561,3 @@
 </script>
 </body>
 </html>
-
