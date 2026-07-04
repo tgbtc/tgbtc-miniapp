@@ -1,13 +1,4 @@
 const crypto = require("crypto");
-const bitcoin = require("bitcoinjs-lib");
-const ecc = require("tiny-secp256k1");
-const { ECPairFactory } = require("ecpair");
-const { Address } = require("@ton/core");
-
-bitcoin.initEccLib(ecc);
-
-const ECPair = ECPairFactory(ecc);
-const SIGNET = bitcoin.networks.testnet;
 
 function toHex(buffer) {
   return Buffer.from(buffer).toString("hex");
@@ -17,12 +8,54 @@ function xOnly(publicKey) {
   return Buffer.from(publicKey).slice(1, 33);
 }
 
+function fromBase64Url(value) {
+  const normalized = String(value).replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64");
+}
+
+function crc16Ccitt(bytes) {
+  let crc = 0;
+  for (const byte of bytes) {
+    crc ^= byte << 8;
+    for (let i = 0; i < 8; i += 1) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return crc;
+}
+
 function parseTonAddress(input) {
-  const addr = Address.parse(String(input || "").trim());
+  const value = String(input || "").trim();
+  const rawMatch = value.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+  if (rawMatch) {
+    return {
+      raw: `${Number(rawMatch[1])}:${rawMatch[2].toLowerCase()}`,
+      workChain: Number(rawMatch[1]),
+      hash: Buffer.from(rawMatch[2], "hex"),
+    };
+  }
+
+  const decoded = fromBase64Url(value);
+  if (decoded.length !== 36) {
+    throw new Error("Invalid TON address: expected raw 0:hash or friendly base64url address");
+  }
+
+  const body = decoded.subarray(0, 34);
+  const checksum = decoded.readUInt16BE(34);
+  const actualChecksum = crc16Ccitt(body);
+  if (checksum !== actualChecksum) {
+    throw new Error("Invalid TON address checksum");
+  }
+
+  const workChainByte = decoded[1];
+  const workChain = workChainByte === 0xff ? -1 : workChainByte;
+  const hash = decoded.subarray(2, 34);
   return {
-    raw: `${addr.workChain}:${addr.hash.toString("hex")}`,
-    workChain: addr.workChain,
-    hash: Buffer.from(addr.hash),
+    raw: `${workChain}:${hash.toString("hex")}`,
+    workChain,
+    hash,
   };
 }
 
@@ -32,6 +65,7 @@ function tonAddrToTapLeafBytes(parsed) {
 }
 
 function buildCsvScript(recoveryXOnly, csvLock) {
+  const bitcoin = require("bitcoinjs-lib");
   return bitcoin.script.compile([
     bitcoin.script.number.encode((1 << 22) | Number(csvLock)),
     bitcoin.opcodes.OP_CHECKSEQUENCEVERIFY,
@@ -42,6 +76,7 @@ function buildCsvScript(recoveryXOnly, csvLock) {
 }
 
 function buildOpReturnScript(parsedTonAddress) {
+  const bitcoin = require("bitcoinjs-lib");
   return bitcoin.script.compile([
     bitcoin.opcodes.OP_RETURN,
     tonAddrToTapLeafBytes(parsedTonAddress),
@@ -74,6 +109,24 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    let bitcoin;
+    let ECPair;
+    let ecc;
+    try {
+      bitcoin = require("bitcoinjs-lib");
+      ecc = require("tiny-secp256k1");
+      ECPair = require("ecpair").ECPairFactory(ecc);
+      bitcoin.initEccLib(ecc);
+    } catch (dependencyError) {
+      return res.status(500).json({
+        success: false,
+        error: "Missing pegin dependencies",
+        message: dependencyError.message,
+        hint: "Deploy package.json with bitcoinjs-lib, tiny-secp256k1 and ecpair dependencies, then redeploy on Vercel.",
+      });
+    }
+
+    const SIGNET = bitcoin.networks.testnet;
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const receiver = parseTonAddress(body.receiverAddr);
     const info = await fetchInfo();
