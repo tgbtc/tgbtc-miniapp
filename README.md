@@ -1,6 +1,6 @@
-# tgBTC miniapp v5 TonConnect visible
+# tgBTC miniapp v6 TonConnect visible
 
-This build shows a visible **v5 TONCONNECT** badge and a dedicated **TON wallet / TonConnect** section near the top. Deploy the contents of this folder to the root of GitHub/Vercel, not the parent folder.
+This build shows a visible **v6 TONCONNECT** badge and a dedicated **TON wallet / TonConnect** section near the top. Deploy the contents of this folder to the root of GitHub/Vercel, not the parent folder.
 
 # tgBTC Sandbox Explorer
 
@@ -30,3 +30,7 @@ To deploy on Vercel, replace the repo files with this folder and commit.
 ## TonConnect withdraw
 
 Use a TON testnet wallet. Prepare withdraw, connect wallet, then press Send withdraw. The app resolves the user tgBTC jetton wallet from the tgBTC master contract. If TonCenter auto-resolve fails, paste the tgBTC jetton wallet address into the optional fallback field.
+
+
+## v6 note
+This build removes @ton/ton auto-resolve and uses only @ton/core for BOC creation. Paste the tgBTC jetton wallet manually before Send withdraw.

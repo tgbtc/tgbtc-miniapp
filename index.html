@@ -233,7 +233,7 @@
       <div>
         <h1>tgBTC Sandbox Explorer</h1>
         <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
-        <div class="small" style="margin-top:8px"><span class="pill ok">v5 TONCONNECT</span> <span class="pill violet">testnet only</span></div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v6 TONCONNECT</span> <span class="pill violet">testnet only</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -336,8 +336,8 @@
             <div style="height: 8px"></div>
             <div class="form-grid">
               <div class="field">
-                <label for="manualJettonWallet">tgBTC jetton wallet address, optional fallback</label>
-                <input class="input" id="manualJettonWallet" placeholder="Optional: EQ... / 0:... if auto-resolve fails" autocomplete="off" />
+                <label for="manualJettonWallet">tgBTC jetton wallet address, required</label>
+                <input class="input" id="manualJettonWallet" placeholder="Required: your tgBTC jetton wallet address EQ... / 0:..." autocomplete="off" />
               </div>
               <button class="btn primary" id="prepareWithdrawBtn" type="button">Prepare withdraw</button>
             </div>
@@ -1139,6 +1139,7 @@
         if (!prep) throw new Error("Prepare withdraw first");
         if (!state.tonConnectUI) throw new Error("TonConnect is not initialized");
         if (!getWalletOwnerAddress()) throw new Error("Connect your TON testnet wallet first");
+        if (!prep.manualJettonWallet) throw new Error("Paste your tgBTC jetton wallet address into the required field, then Prepare withdraw again");
         const result = await postJson("/api/ton-burn", {
           ownerAddress: getWalletOwnerAddress(),
           jettonWalletAddress: prep.manualJettonWallet || "",
@@ -1223,7 +1224,7 @@
             ${row("Burn payload", `<span class="mono">${html(payload)}</span>`)}
             ${row("User fee", `${num(userFee)} sats`)}
             ${row("TON gas", `${num(gasNanoton)} nanoGRAM`)}
-            ${row("Jetton wallet fallback", manualJettonWallet ? `<span class="mono">${html(manualJettonWallet)}</span>` : "auto-resolve from connected owner wallet")}
+            ${row("Jetton wallet", manualJettonWallet ? `<span class="mono">${html(manualJettonWallet)}</span>` : "required manually for stable Vercel deploy")}
           </div>
           <div class="mini-actions">
             <button class="btn" type="button" data-copy="${html(payload)}">Copy burn payload</button>
