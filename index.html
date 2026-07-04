@@ -444,7 +444,7 @@
       ];
       const passed = checks.filter(([, ok]) => ok).length;
       $("healthBar").style.width = `${(passed / checks.length) * 100}%`;
-      $("healthHint").textContent = `${passed}/${checks.length}: sandbox выглядит рабочим для наблюдения. Для pegin-address нужен следующий модуль генерации Taproot address.`;
+      $("healthHint").textContent = `${passed}/${checks.length}: sandbox работает для наблюдения и testnet pegin. Для отправки используй только signet BTC и следи, чтобы deposit address был VALID CYCLE.`;
       $("checks").innerHTML = checks.map(([label, ok]) => `
         <div class="check"><span>${html(label)}</span>${pill(ok ? "OK" : "CHECK", ok ? "ok" : "warn")}</div>
       `).join("");
