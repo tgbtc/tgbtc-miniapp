@@ -462,7 +462,7 @@
   </main>
 
   <script>
-    const API = location.protocol === "http:" ? "/metrics/api" : "https://sandbox.teleport.tg/metrics/api";
+    const API =   location.hostname === "127.0.0.1" || location.hostname === "localhost"     ? "/metrics/api"     : "/api/metrics";
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_EXPLORER = "https://mempool.space/signet/tx/";
 
