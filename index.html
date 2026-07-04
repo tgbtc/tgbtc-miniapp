@@ -233,7 +233,7 @@
       <div>
         <h1>tgBTC Sandbox Explorer</h1>
         <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
-        <div class="small" style="margin-top:8px"><span class="pill ok">v6 TONCONNECT</span> <span class="pill violet">testnet only</span></div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v7 TONCONNECT SAFE</span> <span class="pill violet">testnet only</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -254,7 +254,7 @@
       <div class="body">
         <div class="split">
           <div>
-            <div class="danger-note">Connect a TON testnet wallet before burning tgBTC for pegout. If the button is missing, this is not the TonConnect build or the CDN is blocked.</div>
+            <div class="danger-note">Connect a TON testnet wallet before burning tgBTC for pegout. IMPORTANT: for jetton wallet field use only tgBTC token wallet, not owner wallet and not tgBTC master.</div>
             <div id="tonConnectButtonMain" style="margin-top:12px"></div>
           </div>
           <div id="walletStatusTop" class="empty">Wallet not connected.</div>
@@ -336,8 +336,8 @@
             <div style="height: 8px"></div>
             <div class="form-grid">
               <div class="field">
-                <label for="manualJettonWallet">tgBTC jetton wallet address, required</label>
-                <input class="input" id="manualJettonWallet" placeholder="Required: your tgBTC jetton wallet address EQ... / 0:..." autocomplete="off" />
+                <label for="manualJettonWallet">tgBTC JETTON WALLET ONLY, required</label>
+                <input class="input" id="manualJettonWallet" placeholder="Do NOT paste owner wallet or tgBTC master. Paste only your tgBTC token wallet address" autocomplete="off" />
               </div>
               <button class="btn primary" id="prepareWithdrawBtn" type="button">Prepare withdraw</button>
             </div>
@@ -558,6 +558,38 @@
       const text = String(value || "").trim();
       if (!/^\d+$/.test(text)) throw new Error("Invalid TON gas amount");
       return text;
+    }
+
+    function normalizeAddrText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function validateManualJettonWallet(addr) {
+      const text = normalizeAddrText(addr);
+      if (!text) throw new Error("Paste your tgBTC jetton wallet address. Do not use owner wallet or tgBTC master.");
+
+      const knownTgBtcMaster = [
+        "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074",
+        "kqcxinuwgtspanynqhkcnhvr2gweykrzsbknw0xtahoad-aar",
+        "kqcxinuwgtspanynqhkcnhvr2gweykrzsbknw0xtahoadAAR".toLowerCase(),
+      ];
+      const knownOwnerWallets = [
+        "0:abd2409e5429ffca01cbe622eecfde6d69f44934aa781c3a4481f1d69bbd5b39",
+        "0qcr0kcevcnh_yghl5iluz95tafrjnkp4hdpegfhwm71bot7u",
+        "eqcr0kcevcnh_yghl5iluz95tafrjnkp4hdpegfhwm71bot7u",
+      ];
+      const connectedOwner = normalizeAddrText(getWalletOwnerAddress());
+
+      if (knownTgBtcMaster.includes(text)) {
+        throw new Error("You pasted tgBTC MASTER contract. Burn must be sent to your tgBTC JETTON WALLET, not to master.");
+      }
+      if (knownOwnerWallets.includes(text) || (connectedOwner && text === connectedOwner)) {
+        throw new Error("You pasted OWNER wallet. Burn must be sent to your tgBTC JETTON WALLET for this owner, not to the owner wallet itself.");
+      }
+      if (!/^(0:|eq|uq|kq)/i.test(String(addr).trim())) {
+        throw new Error("This does not look like a TON address. Paste the tgBTC jetton wallet address from Tonviewer Tokens → tgBTC.");
+      }
+      return addr.trim();
     }
 
     function getWalletOwnerAddress() {
@@ -1139,7 +1171,7 @@
         if (!prep) throw new Error("Prepare withdraw first");
         if (!state.tonConnectUI) throw new Error("TonConnect is not initialized");
         if (!getWalletOwnerAddress()) throw new Error("Connect your TON testnet wallet first");
-        if (!prep.manualJettonWallet) throw new Error("Paste your tgBTC jetton wallet address into the required field, then Prepare withdraw again");
+        validateManualJettonWallet(prep.manualJettonWallet);
         const result = await postJson("/api/ton-burn", {
           ownerAddress: getWalletOwnerAddress(),
           jettonWalletAddress: prep.manualJettonWallet || "",
@@ -1184,7 +1216,7 @@
       const amountText = $("withdrawAmount").value.trim();
       const userFee = Number.parseInt($("withdrawFee").value || "0", 10) || 0;
       const gasNanoton = parseNanoton($("withdrawGas").value || "150000000");
-      const manualJettonWallet = $("manualJettonWallet").value.trim();
+      const manualJettonWallet = validateManualJettonWallet($("manualJettonWallet").value.trim());
       $("prepareWithdrawBtn").disabled = true;
       $("withdrawResult").classList.remove("hide");
       $("withdrawResult").innerHTML = `<div class="empty">Checking Bitcoin address and Teleport limits...</div>`;
@@ -1225,6 +1257,7 @@
             ${row("User fee", `${num(userFee)} sats`)}
             ${row("TON gas", `${num(gasNanoton)} nanoGRAM`)}
             ${row("Jetton wallet", manualJettonWallet ? `<span class="mono">${html(manualJettonWallet)}</span>` : "required manually for stable Vercel deploy")}
+            ${row("Safety", pill("not master / not owner", "ok"))}
           </div>
           <div class="mini-actions">
             <button class="btn" type="button" data-copy="${html(payload)}">Copy burn payload</button>
@@ -1233,7 +1266,7 @@
             ${link("https://sandbox.teleport.tg/app/withdraw", "Open official sandbox withdraw", "btn")}
           </div>
           <div id="sendWithdrawStatus2" style="margin-top:10px"></div>
-          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. TonConnect sends a standard Jetton burn message to your tgBTC jetton wallet on TON testnet.</div>
+          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. TonConnect sends a standard Jetton burn message to your tgBTC JETTON WALLET on TON testnet. If you paste tgBTC master or owner wallet, v7 blocks the transaction.</div>
           <div class="small">After burn, monitor below: PENDING means validators/relayer are signing; CONFIRMED/DONE means BTC pegout tx exists; REFUNDED means refund/reject path.</div>
         `;
         $("withdrawResult").querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy)));

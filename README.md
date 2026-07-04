@@ -1,36 +1,12 @@
-# tgBTC miniapp v6 TonConnect visible
+# tgBTC Sandbox Explorer v7 TonConnect Safe
 
-This build shows a visible **v6 TONCONNECT** badge and a dedicated **TON wallet / TonConnect** section near the top. Deploy the contents of this folder to the root of GitHub/Vercel, not the parent folder.
+This build adds visible TonConnect and extra safety checks for tgBTC -> signet BTC withdraw.
 
-# tgBTC Sandbox Explorer
+Important:
+- Use only Bitcoin signet and TON testnet.
+- For withdraw, the `tgBTC JETTON WALLET ONLY` field must contain the user-specific tgBTC jetton wallet address.
+- Do not paste owner wallet address.
+- Do not paste tgBTC master contract address.
+- v7 blocks the known tgBTC master and known owner wallet inputs to avoid failed burns.
 
-Testnet-only miniapp for TON Teleport BTC sandbox.
-
-## What this build includes
-
-- signet BTC -> tgBTC pegin address generation.
-- Teleport internal-key cycle check: VALID CYCLE / EXPIRED CYCLE.
-- signet BTC address watcher and txid auto-fill.
-- createPegin registration through sandbox indexer.
-- Active BTC -> tgBTC progress panel stored in localStorage.
-- tgBTC -> signet BTC preparation: validates tb1q/tb1p address, builds scriptPubKey and burn payload.
-- Active tgBTC -> BTC progress/refund monitor stored in localStorage.
-- TonConnect withdraw signing: builds a standard tgBTC Jetton burn transaction and asks the connected TON testnet wallet to sign it.
-- Dynamic TonConnect manifest at `/api/tonconnect-manifest`.
-- Stuck pegin diagnosis: compares public signet confirmations with Teleport Bitcoin Client height and CSV refund maturity.
-- Burn/pegout/refund visual monitor from sandbox metrics.
-
-## Important
-
-Only Bitcoin signet and TON testnet are supported. Never send mainnet BTC or real funds to generated addresses.
-
-To deploy on Vercel, replace the repo files with this folder and commit.
-
-
-## TonConnect withdraw
-
-Use a TON testnet wallet. Prepare withdraw, connect wallet, then press Send withdraw. The app resolves the user tgBTC jetton wallet from the tgBTC master contract. If TonCenter auto-resolve fails, paste the tgBTC jetton wallet address into the optional fallback field.
-
-
-## v6 note
-This build removes @ton/ton auto-resolve and uses only @ton/core for BOC creation. Paste the tgBTC jetton wallet manually before Send withdraw.
+If a pegin is stuck in PENDING while mempool.space shows confirmations, check BTC client lag. The frontend cannot force SUCCESS until Teleport Bitcoin Client catches the tx block and the relayer mints tgBTC.
