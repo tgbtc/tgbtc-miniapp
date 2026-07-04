@@ -233,6 +233,7 @@
       <div>
         <h1>tgBTC Sandbox Explorer</h1>
         <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v5 TONCONNECT</span> <span class="pill violet">testnet only</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -244,6 +245,23 @@
     </div>
 
     <div class="status-strip" id="statusStrip"></div>
+
+    <section class="section" style="margin-top:14px">
+      <div class="head">
+        <h2>TON wallet / TonConnect</h2>
+        <span class="small">needed for Send withdraw</span>
+      </div>
+      <div class="body">
+        <div class="split">
+          <div>
+            <div class="danger-note">Connect a TON testnet wallet before burning tgBTC for pegout. If the button is missing, this is not the TonConnect build or the CDN is blocked.</div>
+            <div id="tonConnectButtonMain" style="margin-top:12px"></div>
+          </div>
+          <div id="walletStatusTop" class="empty">Wallet not connected.</div>
+        </div>
+      </div>
+    </section>
+
     <section class="cards" id="cards"></section>
 
     <div class="layout">
@@ -567,16 +585,19 @@
     }
 
     function initTonConnect() {
-      const root = $("tonConnectButton");
+      const root = $("tonConnectButtonMain") || $("tonConnectButton");
+      const headerRoot = $("tonConnectButton");
       if (!root) return;
       if (!window.TON_CONNECT_UI || !window.TON_CONNECT_UI.TonConnectUI) {
         root.innerHTML = `<span class="pill bad">TonConnect unavailable</span>`;
+        if (headerRoot && headerRoot !== root) headerRoot.innerHTML = `<span class="pill bad">TonConnect unavailable</span>`;
         renderWalletStatus();
         return;
       }
+      if (headerRoot && headerRoot !== root) headerRoot.innerHTML = `<span class="pill violet">TonConnect below</span>`;
       state.tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
         manifestUrl: `${location.origin}/api/tonconnect-manifest`,
-        buttonRootId: "tonConnectButton",
+        buttonRootId: root.id,
       });
       state.tonConnectUI.onStatusChange((wallet) => {
         state.wallet = wallet;

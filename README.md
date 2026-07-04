@@ -1,3 +1,7 @@
+# tgBTC miniapp v5 TonConnect visible
+
+This build shows a visible **v5 TONCONNECT** badge and a dedicated **TON wallet / TonConnect** section near the top. Deploy the contents of this folder to the root of GitHub/Vercel, not the parent folder.
+
 # tgBTC Sandbox Explorer
 
 Testnet-only miniapp for TON Teleport BTC sandbox.

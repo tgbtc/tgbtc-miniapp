@@ -1,6 +1,6 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "0.3.0",
+  "version": "0.5.0-tonconnect-visible",
   "private": true,
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
