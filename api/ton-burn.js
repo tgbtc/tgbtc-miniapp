@@ -56,6 +56,12 @@ module.exports = async function handler(req, res) {
 
     const owner = Address.parse(ownerAddress);
     const jettonWallet = Address.parse(jettonWalletAddressRaw);
+    const master = Address.parse(TGBTC_MASTER_RAW);
+    const ownerRaw = owner.toRawString().toLowerCase();
+    const jettonRaw = jettonWallet.toRawString().toLowerCase();
+    const masterRaw = master.toRawString().toLowerCase();
+    if (jettonRaw === ownerRaw) throw new Error("Unsafe burn target: this is the owner wallet, not the tgBTC jetton wallet");
+    if (jettonRaw === masterRaw) throw new Error("Unsafe burn target: this is the tgBTC master/minter, not your tgBTC jetton wallet");
     const amount = validateAmount(body.amountSats);
     const customPayload = parseHexPayload(body.customPayloadHex);
     const gasNanoton = validateGas(body.gasNanoton);
@@ -81,7 +87,7 @@ module.exports = async function handler(req, res) {
     return asJson(res, 200, {
       success: true,
       chain: TON_TESTNET_CHAIN,
-      masterAddress: Address.parse(TGBTC_MASTER_RAW).toString({ testOnly: true, bounceable: true }),
+      masterAddress: master.toString({ testOnly: true, bounceable: true }),
       ownerAddress: owner.toString({ testOnly: true, bounceable: true }),
       jettonWalletAddress,
       amountSats: amount.toString(),
