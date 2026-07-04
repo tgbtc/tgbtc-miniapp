@@ -1,5 +1,4 @@
 const { Address, beginCell } = require("@ton/core");
-const { TonClient } = require("@ton/ton");
 
 const TGBTC_MASTER_RAW = "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074";
 const TON_TESTNET_CHAIN = "-3";
@@ -37,19 +36,6 @@ function parseHexPayload(value) {
   return bytes;
 }
 
-async function resolveJettonWallet(ownerAddress, manualJettonWalletAddress) {
-  if (manualJettonWalletAddress) return Address.parse(manualJettonWalletAddress);
-
-  const endpoint = process.env.TONCENTER_TESTNET_ENDPOINT || "https://testnet.toncenter.com/api/v2/jsonRPC";
-  const client = new TonClient({ endpoint, apiKey: process.env.TONCENTER_TESTNET_API_KEY || undefined });
-  const owner = Address.parse(ownerAddress);
-  const master = Address.parse(TGBTC_MASTER_RAW);
-  const result = await client.runMethod(master, "get_wallet_address", [
-    { type: "slice", cell: beginCell().storeAddress(owner).endCell() },
-  ]);
-  return result.stack.readAddress();
-}
-
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -63,15 +49,23 @@ module.exports = async function handler(req, res) {
   try {
     const body = parseBody(req);
     const ownerAddress = String(body.ownerAddress || "").trim();
-    const manualJettonWalletAddress = String(body.jettonWalletAddress || "").trim();
+    const jettonWalletAddressRaw = String(body.jettonWalletAddress || "").trim();
+    if (!jettonWalletAddressRaw) {
+      throw new Error("Paste your tgBTC jetton wallet address into the manual field. Auto-resolve is disabled in this stable deploy build.");
+    }
+
     const owner = Address.parse(ownerAddress);
-    const jettonWallet = await resolveJettonWallet(ownerAddress, manualJettonWalletAddress);
+    const jettonWallet = Address.parse(jettonWalletAddressRaw);
     const amount = validateAmount(body.amountSats);
     const customPayload = parseHexPayload(body.customPayloadHex);
     const gasNanoton = validateGas(body.gasNanoton);
 
     const customPayloadCell = beginCell().storeBuffer(customPayload).endCell();
     const queryId = BigInt(Date.now());
+
+    // Standard Jetton burn:
+    // burn#595f07bc query_id:uint64 amount:(VarUInteger 16)
+    // response_destination:MsgAddress custom_payload:(Maybe ^Cell)
     const burnBody = beginCell()
       .storeUint(BURN_OPCODE, 32)
       .storeUint(queryId, 64)
@@ -100,17 +94,17 @@ module.exports = async function handler(req, res) {
           {
             address: jettonWalletAddress,
             amount: gasNanoton,
-            payload: payloadBoc,
-          },
-        ],
-      },
+            payload: payloadBoc
+          }
+        ]
+      }
     });
   } catch (error) {
     return asJson(res, 400, {
       success: false,
       error: "Cannot build tgBTC burn transaction",
       message: error.message,
-      hint: "Connect TON testnet wallet. If auto-resolve fails, paste your tgBTC jetton wallet address into the optional fallback field.",
+      hint: "Connect TON testnet wallet and paste the tgBTC jetton wallet address manually. This avoids @ton/ton/TonCenter deployment issues."
     });
   }
 };
