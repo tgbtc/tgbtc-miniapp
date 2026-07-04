@@ -335,7 +335,7 @@
     const API = "/api/metrics";
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_TX = "https://mempool.space/signet/tx/";
-    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null };
+    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null, pegin: null };
 
     const contracts = {
       tgBTC: "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074",
@@ -592,9 +592,11 @@
     }
 
     function renderPeginAddress(data) {
+      state.pegin = data;
       $("peginResult").classList.remove("hide");
       $("peginResult").innerHTML = `
         <div>${pill("STEP 1", "info")} Send at least <strong>${html(data.minPeginBtc)} signet BTC</strong> to this address. After confirmation, tgBTC should mint to your TON address.</div>
+        <div id="peginCycleStatus" class="empty">Checking current Teleport cycle...</div>
         <div class="field">
           <label>Bitcoin signet deposit address</label>
           <div class="copy-row">
@@ -618,8 +620,12 @@
           <label>После отправки signet BTC вставь Bitcoin txid</label>
           <div class="form-grid">
             <input class="input" id="bitcoinTxId" placeholder="64 hex chars..." autocomplete="off" />
-            <button class="btn primary" id="submitPeginBtn" type="button">Register pegin</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <button class="btn" id="watchPeginBtn" type="button">Check BTC address</button>
+              <button class="btn primary" id="submitPeginBtn" type="button">Register pegin</button>
+            </div>
           </div>
+          <div id="peginWatchResult" style="margin-top:10px"></div>
         </div>
         <details>
           <summary>advanced data</summary>
@@ -637,6 +643,66 @@
         button.addEventListener("click", () => copyText(button.dataset.copy));
       });
       $("submitPeginBtn").addEventListener("click", () => submitPegin(data));
+      $("watchPeginBtn").addEventListener("click", () => watchPeginAddress(data));
+      checkPeginCycle(data);
+      watchPeginAddress(data);
+    }
+
+    async function checkPeginCycle(data) {
+      const target = $("peginCycleStatus");
+      if (!target) return;
+      try {
+        const info = await api("info");
+        const currentKey = String((info.ContractTeleport && info.ContractTeleport.InternalKey) || "");
+        const sameKey = currentKey && currentKey.toLowerCase() === String(data.internalKey || "").toLowerCase();
+        if (sameKey) {
+          target.className = "empty";
+          target.innerHTML = `${pill("VALID CYCLE", "ok")} Current internal key matches this deposit address. You can send signet BTC while this remains valid.`;
+        } else {
+          target.className = "error";
+          target.innerHTML = `${pill("EXPIRED CYCLE", "bad")} Internal key changed. Do not send BTC to this old address. Generate a new address.`;
+        }
+      } catch (error) {
+        target.className = "error";
+        target.textContent = `Cannot check Teleport cycle: ${error.message}`;
+      }
+    }
+
+    async function watchPeginAddress(data) {
+      const target = $("peginWatchResult");
+      if (!target) return;
+      target.innerHTML = `<div class="empty">Checking signet mempool/address...</div>`;
+      try {
+        const url = new URL("/api/signet-address", location.origin);
+        url.searchParams.set("address", data.btcAddress);
+        const response = await fetch(url, { cache: "no-store" });
+        const json = await response.json();
+        if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
+
+        const funded = Number(json.chainFundedSats || 0) + Number(json.mempoolFundedSats || 0);
+        const txs = Array.isArray(json.txs) ? json.txs : [];
+        const firstTx = txs[0];
+        if (firstTx && $("bitcoinTxId") && !$("bitcoinTxId").value) $("bitcoinTxId").value = firstTx.txid;
+        const txRows = txs.length ? txs.map((tx) => `
+          <div class="copy-row">
+            <div class="codebox mono">${link(BTC_TX + tx.txid, short(tx.txid))} ${pill(tx.confirmed ? "confirmed" : "mempool", tx.confirmed ? "ok" : "warn")}</div>
+            <button class="btn" type="button" data-copy="${html(tx.txid)}">Copy txid</button>
+          </div>
+        `).join("") : `<div class="small">No tx yet. If faucet is pending, wait and press Check again.</div>`;
+
+        target.innerHTML = `
+          <div class="result">
+            <div>${pill(funded > 0 ? "BTC SEEN" : "WAITING", funded > 0 ? "ok" : "warn")} Received: <strong>${satsToBtc(funded)}</strong> signet BTC</div>
+            <div class="small">Confirmed txs: ${num(json.chainTxCount)} · mempool txs: ${num(json.mempoolTxCount)}</div>
+            ${txRows}
+          </div>
+        `;
+        target.querySelectorAll("[data-copy]").forEach((button) => {
+          button.addEventListener("click", () => copyText(button.dataset.copy));
+        });
+      } catch (error) {
+        target.innerHTML = `<div class="error">Cannot watch signet address: ${html(error.message)}</div>`;
+      }
     }
 
     async function generatePeginAddress() {
@@ -739,6 +805,10 @@
       if (!state.auto) return;
       state.timer = setTimeout(async () => {
         await load();
+        if (state.pegin) {
+          await checkPeginCycle(state.pegin);
+          await watchPeginAddress(state.pegin);
+        }
         scheduleAutoRefresh();
       }, 30000);
     }
