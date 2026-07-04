@@ -1,12 +1,17 @@
-# tgBTC Sandbox Explorer v7 TonConnect Safe
+# tgBTC Sandbox Explorer v8
 
-This build adds visible TonConnect and extra safety checks for tgBTC -> signet BTC withdraw.
+One-click oriented sandbox miniapp for Bitcoin signet ↔ tgBTC on TON testnet.
 
-Important:
-- Use only Bitcoin signet and TON testnet.
-- For withdraw, the `tgBTC JETTON WALLET ONLY` field must contain the user-specific tgBTC jetton wallet address.
-- Do not paste owner wallet address.
-- Do not paste tgBTC master contract address.
-- v7 blocks the known tgBTC master and known owner wallet inputs to avoid failed burns.
+## v8 changes
 
-If a pegin is stuck in PENDING while mempool.space shows confirmations, check BTC client lag. The frontend cannot force SUCCESS until Teleport Bitcoin Client catches the tx block and the relayer mints tgBTC.
+- Visible badge: `v8 ONE-CLICK TG-BTC`.
+- TonConnect testnet wallet block.
+- Auto-resolves the connected wallet's tgBTC jetton wallet with `/api/resolve-jetton-wallet`.
+- Shows tgBTC balance before withdraw.
+- Blocks unsafe burn targets: owner wallet and tgBTC master.
+- Quick buttons: minimum test amount, safe available amount, clear saved withdraw.
+- Keeps BTC→tgBTC pegin monitor, stuck pegin diagnosis, burn/pegout monitor, BTC reserve and protocol health.
+
+## Safety
+
+Only Bitcoin signet and TON testnet. Do not send mainnet BTC to generated addresses.

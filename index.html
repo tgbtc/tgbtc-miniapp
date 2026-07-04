@@ -233,7 +233,7 @@
       <div>
         <h1>tgBTC Sandbox Explorer</h1>
         <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
-        <div class="small" style="margin-top:8px"><span class="pill ok">v7 TONCONNECT SAFE</span> <span class="pill violet">testnet only</span></div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v8 ONE-CLICK TG-BTC</span> <span class="pill violet">testnet only</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -254,7 +254,7 @@
       <div class="body">
         <div class="split">
           <div>
-            <div class="danger-note">Connect a TON testnet wallet before burning tgBTC for pegout. IMPORTANT: for jetton wallet field use only tgBTC token wallet, not owner wallet and not tgBTC master.</div>
+            <div class="danger-note">Connect a TON testnet wallet. Miniapp will try to find your tgBTC jetton wallet automatically, build the burn payload, and show every step.</div>
             <div id="tonConnectButtonMain" style="margin-top:12px"></div>
           </div>
           <div id="walletStatusTop" class="empty">Wallet not connected.</div>
@@ -310,7 +310,7 @@
             <span class="small">sandbox pegout</span>
           </div>
           <div class="body">
-            <div class="danger-note">Withdraw requires a TON wallet signature: burn tgBTC from your jetton wallet with Bitcoin output script in payload.</div>
+            <div class="danger-note">Simple mode: paste a signet BTC receive address, choose amount, press Prepare. The app auto-finds your tgBTC jetton wallet when possible.</div>
             <div style="height: 12px"></div>
             <div class="split">
               <div class="field">
@@ -336,12 +336,19 @@
             <div style="height: 8px"></div>
             <div class="form-grid">
               <div class="field">
-                <label for="manualJettonWallet">tgBTC JETTON WALLET ONLY, required</label>
-                <input class="input" id="manualJettonWallet" placeholder="Do NOT paste owner wallet or tgBTC master. Paste only your tgBTC token wallet address" autocomplete="off" />
+                <label for="manualJettonWallet">tgBTC jetton wallet</label>
+                <input class="input" id="manualJettonWallet" placeholder="Auto-filled. Advanced only: paste your tgBTC token wallet, not master/owner." autocomplete="off" />
               </div>
+              <button class="btn" id="resolveJettonBtn" type="button">Find my tgBTC wallet</button>
+            </div>
+            <div class="mini-actions" style="margin-top:8px">
+              <button class="btn" id="amountMinBtn" type="button">Min test amount</button>
+              <button class="btn" id="amountSafeBtn" type="button">Use safe available</button>
+              <button class="btn" id="clearWithdrawBtn" type="button">Clear saved withdraw</button>
               <button class="btn primary" id="prepareWithdrawBtn" type="button">Prepare withdraw</button>
             </div>
             <div id="walletStatus" class="empty" style="margin-top:10px">Connect a TON testnet wallet to sign withdraw from this miniapp.</div>
+            <div id="jettonAutoBox" class="empty" style="margin-top:10px">After wallet connection, press <strong>Find my tgBTC wallet</strong>. If balance appears, withdraw can be prepared without manually hunting the token wallet address.</div>
             <div id="withdrawResult" class="result hide"></div>
             <div id="activeWithdrawBox" class="result hide"></div>
           </div>
@@ -445,7 +452,7 @@
     const API = "/api/metrics";
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_TX = "https://mempool.space/signet/tx/";
-    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null, pegin: null, lastRegisteredPegin: null, lastWithdrawPrep: null, wallet: null, tonConnectUI: null };
+    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null, pegin: null, lastRegisteredPegin: null, lastWithdrawPrep: null, wallet: null, tonConnectUI: null, tgBtcJettonWallet: null, tgBtcBalanceUnits: null, tgBtcBalanceText: null };
 
     const contracts = {
       tgBTC: "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074",
@@ -596,24 +603,93 @@
       return state.wallet && state.wallet.account && state.wallet.account.address ? state.wallet.account.address : "";
     }
 
+    function setWalletStatus(kind, text) {
+      [$("walletStatus"), $("walletStatusTop")].filter(Boolean).forEach((target) => {
+        target.className = kind;
+        target.innerHTML = text;
+      });
+    }
+
     function renderWalletStatus() {
-      const target = $("walletStatus");
-      if (!target) return;
       const owner = getWalletOwnerAddress();
       if (!state.tonConnectUI) {
-        target.className = "error";
-        target.innerHTML = "TonConnect UI did not load. Check CDN/network, then refresh.";
+        setWalletStatus("error", "TonConnect UI did not load. Check CDN/network, then refresh.");
         return;
       }
       if (!owner) {
-        target.className = "empty";
-        target.innerHTML = `${pill("WALLET NOT CONNECTED", "warn")} Connect a TON testnet wallet before Send withdraw.`;
+        setWalletStatus("empty", `${pill("WALLET NOT CONNECTED", "warn")} Connect a TON testnet wallet before Send withdraw.`);
         return;
       }
       const chain = state.wallet.account && state.wallet.account.chain ? String(state.wallet.account.chain) : "unknown";
       const testnet = chain === "-3" || /test/i.test(chain);
-      target.className = testnet ? "empty" : "error";
-      target.innerHTML = `${pill(testnet ? "TESTNET WALLET" : "CHECK NETWORK", testnet ? "ok" : "bad")} Owner: <span class="mono">${short(owner, 16, 10)}</span> · chain: <span class="mono">${html(chain)}</span>`;
+      setWalletStatus(testnet ? "empty" : "error", `${pill(testnet ? "TESTNET WALLET" : "CHECK NETWORK", testnet ? "ok" : "bad")} Owner: <span class="mono">${short(owner, 16, 10)}</span> · chain: <span class="mono">${html(chain)}</span>`);
+    }
+
+    function renderJettonAutoBox(kind = "empty", content = "") {
+      const box = $("jettonAutoBox");
+      if (!box) return;
+      box.className = kind;
+      box.innerHTML = content || "After wallet connection, press <strong>Find my tgBTC wallet</strong>.";
+    }
+
+    function unitsToTgBtc(units) {
+      const value = BigInt(String(units || "0"));
+      const whole = value / 100000000n;
+      const frac = String(value % 100000000n).padStart(8, "0").replace(/0+$/, "");
+      return frac ? `${whole}.${frac}` : String(whole);
+    }
+
+    async function resolveJettonWallet(showProgress = true) {
+      const owner = getWalletOwnerAddress();
+      if (!owner) throw new Error("Connect TON testnet wallet first");
+      if (showProgress) renderJettonAutoBox("empty", "Finding your tgBTC jetton wallet and balance...");
+      const url = new URL("/api/resolve-jetton-wallet", location.origin);
+      url.searchParams.set("owner", owner);
+      const response = await fetch(url, { cache: "no-store" });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      state.tgBtcJettonWallet = json.jettonWalletAddress;
+      state.tgBtcBalanceUnits = json.balanceUnits || "0";
+      state.tgBtcBalanceText = json.balanceTgBtc || unitsToTgBtc(json.balanceUnits || "0");
+      if ($("manualJettonWallet")) $("manualJettonWallet").value = json.jettonWalletAddress;
+      const balanceUnits = BigInt(state.tgBtcBalanceUnits || "0");
+      if ($("withdrawAmount") && !$("withdrawAmount").value.trim()) {
+        $("withdrawAmount").value = balanceUnits >= 1000n ? "0.00001" : unitsToTgBtc(balanceUnits);
+      }
+      renderJettonAutoBox("empty", `${pill("tgBTC WALLET FOUND", "ok")} Balance: <strong>${html(state.tgBtcBalanceText)} tgBTC</strong><br><span class="small">Jetton wallet: <span class="mono">${short(json.jettonWalletAddress, 18, 12)}</span></span>`);
+      return json;
+    }
+
+    async function ensureJettonWallet() {
+      let addr = ($("manualJettonWallet") && $("manualJettonWallet").value.trim()) || state.tgBtcJettonWallet || "";
+      if (!addr) {
+        const resolved = await resolveJettonWallet(true);
+        addr = resolved.jettonWalletAddress;
+      }
+      return validateManualJettonWallet(addr);
+    }
+
+    function clearWithdrawDraft() {
+      state.lastWithdrawPrep = null;
+      saveJson("tgbtc.lastWithdrawPrep", null);
+      try { localStorage.removeItem("tgbtc.lastWithdrawPrep"); } catch {}
+      if ($("activeWithdrawBox")) $("activeWithdrawBox").classList.add("hide");
+      if ($("withdrawResult")) { $("withdrawResult").classList.add("hide"); $("withdrawResult").innerHTML = ""; }
+      renderJettonAutoBox("empty", "Saved withdraw draft cleared. Press Find my tgBTC wallet, then Prepare withdraw.");
+    }
+
+    function setMinTestAmount() {
+      if ($("withdrawAmount")) $("withdrawAmount").value = "0.00001";
+      if ($("withdrawFee")) $("withdrawFee").value = "0";
+      if ($("withdrawGas")) $("withdrawGas").value = "150000000";
+    }
+
+    function setSafeAvailableAmount() {
+      const balance = BigInt(state.tgBtcBalanceUnits || "0");
+      if (!balance) { renderJettonAutoBox("error", "tgBTC balance is unknown. Press Find my tgBTC wallet first."); return; }
+      // Keep a tiny token dust margin. For sandbox, 1000 units = 0.00001 tgBTC is a good safe test amount when available.
+      const safe = balance >= 1000n ? 1000n : balance;
+      if ($("withdrawAmount")) $("withdrawAmount").value = unitsToTgBtc(safe);
     }
 
     function initTonConnect() {
@@ -634,10 +710,12 @@
       state.tonConnectUI.onStatusChange((wallet) => {
         state.wallet = wallet;
         renderWalletStatus();
+        if (getWalletOwnerAddress()) resolveJettonWallet(false).catch((error) => renderJettonAutoBox("error", `Could not auto-find tgBTC wallet: ${html(error.message)}`));
         renderActiveWithdraw();
       });
       state.wallet = state.tonConnectUI.wallet;
       renderWalletStatus();
+      if (getWalletOwnerAddress()) resolveJettonWallet(false).catch(() => {});
     }
 
     async function api(source, params = {}) {
@@ -1171,10 +1249,10 @@
         if (!prep) throw new Error("Prepare withdraw first");
         if (!state.tonConnectUI) throw new Error("TonConnect is not initialized");
         if (!getWalletOwnerAddress()) throw new Error("Connect your TON testnet wallet first");
-        validateManualJettonWallet(prep.manualJettonWallet);
+        const jettonWalletForSend = validateManualJettonWallet(prep.manualJettonWallet || state.tgBtcJettonWallet || "");
         const result = await postJson("/api/ton-burn", {
           ownerAddress: getWalletOwnerAddress(),
-          jettonWalletAddress: prep.manualJettonWallet || "",
+          jettonWalletAddress: jettonWalletForSend,
           amountSats: prep.amountSats,
           customPayloadHex: prep.payload,
           gasNanoton: prep.gasNanoton || "150000000",
@@ -1216,11 +1294,11 @@
       const amountText = $("withdrawAmount").value.trim();
       const userFee = Number.parseInt($("withdrawFee").value || "0", 10) || 0;
       const gasNanoton = parseNanoton($("withdrawGas").value || "150000000");
-      const manualJettonWallet = validateManualJettonWallet($("manualJettonWallet").value.trim());
       $("prepareWithdrawBtn").disabled = true;
       $("withdrawResult").classList.remove("hide");
-      $("withdrawResult").innerHTML = `<div class="empty">Checking Bitcoin address and Teleport limits...</div>`;
+      $("withdrawResult").innerHTML = `<div class="empty">Checking Bitcoin address, tgBTC wallet and Teleport limits...</div>`;
       try {
+        const manualJettonWallet = await ensureJettonWallet();
         const [script, info] = await Promise.all([
           fetch(`/api/bitcoin-script?address=${encodeURIComponent(address)}`, { cache: "no-store" }).then(async (response) => {
             const json = await response.json();
@@ -1234,6 +1312,11 @@
         const limits = teleport.Limits || {};
         const minPegout = BigInt(Number(limits.MinPegoutAmount || 0));
         const okAmount = amountSats >= minPegout;
+        if (!okAmount) throw new Error(`Amount is below min pegout: ${satsToBtc(limits.MinPegoutAmount)}`);
+        if (state.tgBtcBalanceUnits != null) {
+          const balanceUnits = BigInt(String(state.tgBtcBalanceUnits || "0"));
+          if (amountSats > balanceUnits) throw new Error(`Amount is bigger than your tgBTC balance: ${unitsToTgBtc(balanceUnits)} tgBTC`);
+        }
         const payload = `${script.scriptLength.toString(16).padStart(2, "0")}${script.scriptPubKey}${BigInt(userFee).toString(16).padStart(16, "0")}`;
         state.lastWithdrawPrep = {
           btcAddress: address,
@@ -1256,7 +1339,7 @@
             ${row("Burn payload", `<span class="mono">${html(payload)}</span>`)}
             ${row("User fee", `${num(userFee)} sats`)}
             ${row("TON gas", `${num(gasNanoton)} nanoGRAM`)}
-            ${row("Jetton wallet", manualJettonWallet ? `<span class="mono">${html(manualJettonWallet)}</span>` : "required manually for stable Vercel deploy")}
+            ${row("Jetton wallet", manualJettonWallet ? `<span class="mono">${html(manualJettonWallet)}</span>` : "auto-filled / verified")}
             ${row("Safety", pill("not master / not owner", "ok"))}
           </div>
           <div class="mini-actions">
@@ -1266,7 +1349,7 @@
             ${link("https://sandbox.teleport.tg/app/withdraw", "Open official sandbox withdraw", "btn")}
           </div>
           <div id="sendWithdrawStatus2" style="margin-top:10px"></div>
-          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. TonConnect sends a standard Jetton burn message to your tgBTC JETTON WALLET on TON testnet. If you paste tgBTC master or owner wallet, v7 blocks the transaction.</div>
+          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. TonConnect sends a standard Jetton burn message to your tgBTC JETTON WALLET on TON testnet. If you paste tgBTC master or owner wallet, v8 blocks the transaction.</div>
           <div class="small">After burn, monitor below: PENDING means validators/relayer are signing; CONFIRMED/DONE means BTC pegout tx exists; REFUNDED means refund/reject path.</div>
         `;
         $("withdrawResult").querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy)));
@@ -1322,6 +1405,10 @@
     });
     $("generatePeginBtn").addEventListener("click", generatePeginAddress);
     $("prepareWithdrawBtn").addEventListener("click", prepareWithdraw);
+    $("resolveJettonBtn").addEventListener("click", () => resolveJettonWallet(true).catch((error) => renderJettonAutoBox("error", `Could not find tgBTC wallet: ${html(error.message)}`)));
+    $("clearWithdrawBtn").addEventListener("click", clearWithdrawDraft);
+    $("amountMinBtn").addEventListener("click", setMinTestAmount);
+    $("amountSafeBtn").addEventListener("click", setSafeAvailableAmount);
     $("opSearch").addEventListener("input", (event) => {
       state.query = event.target.value;
       renderOps();
