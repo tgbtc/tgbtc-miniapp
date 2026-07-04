@@ -19,6 +19,9 @@
       --red: #c43232;
       --purple: #6d4cc2;
       --shadow: 0 8px 24px rgba(22, 32, 51, 0.08);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --content-width: 1480px;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -29,15 +32,17 @@
       background: var(--bg);
       color: var(--text);
       font-size: 14px;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     a { color: var(--blue); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
     .shell {
-      width: min(1480px, calc(100vw - 32px));
+      width: min(var(--content-width), calc(100vw - 32px));
       margin: 0 auto;
-      padding: 24px 0 40px;
+      padding: calc(24px + var(--safe-top)) 0 calc(40px + var(--safe-bottom));
     }
 
     .topbar {
@@ -73,15 +78,17 @@
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--text);
-      min-height: 36px;
-      padding: 8px 12px;
-      border-radius: 6px;
+      min-height: 40px;
+      padding: 9px 12px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 650;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
       box-shadow: 0 1px 0 rgba(22, 32, 51, 0.02);
+      touch-action: manipulation;
     }
 
     button.primary {
@@ -96,7 +103,7 @@
     }
 
     .cards {
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       margin-bottom: 12px;
     }
 
@@ -110,6 +117,7 @@
     .card {
       padding: 14px;
       min-height: 100px;
+      overflow: hidden;
     }
 
     .label {
@@ -122,7 +130,7 @@
     }
 
     .value {
-      font-size: 22px;
+      font-size: clamp(18px, 2.4vw, 22px);
       font-weight: 800;
       line-height: 1.15;
       overflow-wrap: anywhere;
@@ -137,7 +145,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.75fr);
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
       gap: 12px;
       align-items: start;
     }
@@ -154,8 +162,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
+      gap: 10px 14px;
       background: var(--panel-2);
+      flex-wrap: wrap;
     }
 
     h2 {
@@ -279,21 +288,167 @@
 
     .small { font-size: 12px; color: var(--muted); }
 
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
     @media (max-width: 1180px) {
-      .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 760px) {
-      .shell { width: min(100% - 20px, 1480px); padding-top: 14px; }
-      .topbar { display: block; }
-      .actions { justify-content: flex-start; margin-top: 12px; }
-      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .split { grid-template-columns: 1fr; }
-      .kv { grid-template-columns: 1fr; }
-      .card { min-height: 90px; }
-      table { min-width: 760px; }
-      .table-wrap { overflow: auto; }
+      .shell {
+        width: min(100% - 20px, var(--content-width));
+        padding-top: calc(14px + var(--safe-top));
+      }
+
+      .topbar {
+        display: block;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .sub {
+        font-size: 13px;
+      }
+
+      .actions {
+        justify-content: flex-start;
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .actions button,
+      .actions .link-button {
+        width: 100%;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      .kv {
+        grid-template-columns: 1fr;
+        gap: 4px 0;
+      }
+
+      .kv .k {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .kv .v {
+        margin-bottom: 8px;
+      }
+
+      .card {
+        min-height: auto;
+        padding: 12px;
+      }
+
+      .section-body {
+        padding: 12px;
+      }
+
+      .section-header {
+        padding: 12px;
+      }
+
+      .mobile-only {
+        display: inline;
+      }
+
+      .table-wrap {
+        overflow: visible;
+      }
+
+      table.responsive-table {
+        min-width: 0;
+      }
+
+      table.responsive-table thead {
+        display: none;
+      }
+
+      table.responsive-table,
+      table.responsive-table tbody,
+      table.responsive-table tr,
+      table.responsive-table td {
+        display: block;
+        width: 100%;
+      }
+
+      table.responsive-table tr {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
+      }
+
+      table.responsive-table tr:last-child {
+        border-bottom: 0;
+      }
+
+      table.responsive-table td {
+        border-bottom: 0;
+        padding: 6px 0;
+      }
+
+      table.responsive-table td::before {
+        content: attr(data-label);
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 3px;
+      }
+
+      table.responsive-table tbody tr:hover td {
+        background: transparent;
+      }
+
+      pre {
+        max-height: 300px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .shell {
+        width: min(100% - 14px, var(--content-width));
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .label {
+        margin-bottom: 6px;
+      }
+
+      .hint {
+        margin-top: 6px;
+      }
+
+      .pill {
+        white-space: normal;
+      }
     }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -343,7 +498,7 @@
             <span class="small">из sandbox metrics</span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="responsive-table">
               <thead>
                 <tr>
                   <th style="width: 160px">Время</th>
@@ -364,7 +519,7 @@
             <span class="small">из sandbox metrics</span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="responsive-table">
               <thead>
                 <tr>
                   <th style="width: 160px">Время</th>
@@ -385,7 +540,7 @@
             <span class="small">что сейчас обеспечивает tgBTC</span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="responsive-table">
               <thead>
                 <tr>
                   <th style="width: 130px">Amount</th>
@@ -472,6 +627,7 @@
         tg.expand();
 
         document.body.classList.add("telegram-miniapp");
+        updateTelegramViewport();
 
         if (tg.colorScheme) {
           document.documentElement.style.colorScheme = tg.colorScheme;
@@ -481,6 +637,7 @@
 
         if (typeof tg.onEvent === "function") {
           tg.onEvent("themeChanged", applyTelegramTheme);
+          tg.onEvent("viewportChanged", updateTelegramViewport);
         }
 
         if (typeof tg.setHeaderColor === "function" && tg.themeParams && tg.themeParams.bg_color) {
@@ -492,6 +649,15 @@
         }
       } catch (error) {
         console.warn("Telegram Mini App init warning:", error);
+      }
+    }
+
+    function updateTelegramViewport() {
+      if (!tg) return;
+
+      const height = tg.viewportStableHeight || tg.viewportHeight;
+      if (height) {
+        document.documentElement.style.setProperty("--tg-viewport-height", `${height}px`);
       }
     }
 
@@ -866,11 +1032,11 @@
 
         return `
           <tr>
-            <td>${dateFmt(opTime(op))}</td>
-            <td>${opAmount(op)}</td>
-            <td>${pill(status, statusKind(status))}</td>
-            <td>${btcTx ? linkTo(BTC_EXPLORER + btcTx, `<span class="mono">${shortHash(btcTx)}</span>`) : "—"}</td>
-            <td>${tonTx ? `<span class="mono">${shortHash(tonTx, 16, 10)}</span>` : "—"}</td>
+            <td data-label="Время">${dateFmt(opTime(op))}</td>
+            <td data-label="Сумма">${opAmount(op)}</td>
+            <td data-label="Статус">${pill(status, statusKind(status))}</td>
+            <td data-label="BTC tx">${btcTx ? linkTo(BTC_EXPLORER + btcTx, `<span class="mono">${shortHash(btcTx)}</span>`) : "—"}</td>
+            <td data-label="TON tx / адрес">${tonTx ? `<span class="mono">${shortHash(tonTx, 16, 10)}</span>` : "—"}</td>
           </tr>
         `;
       }).join("");
