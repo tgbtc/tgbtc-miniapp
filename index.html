@@ -296,6 +296,7 @@
       .table-wrap { overflow: auto; }
     }
   </style>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -460,9 +461,82 @@
       </aside>
     </div>
   </main>
-
   <script>
-    const API =   location.hostname === "127.0.0.1" || location.hostname === "localhost"     ? "/metrics/api"     : "/api/metrics";
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+    function initTelegramMiniApp() {
+      if (!tg) return;
+
+      try {
+        tg.ready();
+        tg.expand();
+
+        document.body.classList.add("telegram-miniapp");
+
+        if (tg.colorScheme) {
+          document.documentElement.style.colorScheme = tg.colorScheme;
+        }
+
+        applyTelegramTheme();
+
+        if (typeof tg.onEvent === "function") {
+          tg.onEvent("themeChanged", applyTelegramTheme);
+        }
+
+        if (typeof tg.setHeaderColor === "function" && tg.themeParams && tg.themeParams.bg_color) {
+          tg.setHeaderColor(tg.themeParams.bg_color);
+        }
+
+        if (typeof tg.setBackgroundColor === "function" && tg.themeParams && tg.themeParams.bg_color) {
+          tg.setBackgroundColor(tg.themeParams.bg_color);
+        }
+      } catch (error) {
+        console.warn("Telegram Mini App init warning:", error);
+      }
+    }
+
+    function applyTelegramTheme() {
+      if (!tg || !tg.themeParams) return;
+
+      const p = tg.themeParams;
+
+      if (p.bg_color) {
+        document.documentElement.style.setProperty("--bg", p.bg_color);
+      }
+
+      if (p.secondary_bg_color) {
+        document.documentElement.style.setProperty("--panel", p.secondary_bg_color);
+        document.documentElement.style.setProperty("--panel-2", p.secondary_bg_color);
+      }
+
+      if (p.text_color) {
+        document.documentElement.style.setProperty("--text", p.text_color);
+      }
+
+      if (p.hint_color) {
+        document.documentElement.style.setProperty("--muted", p.hint_color);
+        document.documentElement.style.setProperty("--line", p.hint_color + "55");
+      }
+
+      if (p.link_color) {
+        document.documentElement.style.setProperty("--blue", p.link_color);
+      }
+
+      if (p.button_color) {
+        document.documentElement.style.setProperty("--blue", p.button_color);
+      }
+    }
+
+    initTelegramMiniApp();
+
+    const IS_LOCAL =
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "localhost";
+
+    const API = IS_LOCAL
+      ? "/metrics/api"
+      : "/api/metrics";
+
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_EXPLORER = "https://mempool.space/signet/tx/";
 
@@ -508,9 +582,32 @@
 
     function statusKind(text) {
       const value = String(text || "").toUpperCase();
-      if (value.includes("SUCCESS") || value.includes("CONFIRMED") || value.includes("FINISHED") || value === "TRUE") return "ok";
-      if (value.includes("PROGRESS") || value.includes("PENDING") || value.includes("WAIT")) return "warn";
-      if (value.includes("FAIL") || value.includes("ERROR") || value.includes("REFUND")) return "bad";
+
+      if (
+        value.includes("SUCCESS") ||
+        value.includes("CONFIRMED") ||
+        value.includes("FINISHED") ||
+        value === "TRUE"
+      ) {
+        return "ok";
+      }
+
+      if (
+        value.includes("PROGRESS") ||
+        value.includes("PENDING") ||
+        value.includes("WAIT")
+      ) {
+        return "warn";
+      }
+
+      if (
+        value.includes("FAIL") ||
+        value.includes("ERROR") ||
+        value.includes("REFUND")
+      ) {
+        return "bad";
+      }
+
       return "info";
     }
 
@@ -523,8 +620,14 @@
     }
 
     async function fetchSource(source) {
-      const response = await fetch(`${API}?source=${encodeURIComponent(source)}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`);
+      const response = await fetch(`${API}?source=${encodeURIComponent(source)}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`${source}: HTTP ${response.status}`);
+      }
+
       return response.json();
     }
 
@@ -535,16 +638,53 @@
       const minted = Number(plots.total_minted || 0);
       const burned = Number(plots.total_burned || 0);
       const supply = minted - burned;
-      const syncLag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
-      const utxoTotal = (teleport.UTXOset || []).reduce((sum, item) => sum + Number(item.Amount || 0), 0);
+
+      const syncLag =
+        Number(network.Blocks || 0) -
+        Number(client.LastConfirmedBlockHeight || 0);
+
+      const utxoTotal = (teleport.UTXOset || []).reduce(
+        (sum, item) => sum + Number(item.Amount || 0),
+        0
+      );
 
       const cards = [
-        ["Teleport", teleport.Enabled ? "Enabled" : "Disabled", teleport.Enabled ? "Контракт принимает операции" : "Операции выключены", teleport.Enabled ? "ok" : "bad"],
-        ["Chain", network.Chain || "—", "Bitcoin network для sandbox", "purple"],
-        ["BTC sync lag", numberFmt(syncLag), `network ${numberFmt(network.Blocks)} / client ${numberFmt(client.LastConfirmedBlockHeight)}`, syncLag < 20 ? "ok" : "warn"],
-        ["Minted", `${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `${numberFmt(plots.mints_count)} mint операций`, "info"],
-        ["Burned", `${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `${numberFmt(plots.burns_count)} burn операций`, "warn"],
-        ["Supply / UTXO", `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `UTXO: ${satsToBtc(utxoTotal)}`, "ok"],
+        [
+          "Teleport",
+          teleport.Enabled ? "Enabled" : "Disabled",
+          teleport.Enabled ? "Контракт принимает операции" : "Операции выключены",
+          teleport.Enabled ? "ok" : "bad",
+        ],
+        [
+          "Chain",
+          network.Chain || "—",
+          "Bitcoin network для sandbox",
+          "purple",
+        ],
+        [
+          "BTC sync lag",
+          numberFmt(syncLag),
+          `network ${numberFmt(network.Blocks)} / client ${numberFmt(client.LastConfirmedBlockHeight)}`,
+          syncLag < 20 ? "ok" : "warn",
+        ],
+        [
+          "Minted",
+          `${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`,
+          `${numberFmt(plots.mints_count)} mint операций`,
+          "info",
+        ],
+        [
+          "Burned",
+          `${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`,
+          `${numberFmt(plots.burns_count)} burn операций`,
+          "warn",
+        ],
+        [
+          "Supply / UTXO",
+          `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`,
+          `UTXO: ${satsToBtc(utxoTotal)}`,
+          "ok",
+        ],
       ];
 
       $("summaryCards").innerHTML = cards.map(([label, value, hint, kind]) => `
@@ -564,6 +704,7 @@
       const minted = Number(plots.total_minted || 0);
       const burned = Number(plots.total_burned || 0);
       const supply = minted - burned;
+
       const checks = [
         Boolean(teleport.Enabled),
         network.Chain === "signet",
@@ -571,9 +712,17 @@
         Number(limits.MinPeginAmount || 0) > 0,
         Boolean(teleport.TweakedPubkey),
       ];
+
       const score = checks.filter(Boolean).length;
+
       $("readinessBar").style.width = `${(score / checks.length) * 100}%`;
-      $("readinessText").innerHTML = `${score}/${checks.length}: ${teleport.Enabled ? "sandbox включен" : "sandbox выключен"}, chain=${network.Chain || "—"}, min pegin=${satsToBtc(limits.MinPeginAmount)}. Для настоящей двери нужен отдельный шаг: корректно сгенерировать signet Taproot deposit address по коду Teleport.`;
+
+      $("readinessText").innerHTML =
+        `${score}/${checks.length}: ` +
+        `${teleport.Enabled ? "sandbox включен" : "sandbox выключен"}, ` +
+        `chain=${network.Chain || "—"}, ` +
+        `min pegin=${satsToBtc(limits.MinPeginAmount)}. ` +
+        `Для настоящей двери нужен отдельный шаг: корректно сгенерировать signet Taproot deposit address по коду Teleport.`;
 
       $("protocolKv").innerHTML = [
         row("Environment", pill("Sandbox / TON testnet", "purple")),
@@ -596,6 +745,7 @@
 
     function renderContracts(info) {
       const teleport = info.ContractTeleport || {};
+
       const dynamic = {
         tgBTC: teleport.MinterAddress,
         Teleport: teleport.TeleportAddress,
@@ -607,7 +757,9 @@
 
       $("contractsKv").innerHTML = Object.entries({ ...contracts, ...dynamic })
         .filter(([, address]) => address)
-        .map(([name, address]) => row(name, linkTo(TONVIEWER + address, `<span class="mono">${address}</span>`)))
+        .map(([name, address]) =>
+          row(name, linkTo(TONVIEWER + address, `<span class="mono">${address}</span>`))
+        )
         .join("");
     }
 
@@ -615,6 +767,7 @@
       const network = info.BitcoinNetworkInfo || {};
       const client = info.ContractBitcoinClient || {};
       const candidates = client.CandidateBlockHashes || [];
+
       $("bitcoinKv").innerHTML = [
         row("Chain", network.Chain || "—"),
         row("Network height", numberFmt(network.Blocks)),
@@ -622,13 +775,19 @@
         row("Client height", numberFmt(client.LastConfirmedBlockHeight)),
         row("Client hash", `<span class="mono">${client.LastConfirmedBlockHash || "—"}</span>`),
         row("Confirmations", numberFmt(client.ConfirmationsNeeded)),
-        row("Candidates", candidates.length ? candidates.map((h) => `<div class="mono">${shortHash(h, 14, 10)}</div>`).join("") : "—"),
+        row(
+          "Candidates",
+          candidates.length
+            ? candidates.map((h) => `<div class="mono">${shortHash(h, 14, 10)}</div>`).join("")
+            : "—"
+        ),
       ].join("");
     }
 
     function renderDkg(dkg) {
       const current = dkg.DkgInfo || {};
       const prev = dkg.PrevDkgInfo || {};
+
       $("dkgKv").innerHTML = [
         row("Standalone mode", pill(String(Boolean(dkg.StandaloneMode)), dkg.StandaloneMode ? "warn" : "ok")),
         row("Current state", pill(current.State || "—", statusKind(current.State))),
@@ -643,6 +802,7 @@
 
     function renderKeys(info) {
       const teleport = info.ContractTeleport || {};
+
       $("keysKv").innerHTML = [
         row("Tweaked key", `<span class="mono">${teleport.TweakedPubkey || "—"}</span>`),
         row("Internal key", `<span class="mono">${teleport.InternalKey || "—"}</span>`),
@@ -653,10 +813,13 @@
 
     function renderUtxo(info) {
       const utxos = (info.ContractTeleport && info.ContractTeleport.UTXOset) || [];
+
       if (!utxos.length) {
-        $("utxoBody").innerHTML = `<tr><td colspan="4"><div class="empty">UTXO пока нет.</div></td></tr>`;
+        $("utxoBody").innerHTML =
+          `<tr><td colspan="4"><div class="empty">UTXO пока нет.</div></td></tr>`;
         return;
       }
+
       $("utxoBody").innerHTML = utxos.map((item) => `
         <tr>
           <td>${satsToBtc(item.Amount)}</td>
@@ -689,8 +852,10 @@
 
     function renderOps(targetId, list) {
       const rows = Array.isArray(list) ? list.slice(0, 30) : [];
+
       if (!rows.length) {
-        $(targetId).innerHTML = `<tr><td colspan="5"><div class="empty">Нет данных.</div></td></tr>`;
+        $(targetId).innerHTML =
+          `<tr><td colspan="5"><div class="empty">Нет данных.</div></td></tr>`;
         return;
       }
 
@@ -698,6 +863,7 @@
         const status = opStatus(op);
         const btcTx = opBtcTx(op);
         const tonTx = opTonTx(op);
+
         return `
           <tr>
             <td>${dateFmt(opTime(op))}</td>
@@ -711,11 +877,21 @@
     }
 
     function showError(error) {
-      $("summaryCards").innerHTML = `<article class="card" style="grid-column: 1 / -1"><div class="error">Не удалось загрузить sandbox metrics: ${error.message}</div><div class="hint">Проверь доступность ${API}?source=info</div></article>`;
+      $("summaryCards").innerHTML = `
+        <article class="card" style="grid-column: 1 / -1">
+          <div class="error">
+            Не удалось загрузить sandbox metrics: ${error.message}
+          </div>
+          <div class="hint">
+            Проверь доступность ${API}?source=info
+          </div>
+        </article>
+      `;
     }
 
     async function load() {
       $("updatedAt").textContent = "загрузка...";
+
       try {
         const [info, plots, dkg, mints, burns] = await Promise.all([
           fetchSource("info"),
@@ -738,7 +914,9 @@
         $("rawInfo").textContent = JSON.stringify(info, null, 2);
         $("rawPlots").textContent = JSON.stringify(plots, null, 2);
         $("rawDkg").textContent = JSON.stringify(dkg, null, 2);
-        $("updatedAt").textContent = `обновлено: ${new Date().toLocaleString("ru-RU", { hour12: false })}`;
+
+        $("updatedAt").textContent =
+          `обновлено: ${new Date().toLocaleString("ru-RU", { hour12: false })}`;
       } catch (error) {
         showError(error);
         $("updatedAt").textContent = "ошибка загрузки";
