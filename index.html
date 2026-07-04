@@ -250,6 +250,36 @@
 
         <section class="section">
           <div class="head">
+            <h2>Convert tgBTC -> signet BTC</h2>
+            <span class="small">sandbox pegout</span>
+          </div>
+          <div class="body">
+            <div class="danger-note">Withdraw requires a TON wallet signature: burn tgBTC from your jetton wallet with Bitcoin output script in payload.</div>
+            <div style="height: 12px"></div>
+            <div class="split">
+              <div class="field">
+                <label for="withdrawBtcAddress">Bitcoin signet receive address</label>
+                <input class="input" id="withdrawBtcAddress" placeholder="tb1q... or tb1p..." autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="withdrawAmount">tgBTC amount</label>
+                <input class="input" id="withdrawAmount" placeholder="0.00001" autocomplete="off" />
+              </div>
+            </div>
+            <div style="height: 8px"></div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="withdrawFee">User fee, sats</label>
+                <input class="input" id="withdrawFee" value="0" autocomplete="off" />
+              </div>
+              <button class="btn primary" id="prepareWithdrawBtn" type="button">Prepare withdraw</button>
+            </div>
+            <div id="withdrawResult" class="result hide"></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head">
             <h2>Операции</h2>
             <div class="toolbar">
               <div class="tabs">
@@ -272,6 +302,16 @@
               </thead>
               <tbody id="opsBody"><tr><td colspan="5"><div class="empty">Операции загружаются...</div></td></tr></tbody>
             </table>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head">
+            <h2>Withdraw / refund monitor</h2>
+            <span class="small">burns and pegouts</span>
+          </div>
+          <div class="body" id="withdrawMonitor">
+            <div class="empty">Burn operations are loading...</div>
           </div>
         </section>
 
@@ -559,6 +599,28 @@
       }).join("");
     }
 
+    function renderWithdrawMonitor() {
+      const burns = Array.isArray(state.burns) ? state.burns.slice(0, 8) : [];
+      if (!burns.length) {
+        $("withdrawMonitor").innerHTML = `<div class="empty">No burn/withdraw data yet.</div>`;
+        return;
+      }
+      $("withdrawMonitor").innerHTML = burns.map((op) => {
+        const status = opStatus(op);
+        const btc = opBtcTx(op);
+        const ton = opTon(op);
+        return `
+          <div class="check">
+            <div>
+              <div><strong>${html(op.amount || op.Amount || "—")}</strong> ${pill(status, statusKind(status))}</div>
+              <div class="small">${dateFmt(op.created_at || op.CreatedAt || op.Time)}</div>
+              <div class="small">BTC: ${btc ? link(BTC_TX + btc, short(btc), "mono") : "waiting"} · TON: ${ton ? `<span class="mono">${short(ton, 14, 8)}</span>` : "waiting/refund"}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function renderError(error) {
       $("cards").innerHTML = `<article class="card" style="grid-column: 1 / -1"><div class="error">Не удалось загрузить данные: ${html(error.message)}</div><div class="hint">Проверь endpoint <span class="mono">/api/metrics?source=info</span></div></article>`;
       $("updatedAt").textContent = "ошибка загрузки";
@@ -739,7 +801,11 @@
               ${row("Mint status", pill(result.data.mint.status, statusKind(result.data.mint.status)))}
               ${row("vout", num(result.data.voutIndex))}
               ${row("amount sats", html(result.data.mint.amount))}
+              ${row("Bitcoin tx", link(BTC_TX + bitcoinTxID, `<span class="mono">${short(bitcoinTxID)}</span>`))}
+              ${row("Receiver wallet", link(TONVIEWER + peginData.receiverAddr, `<span class="mono">${short(peginData.receiverAddr, 16, 10)}</span>`))}
+              ${row("Sandbox history", link("https://sandbox.teleport.tg/app/history", "Open Teleport history"))}
             </div>
+            <div class="small">If status is PENDING, wait for sandbox relayer/indexer to send the TON mint transaction. When it becomes SUCCESS, tgBTC should appear in the receiver wallet.</div>
           </div>
         `;
         load();
@@ -747,6 +813,54 @@
         $("peginSubmitResult").innerHTML = `<div class="error">Indexer rejected pegin: ${html(error.message)}</div>`;
       } finally {
         $("submitPeginBtn").disabled = false;
+      }
+    }
+
+    function btcToSatsDecimal(value) {
+      const text = String(value || "").trim();
+      if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error("Invalid amount");
+      const [whole, frac = ""] = text.split(".");
+      return BigInt(whole) * 100000000n + BigInt((frac + "00000000").slice(0, 8));
+    }
+
+    async function prepareWithdraw() {
+      const address = $("withdrawBtcAddress").value.trim();
+      const amountText = $("withdrawAmount").value.trim();
+      const userFee = Number.parseInt($("withdrawFee").value || "0", 10) || 0;
+      $("prepareWithdrawBtn").disabled = true;
+      $("withdrawResult").classList.remove("hide");
+      $("withdrawResult").innerHTML = `<div class="empty">Checking Bitcoin address and Teleport limits...</div>`;
+      try {
+        const [script, info] = await Promise.all([
+          fetch(`/api/bitcoin-script?address=${encodeURIComponent(address)}`, { cache: "no-store" }).then(async (response) => {
+            const json = await response.json();
+            if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
+            return json;
+          }),
+          api("info"),
+        ]);
+        const amountSats = btcToSatsDecimal(amountText);
+        const teleport = info.ContractTeleport || {};
+        const limits = teleport.Limits || {};
+        const minPegout = BigInt(Number(limits.MinPegoutAmount || 0));
+        const okAmount = amountSats >= minPegout;
+        const payload = `${script.scriptLength.toString(16).padStart(2, "0")}${script.scriptPubKey}${BigInt(userFee).toString(16).padStart(16, "0")}`;
+        $("withdrawResult").innerHTML = `
+          <div>${pill(okAmount ? "READY" : "TOO SMALL", okAmount ? "ok" : "bad")} Burn <strong>${html(amountText)} tgBTC</strong> to receive signet BTC.</div>
+          <div class="kv">
+            ${row("Min pegout", satsToBtc(limits.MinPegoutAmount))}
+            ${row("Amount", `${satsToBtc(amountSats)} / ${amountSats.toString()} sats`)}
+            ${row("Bitcoin script", `<span class="mono">${html(script.scriptPubKey)}</span>`)}
+            ${row("Burn payload", `<span class="mono">${html(payload)}</span>`)}
+            ${row("User fee", `${num(userFee)} sats`)}
+          </div>
+          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. After burn, monitor below: PENDING means validators/relayer are signing; CONFIRMED/DONE means BTC pegout tx exists; REFUNDED means tgBTC returned or rejected.</div>
+          <div class="small">Next implementation step: TonConnect button to send the burn directly from this miniapp.</div>
+        `;
+      } catch (error) {
+        $("withdrawResult").innerHTML = `<div class="error">Cannot prepare withdraw: ${html(error.message)}</div>`;
+      } finally {
+        $("prepareWithdrawBtn").disabled = false;
       }
     }
 
@@ -772,6 +886,7 @@
         state.mints = Array.isArray(mints) ? mints : [];
         state.burns = Array.isArray(burns) ? burns : [];
         renderOps();
+        renderWithdrawMonitor();
       } catch (error) {
         renderError(error);
         console.error(error);
@@ -788,6 +903,7 @@
       if (!state.auto && state.timer) clearTimeout(state.timer);
     });
     $("generatePeginBtn").addEventListener("click", generatePeginAddress);
+    $("prepareWithdrawBtn").addEventListener("click", prepareWithdraw);
     $("opSearch").addEventListener("input", (event) => {
       state.query = event.target.value;
       renderOps();
