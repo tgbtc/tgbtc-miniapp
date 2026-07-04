@@ -572,7 +572,8 @@
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || json.success === false) {
-        throw new Error(json.message || json.error || `HTTP ${response.status}`);
+        const extra = json.hint ? ` ${json.hint}` : "";
+        throw new Error(`${json.message || json.error || `HTTP ${response.status}`}${extra}`);
       }
       return json;
     }
