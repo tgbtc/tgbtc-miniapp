@@ -122,6 +122,39 @@
       background: #fff;
       color: var(--text);
     }
+    .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+    .field { display: grid; gap: 6px; }
+    .field label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    .input {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      width: 100%;
+      background: #fff;
+      color: var(--text);
+    }
+    .result {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+    .copy-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+    .codebox {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      overflow-wrap: anywhere;
+    }
+    .danger-note { color: var(--red); font-weight: 750; line-height: 1.45; }
     .tabs { display: inline-flex; background: #e9eef6; border-radius: 7px; padding: 3px; }
     .tab { border: 0; background: transparent; min-height: 30px; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: 800; color: var(--muted); }
     .tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(18, 32, 51, 0.12); }
@@ -153,6 +186,7 @@
       .controls { justify-content: flex-start; margin-top: 12px; min-width: 0; }
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .split, .kv { grid-template-columns: 1fr; }
+      .form-grid, .copy-row { grid-template-columns: 1fr; }
       table { min-width: 780px; }
     }
   </style>
@@ -162,10 +196,11 @@
     <div class="top">
       <div>
         <h1>tgBTC Sandbox Explorer</h1>
-        <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, mint/burn, DKG, UTXO, лимиты и готовность протокола.</div>
+        <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
+        <button class="btn" id="autoBtn" type="button">Auto: ON</button>
         <a class="btn" href="https://sandbox.teleport.tg/app/dashboard" target="_blank" rel="noreferrer">Sandbox</a>
         <a class="btn" href="https://testnet.tonviewer.com/0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c" target="_blank" rel="noreferrer">Tonviewer</a>
       </div>
@@ -191,6 +226,25 @@
                 <div class="checks" id="checks"></div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head">
+            <h2>Convert signet BTC → tgBTC</h2>
+            <span class="small">sandbox pegin</span>
+          </div>
+          <div class="body">
+            <div class="danger-note">Только Bitcoin signet и TON testnet. Не отправляй mainnet BTC на эти адреса.</div>
+            <div style="height: 12px"></div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="receiverAddr">TON receiver address</label>
+                <input class="input" id="receiverAddr" placeholder="EQ... или 0:..." autocomplete="off" />
+              </div>
+              <button class="btn primary" id="generatePeginBtn" type="button">Generate address</button>
+            </div>
+            <div id="peginResult" class="result hide"></div>
           </div>
         </section>
 
@@ -223,8 +277,8 @@
 
         <section class="section">
           <div class="head">
-            <h2>UTXO set Teleport</h2>
-            <span class="small">резерв signet BTC</span>
+            <h2>BTC UTXO reserve</h2>
+            <span class="small">signet BTC backing</span>
           </div>
           <div class="table-wrap">
             <table>
@@ -281,7 +335,7 @@
     const API = "/api/metrics";
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_TX = "https://mempool.space/signet/tx/";
-    const state = { activeTab: "mints", mints: [], burns: [], query: "" };
+    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null };
 
     const contracts = {
       tgBTC: "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074",
@@ -362,9 +416,9 @@
         ["Status", teleport.Enabled ? "Enabled" : "Disabled", teleport.Enabled ? "контракт принимает операции" : "операции выключены", teleport.Enabled ? "ok" : "bad"],
         ["Chain", network.Chain || "—", "Bitcoin sandbox network", "violet"],
         ["BTC client lag", num(lag), `network ${num(network.Blocks)} / client ${num(client.LastConfirmedBlockHeight)}`, lag < 50 ? "ok" : "warn"],
-        ["Minted", `${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `${num(plots.mints_count)} операций`, "info"],
-        ["Burned", `${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `${num(plots.burns_count)} операций`, "warn"],
-        ["Supply", `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`, `UTXO ${satsToBtc(utxo)}`, "ok"],
+        ["Minted tgBTC", `${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `${num(plots.mints_count)} mint операций`, "info"],
+        ["Burned tgBTC", `${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `${num(plots.burns_count)} burn операций`, "warn"],
+        ["Supply tgBTC", `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `BTC reserve ${satsToBtc(utxo)}`, "ok"],
       ];
       $("cards").innerHTML = items.map(([label, value, hint, kind]) => `
         <article class="card">
@@ -510,6 +564,125 @@
       $("updatedAt").textContent = "ошибка загрузки";
     }
 
+    async function postJson(path, payload) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json.success === false) {
+        throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      }
+      return json;
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+    }
+
+    function renderPeginAddress(data) {
+      $("peginResult").classList.remove("hide");
+      $("peginResult").innerHTML = `
+        <div>${pill("STEP 1", "info")} Send at least <strong>${html(data.minPeginBtc)} signet BTC</strong> to this address. After confirmation, tgBTC should mint to your TON address.</div>
+        <div class="field">
+          <label>Bitcoin signet deposit address</label>
+          <div class="copy-row">
+            <div class="codebox mono">${html(data.btcAddress)}</div>
+            <button class="btn" type="button" data-copy="${html(data.btcAddress)}">Copy</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Receiver tgBTC TON address</label>
+          <div class="codebox mono">${html(data.receiverAddr)}</div>
+        </div>
+        <div class="field">
+          <label>Recovery private key</label>
+          <div class="copy-row">
+            <div class="codebox mono">${html(data.recoveryPrivateKey)}</div>
+            <button class="btn" type="button" data-copy="${html(data.recoveryPrivateKey)}">Copy</button>
+          </div>
+          <div class="small">Сохрани этот ключ до завершения теста. Это testnet-only refund/recovery key.</div>
+        </div>
+        <div class="field">
+          <label>После отправки signet BTC вставь Bitcoin txid</label>
+          <div class="form-grid">
+            <input class="input" id="bitcoinTxId" placeholder="64 hex chars..." autocomplete="off" />
+            <button class="btn primary" id="submitPeginBtn" type="button">Register pegin</button>
+          </div>
+        </div>
+        <details>
+          <summary>advanced data</summary>
+          <pre>${html(JSON.stringify({
+            scriptPubKey: data.scriptPubKey,
+            internalKey: data.internalKey,
+            recoveryKey: data.recoveryKey,
+            csvLock: data.csvLock,
+          }, null, 2))}</pre>
+        </details>
+        <div id="peginSubmitResult"></div>
+      `;
+
+      document.querySelectorAll("[data-copy]").forEach((button) => {
+        button.addEventListener("click", () => copyText(button.dataset.copy));
+      });
+      $("submitPeginBtn").addEventListener("click", () => submitPegin(data));
+    }
+
+    async function generatePeginAddress() {
+      const receiverAddr = $("receiverAddr").value.trim();
+      $("generatePeginBtn").disabled = true;
+      $("peginResult").classList.remove("hide");
+      $("peginResult").innerHTML = `<div class="empty">Generating Taproot signet address...</div>`;
+      try {
+        const result = await postJson("/api/pegin-address", { receiverAddr });
+        renderPeginAddress(result);
+      } catch (error) {
+        $("peginResult").innerHTML = `<div class="error">Не удалось сгенерировать pegin address: ${html(error.message)}</div>`;
+      } finally {
+        $("generatePeginBtn").disabled = false;
+      }
+    }
+
+    async function submitPegin(peginData) {
+      const bitcoinTxID = $("bitcoinTxId").value.trim();
+      $("submitPeginBtn").disabled = true;
+      $("peginSubmitResult").innerHTML = `<div class="empty">Checking Bitcoin tx and registering pegin...</div>`;
+      try {
+        const result = await postJson("/api/create-pegin", {
+          receiverAddr: peginData.receiverAddr,
+          bitcoinTxID,
+          internalKey: peginData.internalKey,
+          recoveryKey: peginData.recoveryKey,
+        });
+        $("peginSubmitResult").innerHTML = `
+          <div class="result">
+            <div>${pill("REGISTERED", "ok")} Pegin accepted by sandbox indexer.</div>
+            <div class="kv">
+              ${row("Pegin ID", html(result.data.id))}
+              ${row("Mint status", pill(result.data.mint.status, statusKind(result.data.mint.status)))}
+              ${row("vout", num(result.data.voutIndex))}
+              ${row("amount sats", html(result.data.mint.amount))}
+            </div>
+          </div>
+        `;
+        load();
+      } catch (error) {
+        $("peginSubmitResult").innerHTML = `<div class="error">Indexer rejected pegin: ${html(error.message)}</div>`;
+      } finally {
+        $("submitPeginBtn").disabled = false;
+      }
+    }
+
     async function load() {
       $("refreshBtn").disabled = true;
       $("updatedAt").textContent = "загрузка...";
@@ -541,6 +714,13 @@
     }
 
     $("refreshBtn").addEventListener("click", load);
+    $("autoBtn").addEventListener("click", () => {
+      state.auto = !state.auto;
+      $("autoBtn").textContent = `Auto: ${state.auto ? "ON" : "OFF"}`;
+      if (state.auto) scheduleAutoRefresh();
+      if (!state.auto && state.timer) clearTimeout(state.timer);
+    });
+    $("generatePeginBtn").addEventListener("click", generatePeginAddress);
     $("opSearch").addEventListener("input", (event) => {
       state.query = event.target.value;
       renderOps();
@@ -553,7 +733,16 @@
       });
     });
 
-    load();
+    function scheduleAutoRefresh() {
+      if (state.timer) clearTimeout(state.timer);
+      if (!state.auto) return;
+      state.timer = setTimeout(async () => {
+        await load();
+        scheduleAutoRefresh();
+      }, 30000);
+    }
+
+    load().then(scheduleAutoRefresh);
   </script>
 </body>
 </html>
