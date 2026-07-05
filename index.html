@@ -590,8 +590,11 @@
         const client = info.ContractBitcoinClient || {};
         const limits = teleport.Limits || {};
         const minPegout = BigInt(Number(limits.MinPegoutAmount || 0));
+        const totalServiceFee = BigInt(Number(teleport.TotalServiceFee || 0));
+        const requiredPegout = totalServiceFee + BigInt(userFee) + minPegout;
         const lag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
         const okAmount = amountSats >= minPegout;
+        const okFee = amountSats >= requiredPegout;
         const okBalance = wallet.exists && balanceSats >= amountSats;
         const okBridge = Boolean(teleport.Enabled);
         const burnBuild = await postJson("/api/ton-burn", {
@@ -601,12 +604,14 @@
           scriptPubKey: script.scriptPubKey,
           userFee: String(userFee),
         });
-        const canSend = okAmount && okBalance && okBridge && state.tonConnectUI;
+        const canSend = okAmount && okFee && okBalance && okBridge && state.tonConnectUI;
         $("withdrawResult").innerHTML = `
           <div>${pill(canSend ? "READY TO SEND" : "CHECK REQUIRED", canSend ? "ok" : "warn")} Burn <strong>${html(amountText)} tgBTC</strong> to receive signet BTC.</div>
           <div class="kv">
             ${row("Owner balance", `${html(wallet.balanceTgBtc)} tgBTC`)}
             ${row("Min pegout", satsToBtc(limits.MinPegoutAmount))}
+            ${row("Total service fee", `${satsToBtc(totalServiceFee)} / ${totalServiceFee.toString()} sats`)}
+            ${row("Required burn", `${satsToBtc(requiredPegout)} / ${requiredPegout.toString()} sats`)}
             ${row("Amount", `${satsToBtc(amountSats)} / ${amountSats.toString()} sats`)}
             ${row("Bridge", pill(okBridge ? "enabled" : "disabled", okBridge ? "ok" : "bad"))}
             ${row("BTC client lag", `${num(lag)} blocks`)}
@@ -616,6 +621,7 @@
           </div>
           <div class="small">This sends opcode 0x595f07bc to your tgBTC jetton wallet. If Teleport rejects it, the contract path should mint tgBTC back to the owner wallet.</div>
           ${!okAmount ? `<div class="error">Amount is below min pegout.</div>` : ""}
+          ${!okFee ? `<div class="error">Amount is lower than current pegout fee + min output. This burn would be refunded/minted back. Try only when Total service fee drops or use an amount above Required burn.</div>` : ""}
           ${!okBalance ? `<div class="error">This owner does not have enough tgBTC yet. Wait for BTC->tgBTC SUCCESS, then check wallet again.</div>` : ""}
           ${!state.tonConnectUI ? `<div class="error">TonConnect is not loaded, so the app cannot send burn from wallet.</div>` : ""}
           <button class="btn primary" id="sendWithdrawBtn" type="button" ${canSend ? "" : "disabled"}>Send burn with TonConnect</button>
