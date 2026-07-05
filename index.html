@@ -3,191 +3,111 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>tgBTC Sandbox Explorer</title>
-  <meta name="description" content="Simple tgBTC Teleport BTC sandbox explorer for TON testnet and Bitcoin signet." />
+  <title>tgBTC Teleport Health Explorer</title>
+  <meta name="description" content="tgBTC Teleport BTC sandbox explorer: bridge health, Bitcoin Client lag, DKG, pegin, pegout, reserve and operations." />
   <style>
     :root {
       color-scheme: light;
-      --bg: #f4f7fb;
-      --panel: #fff;
-      --soft: #f8fafc;
-      --text: #142033;
+      --bg: #eef3f8;
+      --panel: #ffffff;
+      --soft: #f7fafc;
+      --text: #172235;
       --muted: #66758a;
-      --line: #dce4ef;
-      --blue: #2563eb;
-      --green: #138348;
-      --amber: #b96512;
-      --red: #bd3030;
-      --violet: #6046b6;
-      --shadow: 0 10px 28px rgba(18, 32, 51, 0.07);
+      --line: #d7e0ea;
+      --blue: #1d62d9;
+      --green: #0f7b45;
+      --amber: #aa6414;
+      --red: #b42332;
+      --violet: #6842b8;
+      --shadow: 0 8px 24px rgba(23, 34, 53, .07);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
     a { color: var(--blue); text-decoration: none; }
     a:hover { text-decoration: underline; }
     button, input { font: inherit; }
-
-    .app { width: min(1480px, calc(100vw - 28px)); margin: 0 auto; padding: 22px 0 40px; }
-    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
-    h1 { margin: 0 0 6px; font-size: 26px; line-height: 1.1; letter-spacing: 0; }
-    .subtitle { color: var(--muted); line-height: 1.45; max-width: 850px; }
-    .controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 300px; }
+    .app { width: min(1500px, calc(100vw - 28px)); margin: 0 auto; padding: 20px 0 42px; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 12px; }
+    h1 { margin: 0 0 6px; font-size: 28px; line-height: 1.08; letter-spacing: 0; }
+    h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
+    .subtitle { color: var(--muted); line-height: 1.45; max-width: 920px; }
+    .controls, .toolbar, .inline-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .controls { justify-content: flex-end; min-width: 320px; }
     .btn {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--text);
-      min-height: 36px;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-weight: 750;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      min-height: 36px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+      border-radius: 6px; padding: 8px 12px; font-weight: 800; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
     .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
-    .btn:disabled { opacity: 0.6; cursor: wait; }
-
-    .status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 12px 0;
-    }
-
+    .btn:disabled { opacity: .58; cursor: wait; }
     .pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid transparent;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px;
+      font-size: 12px; font-weight: 850; border: 1px solid transparent; white-space: nowrap;
     }
     .ok { color: var(--green); background: #e9f8ef; border-color: #bde8cc; }
-    .warn { color: var(--amber); background: #fff4e4; border-color: #ffd49d; }
-    .bad { color: var(--red); background: #fff0f0; border-color: #ffc7c7; }
-    .info { color: var(--blue); background: #eef4ff; border-color: #cbdbff; }
-    .violet { color: var(--violet); background: #f2efff; border-color: #d8cff8; }
-
+    .warn { color: var(--amber); background: #fff5e8; border-color: #ffd9a8; }
+    .bad { color: var(--red); background: #fff1f3; border-color: #ffc8d0; }
+    .info { color: var(--blue); background: #eef4ff; border-color: #cbdcff; }
+    .violet { color: var(--violet); background: #f3efff; border-color: #d9cff9; }
+    .status-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
     .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-    .card, .section {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-    }
-    .card { min-height: 100px; padding: 13px; }
-    .label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
-    .value { font-size: 21px; line-height: 1.15; font-weight: 850; overflow-wrap: anywhere; }
-    .hint { color: var(--muted); margin-top: 7px; line-height: 1.35; overflow-wrap: anywhere; }
-
-    .layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(360px, 0.75fr); gap: 12px; align-items: start; }
+    .card, .section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+    .card { min-height: 104px; padding: 13px; }
+    .label { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+    .value { font-size: 21px; line-height: 1.15; font-weight: 900; overflow-wrap: anywhere; }
+    .hint, .small { color: var(--muted); line-height: 1.38; }
+    .hint { margin-top: 7px; }
+    .small { font-size: 12px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(380px, .8fr); gap: 12px; align-items: start; }
     .section { overflow: hidden; margin-bottom: 12px; }
     .head {
-      padding: 13px 15px;
-      border-bottom: 1px solid var(--line);
-      background: var(--soft);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
+      padding: 13px 15px; border-bottom: 1px solid var(--line); background: var(--soft);
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
     }
-    h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
     .body { padding: 14px 15px; }
-    .small { color: var(--muted); font-size: 12px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
-
-    .kv { display: grid; grid-template-columns: 175px minmax(0, 1fr); gap: 10px 12px; }
+    .kv { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px 12px; }
     .kv .k { color: var(--muted); }
     .kv .v { font-weight: 650; overflow-wrap: anywhere; }
     .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-
-    .bar { width: 100%; height: 8px; border-radius: 999px; background: #e8eef6; overflow: hidden; }
-    .bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--blue)); }
     .checks { display: grid; gap: 8px; margin-top: 12px; }
     .check { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; }
-
-    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .search {
-      min-height: 36px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 8px 10px;
-      width: min(420px, 100%);
-      background: #fff;
-      color: var(--text);
+    .check.stack { display: block; }
+    .bar { width: 100%; height: 9px; border-radius: 999px; background: #e6edf5; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--red), var(--amber), var(--green)); transition: width .2s ease; }
+    .search, .input {
+      min-height: 38px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+      background: #fff; color: var(--text); width: 100%;
     }
+    .search { width: min(420px, 100%); }
     .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
     .field { display: grid; gap: 6px; }
-    .field label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
-    .input {
-      min-height: 38px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 8px 10px;
-      width: 100%;
-      background: #fff;
-      color: var(--text);
-    }
-    .result {
-      display: grid;
-      gap: 10px;
-      margin-top: 12px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--soft);
-    }
+    .field label { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
+    .result { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
     .copy-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-    .codebox {
-      min-height: 36px;
-      display: flex;
-      align-items: center;
-      padding: 8px 10px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #fff;
-      overflow-wrap: anywhere;
-    }
-    .danger-note { color: var(--red); font-weight: 750; line-height: 1.45; }
-    .tabs { display: inline-flex; background: #e9eef6; border-radius: 7px; padding: 3px; }
-    .tab { border: 0; background: transparent; min-height: 30px; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: 800; color: var(--muted); }
-    .tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(18, 32, 51, 0.12); }
-
+    .codebox { min-height: 36px; display: flex; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow-wrap: anywhere; }
+    .danger-note { color: var(--red); font-weight: 760; line-height: 1.45; }
+    .tabs { display: inline-flex; background: #e8eef6; border-radius: 7px; padding: 3px; }
+    .tab { border: 0; background: transparent; min-height: 30px; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: 850; color: var(--muted); }
+    .tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(23, 34, 53, .12); }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
-    th { background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.04em; }
+    th { background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
     tbody tr:hover td { background: #fbfdff; }
     .table-wrap { overflow: auto; }
-    .empty, .error {
-      padding: 13px;
-      border-radius: 8px;
-      border: 1px dashed var(--line);
-      background: var(--soft);
-      color: var(--muted);
-    }
-    .error { color: var(--red); background: #fff6f6; border-color: #ffc7c7; }
+    .empty, .error { padding: 13px; border-radius: 8px; border: 1px dashed var(--line); background: var(--soft); color: var(--muted); }
+    .error { color: var(--red); background: #fff7f7; border-color: #ffc8d0; }
     pre { margin: 0; background: #101828; color: #dbe7ff; border-radius: 8px; padding: 12px; overflow: auto; max-height: 360px; line-height: 1.45; font-size: 12px; }
-    details summary { cursor: pointer; color: var(--blue); font-weight: 800; }
+    details summary { cursor: pointer; color: var(--blue); font-weight: 850; }
     .hide { display: none; }
-
-    @media (max-width: 1180px) {
-      .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .layout { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 1180px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
     @media (max-width: 760px) {
-      .app { width: min(100% - 20px, 1480px); padding-top: 14px; }
-      .top { display: block; }
-      .controls { justify-content: flex-start; margin-top: 12px; min-width: 0; }
+      .app { width: min(100% - 20px, 1500px); padding-top: 14px; }
+      .top { display: block; } .controls { justify-content: flex-start; margin-top: 12px; min-width: 0; }
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .split, .kv { grid-template-columns: 1fr; }
-      .form-grid, .copy-row { grid-template-columns: 1fr; }
-      table { min-width: 780px; }
+      .split, .kv, .form-grid, .copy-row { grid-template-columns: 1fr; }
+      table { min-width: 820px; }
     }
   </style>
   <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
@@ -196,14 +116,14 @@
   <main class="app">
     <div class="top">
       <div>
-        <h1>tgBTC Sandbox Explorer</h1>
-        <div class="subtitle">Живой testnet/sandbox обзор Teleport BTC: Bitcoin signet, TON testnet контракты, tgBTC mint/burn, BTC UTXO reserve, DKG, лимиты и готовность протокола.</div>
+        <h1>tgBTC Teleport Health Explorer</h1>
+        <div class="subtitle">Живой обзор sandbox/testnet: готовность BTC -> tgBTC и tgBTC -> BTC, отставание Bitcoin Client, DKG/signers, резервы, операции, контракты и причины зависаний.</div>
       </div>
       <div class="controls">
-        <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
+        <button class="btn primary" id="refreshBtn" type="button">Обновить</button>
         <button class="btn" id="autoBtn" type="button">Auto: ON</button>
-        <a class="btn" href="https://sandbox.teleport.tg/app/dashboard" target="_blank" rel="noreferrer">Sandbox</a>
-        <a class="btn" href="https://testnet.tonviewer.com/0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c" target="_blank" rel="noreferrer">Tonviewer</a>
+        <a class="btn" href="https://sandbox.teleport.tg/app/history" target="_blank" rel="noreferrer">History</a>
+        <a class="btn" href="https://sandbox.teleport.tg/app/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
       </div>
     </div>
 
@@ -214,12 +134,15 @@
       <div>
         <section class="section">
           <div class="head">
-            <h2>Состояние протокола</h2>
+            <h2>Что сейчас можно делать</h2>
             <span class="small" id="updatedAt">загрузка...</span>
           </div>
           <div class="body">
             <div class="split">
-              <div class="kv" id="protocolKv"></div>
+              <div>
+                <div class="kv" id="actionKv"></div>
+                <div class="checks" id="blockerList"></div>
+              </div>
               <div>
                 <div class="label">Health score</div>
                 <div class="bar"><span id="healthBar"></span></div>
@@ -232,12 +155,12 @@
 
         <section class="section">
           <div class="head">
-            <h2>Convert signet BTC → tgBTC</h2>
-            <span class="small">sandbox pegin</span>
+            <h2>BTC -> tgBTC</h2>
+            <span class="small">pegin monitor and generator</span>
           </div>
           <div class="body">
-            <div class="danger-note">Только Bitcoin signet и TON testnet. Не отправляй mainnet BTC на эти адреса.</div>
-            <div style="height: 12px"></div>
+            <div class="danger-note">Только Bitcoin signet и TON testnet. Никогда не отправляй mainnet BTC на sandbox-адреса.</div>
+            <div style="height:12px"></div>
             <div class="form-grid">
               <div class="field">
                 <label for="receiverAddr">TON receiver address</label>
@@ -251,30 +174,30 @@
 
         <section class="section">
           <div class="head">
-            <h2>Convert tgBTC -> signet BTC</h2>
-            <span class="small">sandbox pegout</span>
+            <h2>tgBTC -> BTC</h2>
+            <span class="small">burn, withdraw, refund monitor</span>
           </div>
           <div class="body">
-            <div class="danger-note">Withdraw requires a TON wallet signature: burn tgBTC from your jetton wallet with Bitcoin output script in payload.</div>
-            <div style="height: 12px"></div>
+            <div class="danger-note">Withdraw требует подпись TON wallet: burn tgBTC отправляется в твой Jetton Wallet, а Bitcoin output script лежит в payload.</div>
+            <div style="height:12px"></div>
             <div class="form-grid">
               <div>
                 <div id="tonConnectButton"></div>
-                <div class="small" id="walletHint" style="margin-top:8px">Connect a TON testnet wallet or paste the owner address below.</div>
+                <div class="small" id="walletHint" style="margin-top:8px">Connect TON testnet wallet или вставь owner address ниже.</div>
               </div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <div class="inline-actions">
                 <button class="btn" id="resolveWalletBtn" type="button">Check tgBTC wallet</button>
                 <button class="btn" id="checkWithdrawStatusBtn" type="button">Check withdraw/refund</button>
               </div>
             </div>
-            <div style="height: 8px"></div>
+            <div style="height:8px"></div>
             <div class="field">
               <label for="withdrawOwnerAddress">TON owner address</label>
               <input class="input" id="withdrawOwnerAddress" placeholder="Your TON testnet wallet address" autocomplete="off" />
             </div>
             <div id="walletResult" class="result hide"></div>
             <div id="withdrawStatusResult" class="result hide"></div>
-            <div style="height: 12px"></div>
+            <div style="height:12px"></div>
             <div class="split">
               <div class="field">
                 <label for="withdrawBtcAddress">Bitcoin signet receive address</label>
@@ -285,7 +208,7 @@
                 <input class="input" id="withdrawAmount" placeholder="0.00001" autocomplete="off" />
               </div>
             </div>
-            <div style="height: 8px"></div>
+            <div style="height:8px"></div>
             <div class="form-grid">
               <div class="field">
                 <label for="withdrawFee">User fee, sats</label>
@@ -312,9 +235,9 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width: 160px">Время</th>
-                  <th style="width: 130px">Сумма</th>
-                  <th style="width: 120px">Статус</th>
+                  <th style="width:150px">Время</th>
+                  <th style="width:130px">Сумма</th>
+                  <th style="width:125px">Статус</th>
                   <th>Bitcoin tx</th>
                   <th>TON tx / адрес</th>
                 </tr>
@@ -326,12 +249,10 @@
 
         <section class="section">
           <div class="head">
-            <h2>Withdraw / refund monitor</h2>
-            <span class="small">burns and pegouts</span>
+            <h2>Withdraw queue</h2>
+            <span class="small">latest burns and pegouts</span>
           </div>
-          <div class="body" id="withdrawMonitor">
-            <div class="empty">Burn operations are loading...</div>
-          </div>
+          <div class="body" id="withdrawMonitor"><div class="empty">Burn operations are loading...</div></div>
         </section>
 
         <section class="section">
@@ -343,9 +264,9 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width: 135px">Amount</th>
+                  <th style="width:135px">Amount</th>
                   <th>Tx ID</th>
-                  <th style="width: 72px">Index</th>
+                  <th style="width:72px">Index</th>
                   <th>Script</th>
                 </tr>
               </thead>
@@ -356,34 +277,17 @@
       </div>
 
       <aside>
-        <section class="section">
-          <div class="head"><h2>Контракты</h2></div>
-          <div class="body"><div class="kv" id="contractsKv"></div></div>
-        </section>
-        <section class="section">
-          <div class="head"><h2>Bitcoin sync</h2></div>
-          <div class="body"><div class="kv" id="bitcoinKv"></div></div>
-        </section>
-        <section class="section">
-          <div class="head"><h2>DKG</h2></div>
-          <div class="body"><div class="kv" id="dkgKv"></div></div>
-        </section>
-        <section class="section">
-          <div class="head"><h2>Ключи и лимиты</h2></div>
-          <div class="body"><div class="kv" id="keysKv"></div></div>
-        </section>
+        <section class="section"><div class="head"><h2>Контракты</h2></div><div class="body"><div class="kv" id="contractsKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Bitcoin sync</h2></div><div class="body"><div class="kv" id="bitcoinKv"></div></div></section>
+        <section class="section"><div class="head"><h2>DKG / signers</h2></div><div class="body"><div class="kv" id="dkgKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Ключи и лимиты</h2></div><div class="body"><div class="kv" id="keysKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Alerts</h2></div><div class="body" id="alertsBox"><div class="empty">Alerts loading...</div></div></section>
         <section class="section">
           <div class="head"><h2>Raw JSON</h2></div>
           <div class="body">
-            <details>
-              <summary>info</summary>
-              <pre id="rawInfo">загрузка...</pre>
-            </details>
-            <div style="height: 10px"></div>
-            <details>
-              <summary>dkg_status</summary>
-              <pre id="rawDkg">загрузка...</pre>
-            </details>
+            <details><summary>info</summary><pre id="rawInfo">загрузка...</pre></details>
+            <div style="height:10px"></div>
+            <details><summary>dkg_status</summary><pre id="rawDkg">загрузка...</pre></details>
           </div>
         </section>
       </aside>
@@ -394,42 +298,27 @@
     const API = "/api/metrics";
     const TONVIEWER = "https://testnet.tonviewer.com/";
     const BTC_TX = "https://mempool.space/signet/tx/";
-    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null, pegin: null, wallet: null, tonConnectUI: null };
-
-    const contracts = {
-      tgBTC: "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074",
-      Teleport: "0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c",
-      Coordinator: "0:f8dd1b5d010fd8f2797ce92ab3c6394bffeac0bdd66204393fb3b39317ea11c6",
-      "Bitcoin Client": "0:ae08d68c93ce46b4fd9b8c1301e8987448c687de0594fe4c44f8b201534c9d10",
-    };
+    const BTC_ADDR = "https://mempool.space/signet/address/";
+    const TGBTC_MASTER = "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074";
+    const state = { activeTab: "mints", mints: [], burns: [], query: "", auto: true, timer: null, pegin: null, wallet: null, tonConnectUI: null, lastInfo: null };
 
     const $ = (id) => document.getElementById(id);
-
-    function html(value) {
-      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-      }[char]));
-    }
-
-    function pill(text, kind = "info") {
-      return `<span class="pill ${kind}">${html(text)}</span>`;
-    }
+    const html = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    const pill = (text, kind = "info") => `<span class="pill ${kind}">${html(text)}</span>`;
+    const row = (k, v) => `<div class="k">${html(k)}</div><div class="v">${v}</div>`;
+    const num = (value) => Number(value || 0).toLocaleString("en-US");
 
     function statusKind(text) {
       const value = String(text || "").toUpperCase();
-      if (value.includes("SUCCESS") || value.includes("CONFIRMED") || value.includes("FINISHED") || value === "TRUE") return "ok";
-      if (value.includes("PROGRESS") || value.includes("PENDING") || value.includes("WAIT")) return "warn";
-      if (value.includes("FAIL") || value.includes("ERROR") || value.includes("REFUND")) return "bad";
+      if (value.includes("SUCCESS") || value.includes("CONFIRMED") || value.includes("FINISHED") || value === "TRUE" || value === "OK") return "ok";
+      if (value.includes("PROGRESS") || value.includes("PENDING") || value.includes("WAIT") || value.includes("SIGNING")) return "warn";
+      if (value.includes("FAIL") || value.includes("ERROR") || value.includes("REFUND") || value.includes("DISABLED")) return "bad";
       return "info";
-    }
-
-    function row(k, v) {
-      return `<div class="k">${html(k)}</div><div class="v">${v}</div>`;
     }
 
     function short(value, left = 10, right = 8) {
       const text = String(value || "");
-      if (!text) return "—";
+      if (!text) return "-";
       if (text.length <= left + right + 3) return html(text);
       return `${html(text.slice(0, left))}...${html(text.slice(-right))}`;
     }
@@ -443,13 +332,9 @@
       return `${(n / 1e8).toLocaleString("en-US", { minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`;
     }
 
-    function num(value) {
-      return Number(value || 0).toLocaleString("en-US");
-    }
-
     function dateFmt(value) {
       const date = new Date(value || "");
-      if (Number.isNaN(date.getTime())) return "—";
+      if (Number.isNaN(date.getTime())) return "-";
       return date.toLocaleString("ru-RU", { hour12: false });
     }
 
@@ -462,30 +347,402 @@
       return response.json();
     }
 
-    function renderCards(info, plots) {
+    async function postJson(path, payload) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      return json;
+    }
+
+    function opStatus(op) { return op.status || op.pegout_status || op.Status || op.State || "-"; }
+    function opBtcTx(op) { return op.bitcoin_tx_id || op.BitcoinTxID || op.TxID || op.txid || ""; }
+    function opTon(op) { return op.ton_tx || op.receiver_addr || op.sender_addr || op.TonTxHash || op.TonAddress || ""; }
+    function opSearchText(op) { return Object.values(op).join(" ").toLowerCase(); }
+
+    function getHealth(info, dkg) {
       const teleport = info.ContractTeleport || {};
       const network = info.BitcoinNetworkInfo || {};
       const client = info.ContractBitcoinClient || {};
+      const currentDkg = dkg.DkgInfo || {};
+      const lag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
+      const inDkg = Number(currentDkg.ValidatorsCountInDkg || 0);
+      const maxDkg = Number(currentDkg.ValidatorsCountMax || 0);
+      const signingHealthy = String(currentDkg.State || "").toUpperCase() === "FINISHED" || inDkg >= Math.max(2, Math.ceil(maxDkg / 3));
+      const checks = [
+        ["Teleport enabled", Boolean(teleport.Enabled), "Контракт принимает операции."],
+        ["Bitcoin chain is signet", network.Chain === "signet", "Sandbox должен работать только с signet."],
+        ["BTC Client lag < 20", lag >= 0 && lag < 20, "Для pegin нужен свежий Bitcoin Client."],
+        ["DKG/signers healthy", signingHealthy, "Для pegout нужны подписи Bitcoin tx."],
+        ["Reserve UTXO exists", Array.isArray(teleport.UTXOset) && teleport.UTXOset.length > 0, "Для вывода должен быть BTC UTXO reserve."],
+        ["Limits configured", Number((teleport.Limits || {}).MinPeginAmount || 0) > 0, "Лимиты pegin/pegout должны быть заданы."],
+      ];
+      const score = checks.filter(([, ok]) => ok).length;
+      return {
+        lag, checks, score, total: checks.length,
+        peginReady: Boolean(teleport.Enabled) && lag >= 0 && lag < 20,
+        pegoutReady: Boolean(teleport.Enabled) && signingHealthy && Array.isArray(teleport.UTXOset) && teleport.UTXOset.length > 0,
+        signingHealthy,
+      };
+    }
+
+    function renderCards(info, plots, dkg) {
+      const teleport = info.ContractTeleport || {};
+      const network = info.BitcoinNetworkInfo || {};
+      const client = info.ContractBitcoinClient || {};
+      const health = getHealth(info, dkg);
       const minted = Number(plots.total_minted || 0);
       const burned = Number(plots.total_burned || 0);
       const supply = minted - burned;
-      const lag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
-      const utxo = (teleport.UTXOset || []).reduce((sum, item) => sum + Number(item.Amount || 0), 0);
+      const reserve = (teleport.UTXOset || []).reduce((sum, item) => sum + Number(item.Amount || 0), 0);
       const items = [
-        ["Status", teleport.Enabled ? "Enabled" : "Disabled", teleport.Enabled ? "контракт принимает операции" : "операции выключены", teleport.Enabled ? "ok" : "bad"],
-        ["Chain", network.Chain || "—", "Bitcoin sandbox network", "violet"],
-        ["BTC client lag", num(lag), `network ${num(network.Blocks)} / client ${num(client.LastConfirmedBlockHeight)}`, lag < 50 ? "ok" : "warn"],
-        ["Minted tgBTC", `${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `${num(plots.mints_count)} mint операций`, "info"],
-        ["Burned tgBTC", `${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `${num(plots.burns_count)} burn операций`, "warn"],
-        ["Supply tgBTC", `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `BTC reserve ${satsToBtc(utxo)}`, "ok"],
+        ["BTC -> tgBTC", health.peginReady ? "Ready" : "Pending risk", health.peginReady ? "Bitcoin Client свежий" : `lag ${num(health.lag)} blocks`, health.peginReady ? "ok" : "warn"],
+        ["tgBTC -> BTC", health.pegoutReady ? "Ready" : "Signing risk", health.pegoutReady ? "signers выглядят живыми" : "DKG/signers требуют проверки", health.pegoutReady ? "ok" : "warn"],
+        ["Bitcoin sync", num(health.lag), `network ${num(network.Blocks)} / client ${num(client.LastConfirmedBlockHeight)}`, health.lag < 20 ? "ok" : "bad"],
+        ["DKG", (dkg.DkgInfo || {}).State || "-", `${num((dkg.DkgInfo || {}).ValidatorsCountInDkg)} in / ${num((dkg.DkgInfo || {}).ValidatorsCountNotInDkg)} out`, health.signingHealthy ? "ok" : "warn"],
+        ["Supply", `${supply.toLocaleString("en-US", { maximumFractionDigits: 8 })} tgBTC`, `minted ${minted.toLocaleString("en-US", { maximumFractionDigits: 8 })} / burned ${burned.toLocaleString("en-US", { maximumFractionDigits: 8 })}`, "info"],
+        ["Reserve", satsToBtc(reserve), `${(teleport.UTXOset || []).length} UTXO`, reserve > 0 ? "ok" : "bad"],
       ];
       $("cards").innerHTML = items.map(([label, value, hint, kind]) => `
         <article class="card">
-          <div class="label">${label}</div>
+          <div class="label">${html(label)}</div>
           <div class="value">${html(value)}</div>
           <div class="hint">${pill(kind.toUpperCase(), kind)} ${html(hint)}</div>
         </article>
       `).join("");
+    }
+
+    function renderHealth(info, dkg) {
+      const teleport = info.ContractTeleport || {};
+      const network = info.BitcoinNetworkInfo || {};
+      const client = info.ContractBitcoinClient || {};
+      const limits = teleport.Limits || {};
+      const currentDkg = dkg.DkgInfo || {};
+      const health = getHealth(info, dkg);
+      const percent = Math.round((health.score / health.total) * 100);
+      $("healthBar").style.width = `${percent}%`;
+      $("healthHint").textContent = health.score === health.total
+        ? "Все ключевые проверки зелёные. Можно делать маленький signet-test."
+        : `Есть блокеры. Главные причины: BTC Client lag ${health.lag} blocks, DKG ${currentDkg.State || "unknown"}.`;
+      $("checks").innerHTML = health.checks.map(([label, ok, hint]) => `
+        <div class="check"><span>${html(label)}<br><span class="small">${html(hint)}</span></span>${pill(ok ? "OK" : "CHECK", ok ? "ok" : "warn")}</div>
+      `).join("");
+      const blockers = [];
+      if (!health.peginReady) blockers.push(["BTC -> tgBTC", `Pegin может висеть PENDING, потому что Bitcoin Client отстаёт на ${num(health.lag)} blocks.`]);
+      if (!health.pegoutReady) blockers.push(["tgBTC -> BTC", `Burn может перейти в SIGNING и ждать DKG/signers. Сейчас DKG: ${currentDkg.State || "unknown"}, in DKG: ${num(currentDkg.ValidatorsCountInDkg)}.`]);
+      if (!Boolean(teleport.Enabled)) blockers.push(["Protocol", "Teleport contract disabled. Пользовательские операции лучше не делать."]);
+      $("blockerList").innerHTML = blockers.length ? blockers.map(([title, text]) => `
+        <div class="check stack"><strong>${html(title)}</strong><div class="small">${html(text)}</div></div>
+      `).join("") : `<div class="check"><span>Критичных блокеров не видно</span>${pill("OK", "ok")}</div>`;
+      $("actionKv").innerHTML = [
+        row("BTC -> tgBTC", pill(health.peginReady ? "можно тестировать" : "лучше ждать", health.peginReady ? "ok" : "warn")),
+        row("tgBTC -> BTC", pill(health.pegoutReady ? "можно тестировать" : "может застрять SIGNING", health.pegoutReady ? "ok" : "warn")),
+        row("Environment", pill(`${network.Chain || "unknown"} / TON testnet`, "violet")),
+        row("Teleport", pill(teleport.Enabled ? "enabled" : "disabled", teleport.Enabled ? "ok" : "bad")),
+        row("Min pegin", satsToBtc(limits.MinPeginAmount)),
+        row("Min pegout", satsToBtc(limits.MinPegoutAmount)),
+        row("Last pegout tx", teleport.LastPegoutTxID ? link(BTC_TX + teleport.LastPegoutTxID, short(teleport.LastPegoutTxID), "mono") : "-"),
+      ].join("");
+      $("statusStrip").innerHTML = [
+        pill("SANDBOX", "violet"),
+        pill(network.Chain || "chain unknown", "info"),
+        pill(teleport.Enabled ? "TELEPORT ON" : "TELEPORT OFF", teleport.Enabled ? "ok" : "bad"),
+        pill(health.peginReady ? "PEGIN READY" : `PEGIN LAG ${health.lag}`, health.peginReady ? "ok" : "warn"),
+        pill(health.pegoutReady ? "PEGOUT READY" : "PEGOUT SIGNING RISK", health.pegoutReady ? "ok" : "warn"),
+        pill(`DKG ${currentDkg.State || "?"}`, statusKind(currentDkg.State)),
+      ].join("");
+    }
+
+    function renderSide(info, dkg) {
+      const teleport = info.ContractTeleport || {};
+      const network = info.BitcoinNetworkInfo || {};
+      const client = info.ContractBitcoinClient || {};
+      const currentDkg = dkg.DkgInfo || {};
+      const prevDkg = dkg.PrevDkgInfo || {};
+      const limits = teleport.Limits || {};
+      const dynamic = {
+        tgBTC: teleport.MinterAddress || TGBTC_MASTER,
+        Teleport: teleport.TeleportAddress,
+        Coordinator: teleport.CoordinatorAddress,
+        "Bitcoin Client": teleport.BitcoinClientAddress,
+        Inspector: teleport.InspectorAddress,
+        Configurator: teleport.ConfiguratorAddress,
+      };
+      $("contractsKv").innerHTML = Object.entries(dynamic).filter(([, address]) => address).map(([name, address]) =>
+        row(name, link(TONVIEWER + address, `<span class="mono">${html(address)}</span>`))
+      ).join("");
+      $("bitcoinKv").innerHTML = [
+        row("Chain", html(network.Chain || "-")),
+        row("Network height", num(network.Blocks)),
+        row("Client height", num(client.LastConfirmedBlockHeight)),
+        row("Lag", `${num(Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0))} blocks`),
+        row("Confirmations", num(client.ConfirmationsNeeded)),
+        row("Best block", `<span class="mono">${short(network.BestBlockHash, 14, 10)}</span>`),
+        row("Client block", `<span class="mono">${short(client.LastConfirmedBlockHash, 14, 10)}</span>`),
+      ].join("");
+      $("dkgKv").innerHTML = [
+        row("Standalone", pill(String(Boolean(dkg.StandaloneMode)), dkg.StandaloneMode ? "warn" : "ok")),
+        row("Current state", pill(currentDkg.State || "-", statusKind(currentDkg.State))),
+        row("VSet size", num(currentDkg.VSetSize)),
+        row("Max validators", num(currentDkg.ValidatorsCountMax)),
+        row("In DKG", num(currentDkg.ValidatorsCountInDkg)),
+        row("Not in DKG", num(currentDkg.ValidatorsCountNotInDkg)),
+        row("Evicted", num(currentDkg.ValidatorsCountEvicted)),
+        row("Prev state", pill(prevDkg.State || "-", statusKind(prevDkg.State))),
+        row("Prev signers", `${num(prevDkg.ValidatorsCountInDkg)} in DKG`),
+      ].join("");
+      $("keysKv").innerHTML = [
+        row("Tweaked key", `<span class="mono">${html(teleport.TweakedPubkey || "-")}</span>`),
+        row("Internal key", `<span class="mono">${html(teleport.InternalKey || "-")}</span>`),
+        row("CSV locktime", num(teleport.CsvLock)),
+        row("Pegout counter", num(teleport.PegoutChainCounter)),
+        row("Total service fee", `${num(teleport.TotalServiceFee)} sats`),
+        row("Base fee", `${num(teleport.BaseSVB)} sat/vByte`),
+        row("Next fee", `${num(teleport.NextSVB)} sat/vByte`),
+        row("Min pegin", satsToBtc(limits.MinPeginAmount)),
+      ].join("");
+      $("rawInfo").textContent = JSON.stringify(info, null, 2);
+      $("rawDkg").textContent = JSON.stringify(dkg, null, 2);
+    }
+
+    function renderAlerts(alerts) {
+      if (!Array.isArray(alerts) || !alerts.length) {
+        $("alertsBox").innerHTML = `<div class="empty">No alerts from metrics API.</div>`;
+        return;
+      }
+      $("alertsBox").innerHTML = alerts.slice(0, 12).map((alert) => {
+        const text = alert.name || alert.alert || alert.title || alert.Description || JSON.stringify(alert);
+        const severity = String(alert.severity || alert.Severity || "").toLowerCase();
+        const kind = severity.includes("critical") || severity === "3" ? "bad" : severity.includes("warn") || severity === "2" ? "warn" : "info";
+        return `<div class="check stack">${pill(severity || "alert", kind)} <span class="small">${html(text)}</span></div>`;
+      }).join("");
+    }
+
+    function renderUtxo(info) {
+      const utxos = (info.ContractTeleport && info.ContractTeleport.UTXOset) || [];
+      if (!utxos.length) {
+        $("utxoBody").innerHTML = `<tr><td colspan="4"><div class="empty">UTXO пока нет.</div></td></tr>`;
+        return;
+      }
+      $("utxoBody").innerHTML = utxos.map((item) => `
+        <tr>
+          <td>${satsToBtc(item.Amount)}</td>
+          <td>${link(BTC_TX + item.Address, `<span class="mono">${html(item.Address)}</span>`)}</td>
+          <td>${num(item.Index)}</td>
+          <td class="mono">${html(item.Script || "-")}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderOps() {
+      const list = state.activeTab === "mints" ? state.mints : state.burns;
+      const query = state.query.trim().toLowerCase();
+      const filtered = (query ? list.filter((op) => opSearchText(op).includes(query)) : list).slice(0, 60);
+      if (!filtered.length) {
+        $("opsBody").innerHTML = `<tr><td colspan="5"><div class="empty">Нет операций по текущему фильтру.</div></td></tr>`;
+        return;
+      }
+      $("opsBody").innerHTML = filtered.map((op) => {
+        const status = opStatus(op);
+        const btc = opBtcTx(op);
+        const ton = opTon(op);
+        return `
+          <tr>
+            <td>${dateFmt(op.created_at || op.CreatedAt || op.Time)}</td>
+            <td>${html(op.amount || op.Amount || "-")}</td>
+            <td>${pill(status, statusKind(status))}</td>
+            <td>${btc && btc !== "_" ? link(BTC_TX + btc, `<span class="mono">${short(btc)}</span>`) : "waiting"}</td>
+            <td>${ton ? `<span class="mono">${short(ton, 16, 10)}</span>` : "-"}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderWithdrawMonitor() {
+      const burns = Array.isArray(state.burns) ? state.burns.slice(0, 10) : [];
+      if (!burns.length) {
+        $("withdrawMonitor").innerHTML = `<div class="empty">No burn/withdraw data yet.</div>`;
+        return;
+      }
+      $("withdrawMonitor").innerHTML = burns.map((op) => {
+        const status = opStatus(op);
+        const btc = opBtcTx(op);
+        const pegout = op.pegout_addr || "";
+        return `
+          <div class="check stack">
+            <div><strong>${html(op.amount || "-")}</strong> ${pill(status, statusKind(status))}</div>
+            <div class="small">${dateFmt(op.created_at)}</div>
+            <div class="small">TON: <span class="mono">${short(op.ton_tx, 14, 8)}</span></div>
+            <div class="small">Pegout: ${pegout && pegout !== "_" ? link(TONVIEWER + pegout, short(pegout, 14, 8), "mono") : "waiting/refund"}</div>
+            <div class="small">BTC: ${btc && btc !== "_" ? link(BTC_TX + btc, short(btc), "mono") : "waiting for signatures/broadcast"}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderError(error) {
+      $("cards").innerHTML = `<article class="card" style="grid-column:1/-1"><div class="error">Не удалось загрузить данные: ${html(error.message)}</div><div class="hint">Проверь endpoint <span class="mono">/api/metrics?source=info</span></div></article>`;
+      $("updatedAt").textContent = "ошибка загрузки";
+    }
+
+    async function copyText(text) {
+      try { await navigator.clipboard.writeText(text); }
+      catch {
+        const area = document.createElement("textarea");
+        area.value = text; document.body.appendChild(area); area.select(); document.execCommand("copy"); area.remove();
+      }
+    }
+
+    function renderPeginAddress(data) {
+      state.pegin = data;
+      $("peginResult").classList.remove("hide");
+      $("peginResult").innerHTML = `
+        <div>${pill("STEP 1", "info")} Send at least <strong>${html(data.minPeginBtc)} signet BTC</strong> to this address. tgBTC arrives to your TON receiver only after Bitcoin Client sees the confirmed block.</div>
+        <div id="peginCycleStatus" class="empty">Checking current Teleport cycle...</div>
+        <div class="field"><label>Bitcoin signet deposit address</label><div class="copy-row"><div class="codebox mono">${link(BTC_ADDR + data.btcAddress, html(data.btcAddress))}</div><button class="btn" type="button" data-copy="${html(data.btcAddress)}">Copy</button></div></div>
+        <div class="field"><label>Receiver tgBTC TON address</label><div class="codebox mono">${link(TONVIEWER + data.receiverAddr, html(data.receiverAddr))}</div></div>
+        <div class="field"><label>Recovery private key</label><div class="copy-row"><div class="codebox mono">${html(data.recoveryPrivateKey)}</div><button class="btn" type="button" data-copy="${html(data.recoveryPrivateKey)}">Copy</button></div><div class="small">Сохрани ключ до завершения теста. Это testnet-only refund/recovery key.</div></div>
+        <div class="field">
+          <label>После отправки signet BTC вставь Bitcoin txid</label>
+          <div class="form-grid">
+            <input class="input" id="bitcoinTxId" placeholder="64 hex chars..." autocomplete="off" />
+            <div class="inline-actions">
+              <button class="btn" id="watchPeginBtn" type="button">Check BTC address</button>
+              <button class="btn primary" id="submitPeginBtn" type="button">Register pegin</button>
+              <button class="btn" id="diagnosePeginBtn" type="button">Diagnose</button>
+            </div>
+          </div>
+          <div id="peginWatchResult" style="margin-top:10px"></div>
+        </div>
+        <details><summary>advanced data</summary><pre>${html(JSON.stringify({ scriptPubKey: data.scriptPubKey, internalKey: data.internalKey, recoveryKey: data.recoveryKey, csvLock: data.csvLock }, null, 2))}</pre></details>
+        <div id="peginSubmitResult"></div>
+      `;
+      document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy)));
+      $("submitPeginBtn").addEventListener("click", () => submitPegin(data));
+      $("watchPeginBtn").addEventListener("click", () => watchPeginAddress(data));
+      $("diagnosePeginBtn").addEventListener("click", () => diagnosePegin());
+      checkPeginCycle(data);
+      watchPeginAddress(data);
+    }
+
+    async function checkPeginCycle(data) {
+      const target = $("peginCycleStatus");
+      if (!target) return;
+      try {
+        const info = await api("info");
+        const currentKey = String((info.ContractTeleport && info.ContractTeleport.InternalKey) || "");
+        const sameKey = currentKey && currentKey.toLowerCase() === String(data.internalKey || "").toLowerCase();
+        target.className = sameKey ? "empty" : "error";
+        target.innerHTML = sameKey
+          ? `${pill("VALID CYCLE", "ok")} Current internal key matches this deposit address.`
+          : `${pill("EXPIRED CYCLE", "bad")} Internal key changed. Do not send BTC to this old address. Generate a new address.`;
+      } catch (error) {
+        target.className = "error";
+        target.textContent = `Cannot check Teleport cycle: ${error.message}`;
+      }
+    }
+
+    async function watchPeginAddress(data) {
+      const target = $("peginWatchResult");
+      if (!target) return;
+      target.innerHTML = `<div class="empty">Checking signet mempool/address...</div>`;
+      try {
+        const url = new URL("/api/signet-address", location.origin);
+        url.searchParams.set("address", data.btcAddress);
+        const response = await fetch(url, { cache: "no-store" });
+        const json = await response.json();
+        if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
+        const funded = Number(json.chainFundedSats || 0) + Number(json.mempoolFundedSats || 0);
+        const txs = Array.isArray(json.txs) ? json.txs : [];
+        const firstTx = txs[0];
+        if (firstTx && $("bitcoinTxId") && !$("bitcoinTxId").value) $("bitcoinTxId").value = firstTx.txid;
+        const txRows = txs.length ? txs.map((tx) => `
+          <div class="copy-row"><div class="codebox mono">${link(BTC_TX + tx.txid, short(tx.txid))} ${pill(tx.confirmed ? "confirmed" : "mempool", tx.confirmed ? "ok" : "warn")}</div><button class="btn" type="button" data-copy="${html(tx.txid)}">Copy txid</button></div>
+        `).join("") : `<div class="small">No tx yet. If faucet is pending, wait and press Check again.</div>`;
+        target.innerHTML = `<div class="result"><div>${pill(funded > 0 ? "BTC SEEN" : "WAITING", funded > 0 ? "ok" : "warn")} Received: <strong>${satsToBtc(funded)}</strong> signet BTC</div><div class="small">Confirmed txs: ${num(json.chainTxCount)} / mempool txs: ${num(json.mempoolTxCount)}</div>${txRows}</div>`;
+        target.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy)));
+      } catch (error) {
+        target.innerHTML = `<div class="error">Cannot watch signet address: ${html(error.message)}</div>`;
+      }
+    }
+
+    async function generatePeginAddress() {
+      const receiverAddr = $("receiverAddr").value.trim();
+      $("generatePeginBtn").disabled = true;
+      $("peginResult").classList.remove("hide");
+      $("peginResult").innerHTML = `<div class="empty">Generating Taproot signet address...</div>`;
+      try {
+        renderPeginAddress(await postJson("/api/pegin-address", { receiverAddr }));
+      } catch (error) {
+        $("peginResult").innerHTML = `<div class="error">Не удалось сгенерировать pegin address: ${html(error.message)}</div>`;
+      } finally {
+        $("generatePeginBtn").disabled = false;
+      }
+    }
+
+    async function diagnosePegin() {
+      const target = $("peginSubmitResult");
+      const bitcoinTxID = $("bitcoinTxId") && $("bitcoinTxId").value.trim();
+      if (!target || !bitcoinTxID) return;
+      target.innerHTML = `<div class="empty">Checking pegin status and sandbox BTC Client lag...</div>`;
+      try {
+        const url = new URL("/api/pegin-status", location.origin);
+        url.searchParams.set("txid", bitcoinTxID);
+        const response = await fetch(url, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error(data.message || data.error || `HTTP ${response.status}`);
+        const status = data.mint ? opStatus(data.mint) : data.stage;
+        target.innerHTML = `
+          <div class="result">
+            <div>${pill(data.stage, statusKind(status))} ${html(data.reason)}</div>
+            <div class="kv">
+              ${row("Bitcoin tx", link(BTC_TX + bitcoinTxID, `<span class="mono">${short(bitcoinTxID)}</span>`))}
+              ${row("Confirmed", pill(String(Boolean(data.bitcoin && data.bitcoin.confirmed)), data.bitcoin && data.bitcoin.confirmed ? "ok" : "warn"))}
+              ${row("Mint status", pill(status || "not found", statusKind(status)))}
+              ${row("BTC client lag", `${num(data.bridge.lag)} blocks`)}
+              ${row("Network / client", `${num(data.bridge.networkHeight)} / ${num(data.bridge.clientHeight)}`)}
+            </div>
+            <div class="small">Если BTC confirmed, mint PENDING и lag большой, frontend сделал своё дело. Нужен relayer/Bitcoin Client catch-up.</div>
+          </div>
+        `;
+      } catch (error) {
+        target.innerHTML = `<div class="error">Cannot diagnose pegin: ${html(error.message)}</div>`;
+      }
+    }
+
+    async function submitPegin(peginData) {
+      const bitcoinTxID = $("bitcoinTxId").value.trim();
+      $("submitPeginBtn").disabled = true;
+      $("peginSubmitResult").innerHTML = `<div class="empty">Checking Bitcoin tx and registering pegin...</div>`;
+      try {
+        const result = await postJson("/api/create-pegin", {
+          receiverAddr: peginData.receiverAddr,
+          bitcoinTxID,
+          internalKey: peginData.internalKey,
+          recoveryKey: peginData.recoveryKey,
+        });
+        $("peginSubmitResult").innerHTML = `
+          <div class="result">
+            <div>${pill("REGISTERED", "ok")} Pegin accepted by sandbox indexer.</div>
+            <div class="kv">
+              ${row("Pegin ID", html(result.data.id))}
+              ${row("Mint status", pill(result.data.mint.status, statusKind(result.data.mint.status)))}
+              ${row("vout", num(result.data.voutIndex))}
+              ${row("amount sats", html(result.data.mint.amount))}
+              ${row("Bitcoin tx", link(BTC_TX + bitcoinTxID, `<span class="mono">${short(bitcoinTxID)}</span>`))}
+              ${row("Receiver wallet", link(TONVIEWER + peginData.receiverAddr, `<span class="mono">${short(peginData.receiverAddr, 16, 10)}</span>`))}
+            </div>
+          </div>
+        `;
+        load();
+      } catch (error) {
+        $("peginSubmitResult").innerHTML = `<div class="error">Indexer rejected pegin: ${html(error.message)}</div>`;
+      } finally {
+        $("submitPeginBtn").disabled = false;
+      }
     }
 
     async function resolveTgBtcWallet() {
@@ -507,7 +764,6 @@
             ${row("Jetton wallet", data.walletAddress ? link(TONVIEWER + data.walletAddress, `<span class="mono">${html(data.walletAddress)}</span>`) : "-")}
             ${row("Master", link(TONVIEWER + data.master, `<span class="mono">${short(data.master, 16, 10)}</span>`))}
           </div>
-          <div class="small">${data.exists ? "Burn must be sent to this jetton wallet, not to tgBTC master." : "Wait until BTC->tgBTC mint is SUCCESS, then check again."}</div>
         `;
         return data;
       } catch (error) {
@@ -525,7 +781,7 @@
 
     async function initTonConnect() {
       if (!window.TON_CONNECT_UI || !$("tonConnectButton")) {
-        $("walletHint").textContent = "TonConnect UI did not load. You can still inspect data, but wallet signing is unavailable.";
+        $("walletHint").textContent = "TonConnect UI did not load. Explorer mode still works.";
         return;
       }
       state.tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -539,7 +795,7 @@
           $("walletHint").textContent = `Connected: ${address}`;
           resolveTgBtcWallet().catch(() => {});
         } else {
-          $("walletHint").textContent = "Connect a TON testnet wallet or paste the owner address below.";
+          $("walletHint").textContent = "Connect TON testnet wallet или вставь owner address ниже.";
         }
       });
       if (tonConnectedAddress()) {
@@ -548,19 +804,37 @@
       }
     }
 
+    function btcToSatsDecimal(value) {
+      const text = String(value || "").trim();
+      if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error("Invalid amount");
+      const [whole, frac = ""] = text.split(".");
+      return BigInt(whole) * 100000000n + BigInt((frac + "00000000").slice(0, 8));
+    }
+
+    function compactSizeBytes(value) {
+      if (value < 253) return 1;
+      if (value <= 0xffff) return 3;
+      if (value <= 0xffffffff) return 5;
+      return 9;
+    }
+
+    function estimatePegoutFeeSats(info) {
+      const teleport = info.ContractTeleport || {};
+      const inputs = Math.max(1, ((teleport.UTXOset || []).length || 1));
+      const outputs = 2;
+      const svb = Math.max(1, Number(teleport.BaseSVB || 0) + Number(teleport.NextSVB || 0));
+      const witnessSize = inputs * (1 + 1 + 64);
+      const vsize = 4 + 2 + compactSizeBytes(inputs) + inputs * (32 + 4 + 1 + 4) + 1 + outputs * (8 + 1 + 34) + Math.floor(witnessSize / 4) + 4;
+      return { inputs, outputs, svb, vsize, fee: vsize * svb };
+    }
+
     async function sendWithdrawBurn(transaction) {
       if (!state.tonConnectUI) throw new Error("TonConnect is not ready");
       const resultTarget = $("withdrawSendResult");
       resultTarget.innerHTML = `<div class="empty">Open your wallet and confirm the burn transaction...</div>`;
       try {
         const result = await state.tonConnectUI.sendTransaction(transaction);
-        resultTarget.innerHTML = `
-          <div class="result">
-            <div>${pill("SENT TO WALLET", "ok")} Burn transaction was sent through TonConnect.</div>
-            <div class="small">Now watch the Burn tab and Withdraw / refund monitor. If Teleport rejects the burn, tgBTC should be minted back to your owner wallet.</div>
-            <details><summary>TonConnect result</summary><pre>${html(JSON.stringify(result, null, 2))}</pre></details>
-          </div>
-        `;
+        resultTarget.innerHTML = `<div class="result"><div>${pill("SENT TO WALLET", "ok")} Burn transaction was sent through TonConnect.</div><div class="small">Теперь смотри Burn tab и Withdraw queue. SIGNING означает ожидание подписей, REFUNDED означает возврат tgBTC.</div><details><summary>TonConnect result</summary><pre>${html(JSON.stringify(result, null, 2))}</pre></details></div>`;
         load();
         setTimeout(() => checkWithdrawStatus().catch(() => {}), 6000);
       } catch (error) {
@@ -590,7 +864,6 @@
             ${row("Pegout contract", data.teleport && data.teleport.pegoutAddr ? link(TONVIEWER + data.teleport.pegoutAddr, `<span class="mono">${short(data.teleport.pegoutAddr, 16, 10)}</span>`) : "-")}
             ${row("Bitcoin tx", data.teleport && data.teleport.bitcoinTxId && data.teleport.bitcoinTxId !== "_" ? link(BTC_TX + data.teleport.bitcoinTxId, `<span class="mono">${short(data.teleport.bitcoinTxId)}</span>`) : "waiting")}
           </div>
-          <div class="small">SIGNING means the burn is accepted and validators/relayer must sign and broadcast the signet BTC transaction. REFUNDED means tgBTC returned on TON.</div>
         `;
         return data;
       } catch (error) {
@@ -621,14 +894,11 @@
         const amountSats = btcToSatsDecimal(amountText);
         const balanceSats = BigInt(wallet.balance || "0");
         const teleport = info.ContractTeleport || {};
-        const network = info.BitcoinNetworkInfo || {};
-        const client = info.ContractBitcoinClient || {};
         const limits = teleport.Limits || {};
         const minPegout = BigInt(Number(limits.MinPegoutAmount || 0));
         const feeEstimate = estimatePegoutFeeSats(info);
         const requiredUserFee = Math.max(1, feeEstimate.fee);
         const requiredPegout = BigInt(requiredUserFee) + minPegout;
-        const lag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
         const okAmount = amountSats >= minPegout;
         const okFee = userFee >= requiredUserFee;
         const okOutput = amountSats >= requiredPegout;
@@ -652,16 +922,14 @@
             ${row("Minimum burn with fee", `${satsToBtc(requiredPegout)} / ${requiredPegout.toString()} sats`)}
             ${row("Amount", `${satsToBtc(amountSats)} / ${amountSats.toString()} sats`)}
             ${row("Bridge", pill(okBridge ? "enabled" : "disabled", okBridge ? "ok" : "bad"))}
-            ${row("BTC client lag", `${num(lag)} blocks`)}
             ${row("Jetton wallet", wallet.walletAddress ? link(TONVIEWER + wallet.walletAddress, `<span class="mono">${short(wallet.walletAddress, 16, 10)}</span>`) : "-")}
             ${row("Bitcoin script", `<span class="mono">${html(script.scriptPubKey)}</span>`)}
             ${row("Attached TON", `${html(burnBuild.valueTon)} testnet TON`)}
           </div>
-          <div class="small">This sends opcode 0x595f07bc to your tgBTC jetton wallet. If Teleport rejects it, the contract path should mint tgBTC back to the owner wallet.</div>
           ${!okAmount ? `<div class="error">Amount is below min pegout.</div>` : ""}
-          ${!okFee ? `<div class="error">User fee is too low. With user_fee=${num(userFee)} the Teleport contract rejects burn and mints tgBTC back. Use at least ${num(requiredUserFee)} sats; 1000 sats is a safe test value now.</div>` : ""}
+          ${!okFee ? `<div class="error">User fee is too low. Use at least ${num(requiredUserFee)} sats; 1000 sats is a safe test value now.</div>` : ""}
           ${!okOutput ? `<div class="error">Amount is lower than estimated BTC tx fee + min output.</div>` : ""}
-          ${!okBalance ? `<div class="error">This owner does not have enough tgBTC yet. Wait for BTC->tgBTC SUCCESS, then check wallet again.</div>` : ""}
+          ${!okBalance ? `<div class="error">This owner does not have enough tgBTC yet.</div>` : ""}
           ${!state.tonConnectUI ? `<div class="error">TonConnect is not loaded, so the app cannot send burn from wallet.</div>` : ""}
           <button class="btn primary" id="sendWithdrawBtn" type="button" ${canSend ? "" : "disabled"}>Send burn with TonConnect</button>
           <div id="withdrawSendResult" style="margin-top:10px"></div>
@@ -675,474 +943,25 @@
       }
     }
 
-    function renderProtocol(info, plots, dkg) {
-      const teleport = info.ContractTeleport || {};
-      const network = info.BitcoinNetworkInfo || {};
-      const client = info.ContractBitcoinClient || {};
-      const currentDkg = dkg.DkgInfo || {};
-      const limits = teleport.Limits || {};
-      const checks = [
-        ["Teleport enabled", Boolean(teleport.Enabled)],
-        ["Bitcoin chain is signet", network.Chain === "signet"],
-        ["Confirmations configured", Number(client.ConfirmationsNeeded || 0) > 0],
-        ["Min pegin configured", Number(limits.MinPeginAmount || 0) > 0],
-        ["Tweaked key exists", Boolean(teleport.TweakedPubkey)],
-      ];
-      const passed = checks.filter(([, ok]) => ok).length;
-      $("healthBar").style.width = `${(passed / checks.length) * 100}%`;
-      $("healthHint").textContent = `${passed}/${checks.length}: sandbox работает для наблюдения и testnet pegin. Для отправки используй только signet BTC и следи, чтобы deposit address был VALID CYCLE.`;
-      $("checks").innerHTML = checks.map(([label, ok]) => `
-        <div class="check"><span>${html(label)}</span>${pill(ok ? "OK" : "CHECK", ok ? "ok" : "warn")}</div>
-      `).join("");
-      $("protocolKv").innerHTML = [
-        row("Environment", pill("Sandbox / TON testnet", "violet")),
-        row("Teleport", pill(String(Boolean(teleport.Enabled)), teleport.Enabled ? "ok" : "bad")),
-        row("Processing pegins", num(teleport.PeginsCount)),
-        row("DKG state", pill(currentDkg.State || "—", statusKind(currentDkg.State))),
-        row("Last pegout tx", teleport.LastPegoutTxID ? link(BTC_TX + teleport.LastPegoutTxID, short(teleport.LastPegoutTxID), "mono") : "—"),
-        row("Min pegin", satsToBtc(limits.MinPeginAmount)),
-        row("Min pegout", satsToBtc(limits.MinPegoutAmount)),
-      ].join("");
-      $("statusStrip").innerHTML = [
-        pill("SANDBOX", "violet"),
-        pill(network.Chain || "chain unknown", "info"),
-        pill(teleport.Enabled ? "TELEPORT ON" : "TELEPORT OFF", teleport.Enabled ? "ok" : "bad"),
-        pill(`CONF ${client.ConfirmationsNeeded || "?"}`, "info"),
-        pill(`DKG ${currentDkg.State || "?"}`, statusKind(currentDkg.State)),
-      ].join("");
-    }
-
-    function renderSide(info, dkg) {
-      const teleport = info.ContractTeleport || {};
-      const network = info.BitcoinNetworkInfo || {};
-      const client = info.ContractBitcoinClient || {};
-      const currentDkg = dkg.DkgInfo || {};
-      const limits = teleport.Limits || {};
-      const dynamic = {
-        tgBTC: teleport.MinterAddress || contracts.tgBTC,
-        Teleport: teleport.TeleportAddress || contracts.Teleport,
-        Coordinator: teleport.CoordinatorAddress || contracts.Coordinator,
-        "Bitcoin Client": teleport.BitcoinClientAddress || contracts["Bitcoin Client"],
-        Inspector: teleport.InspectorAddress,
-        Configurator: teleport.ConfiguratorAddress,
-      };
-      $("contractsKv").innerHTML = Object.entries(dynamic)
-        .filter(([, address]) => address)
-        .map(([name, address]) => row(name, link(TONVIEWER + address, `<span class="mono">${html(address)}</span>`)))
-        .join("");
-      $("bitcoinKv").innerHTML = [
-        row("Chain", html(network.Chain || "—")),
-        row("Network height", num(network.Blocks)),
-        row("Client height", num(client.LastConfirmedBlockHeight)),
-        row("Confirmations", num(client.ConfirmationsNeeded)),
-        row("Best block", `<span class="mono">${short(network.BestBlockHash, 14, 10)}</span>`),
-        row("Client block", `<span class="mono">${short(client.LastConfirmedBlockHash, 14, 10)}</span>`),
-      ].join("");
-      $("dkgKv").innerHTML = [
-        row("Standalone", pill(String(Boolean(dkg.StandaloneMode)), dkg.StandaloneMode ? "warn" : "ok")),
-        row("State", pill(currentDkg.State || "—", statusKind(currentDkg.State))),
-        row("VSet size", num(currentDkg.VSetSize)),
-        row("Max validators", num(currentDkg.ValidatorsCountMax)),
-        row("In DKG", num(currentDkg.ValidatorsCountInDkg)),
-        row("Not in DKG", num(currentDkg.ValidatorsCountNotInDkg)),
-        row("Evicted", num(currentDkg.ValidatorsCountEvicted)),
-      ].join("");
-      $("keysKv").innerHTML = [
-        row("Tweaked key", `<span class="mono">${html(teleport.TweakedPubkey || "—")}</span>`),
-        row("Internal key", `<span class="mono">${html(teleport.InternalKey || "—")}</span>`),
-        row("CSV locktime", num(teleport.CsvLock)),
-        row("Total service fee", `${num(teleport.TotalServiceFee)} sats`),
-        row("Base fee", `${num(teleport.BaseSVB)} sat/vByte`),
-        row("Next fee", `${num(teleport.NextSVB)} sat/vByte`),
-        row("Min pegin", satsToBtc(limits.MinPeginAmount)),
-      ].join("");
-      $("rawInfo").textContent = JSON.stringify(info, null, 2);
-      $("rawDkg").textContent = JSON.stringify(dkg, null, 2);
-    }
-
-    function renderUtxo(info) {
-      const utxos = (info.ContractTeleport && info.ContractTeleport.UTXOset) || [];
-      if (!utxos.length) {
-        $("utxoBody").innerHTML = `<tr><td colspan="4"><div class="empty">UTXO пока нет.</div></td></tr>`;
-        return;
-      }
-      $("utxoBody").innerHTML = utxos.map((item) => `
-        <tr>
-          <td>${satsToBtc(item.Amount)}</td>
-          <td>${link(BTC_TX + item.Address, `<span class="mono">${html(item.Address)}</span>`)}</td>
-          <td>${num(item.Index)}</td>
-          <td class="mono">${html(item.Script || "—")}</td>
-        </tr>
-      `).join("");
-    }
-
-    function opStatus(op) { return op.status || op.pegout_status || op.Status || op.State || "—"; }
-    function opBtcTx(op) { return op.bitcoin_tx_id || op.BitcoinTxID || op.TxID || op.txid || ""; }
-    function opTon(op) { return op.ton_tx || op.receiver_addr || op.sender_addr || op.TonTxHash || op.TonAddress || ""; }
-    function opSearchText(op) { return Object.values(op).join(" ").toLowerCase(); }
-
-    function renderOps() {
-      const list = state.activeTab === "mints" ? state.mints : state.burns;
-      const query = state.query.trim().toLowerCase();
-      const filtered = (query ? list.filter((op) => opSearchText(op).includes(query)) : list).slice(0, 50);
-      if (!filtered.length) {
-        $("opsBody").innerHTML = `<tr><td colspan="5"><div class="empty">Нет операций по текущему фильтру.</div></td></tr>`;
-        return;
-      }
-      $("opsBody").innerHTML = filtered.map((op) => {
-        const status = opStatus(op);
-        const btc = opBtcTx(op);
-        const ton = opTon(op);
-        return `
-          <tr>
-            <td>${dateFmt(op.created_at || op.CreatedAt || op.Time)}</td>
-            <td>${html(op.amount || op.Amount || "—")}</td>
-            <td>${pill(status, statusKind(status))}</td>
-            <td>${btc ? link(BTC_TX + btc, `<span class="mono">${short(btc)}</span>`) : "—"}</td>
-            <td>${ton ? `<span class="mono">${short(ton, 16, 10)}</span>` : "—"}</td>
-          </tr>
-        `;
-      }).join("");
-    }
-
-    function renderWithdrawMonitor() {
-      const burns = Array.isArray(state.burns) ? state.burns.slice(0, 8) : [];
-      if (!burns.length) {
-        $("withdrawMonitor").innerHTML = `<div class="empty">No burn/withdraw data yet.</div>`;
-        return;
-      }
-      $("withdrawMonitor").innerHTML = burns.map((op) => {
-        const status = opStatus(op);
-        const btc = opBtcTx(op);
-        const ton = opTon(op);
-        return `
-          <div class="check">
-            <div>
-              <div><strong>${html(op.amount || op.Amount || "—")}</strong> ${pill(status, statusKind(status))}</div>
-              <div class="small">${dateFmt(op.created_at || op.CreatedAt || op.Time)}</div>
-              <div class="small">BTC: ${btc ? link(BTC_TX + btc, short(btc), "mono") : "waiting"} · TON: ${ton ? `<span class="mono">${short(ton, 14, 8)}</span>` : "waiting/refund"}</div>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function renderError(error) {
-      $("cards").innerHTML = `<article class="card" style="grid-column: 1 / -1"><div class="error">Не удалось загрузить данные: ${html(error.message)}</div><div class="hint">Проверь endpoint <span class="mono">/api/metrics?source=info</span></div></article>`;
-      $("updatedAt").textContent = "ошибка загрузки";
-    }
-
-    async function postJson(path, payload) {
-      const response = await fetch(path, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || json.success === false) {
-        const extra = json.hint ? ` ${json.hint}` : "";
-        throw new Error(`${json.message || json.error || `HTTP ${response.status}`}${extra}`);
-      }
-      return json;
-    }
-
-    async function copyText(text) {
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const area = document.createElement("textarea");
-        area.value = text;
-        document.body.appendChild(area);
-        area.select();
-        document.execCommand("copy");
-        area.remove();
-      }
-    }
-
-    function renderPeginAddress(data) {
-      state.pegin = data;
-      $("peginResult").classList.remove("hide");
-      $("peginResult").innerHTML = `
-        <div>${pill("STEP 1", "info")} Send at least <strong>${html(data.minPeginBtc)} signet BTC</strong> to this address. After confirmation, tgBTC should mint to your TON address.</div>
-        <div id="peginCycleStatus" class="empty">Checking current Teleport cycle...</div>
-        <div class="field">
-          <label>Bitcoin signet deposit address</label>
-          <div class="copy-row">
-            <div class="codebox mono">${html(data.btcAddress)}</div>
-            <button class="btn" type="button" data-copy="${html(data.btcAddress)}">Copy</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>Receiver tgBTC TON address</label>
-          <div class="codebox mono">${html(data.receiverAddr)}</div>
-        </div>
-        <div class="field">
-          <label>Recovery private key</label>
-          <div class="copy-row">
-            <div class="codebox mono">${html(data.recoveryPrivateKey)}</div>
-            <button class="btn" type="button" data-copy="${html(data.recoveryPrivateKey)}">Copy</button>
-          </div>
-          <div class="small">Сохрани этот ключ до завершения теста. Это testnet-only refund/recovery key.</div>
-        </div>
-        <div class="field">
-          <label>После отправки signet BTC вставь Bitcoin txid</label>
-          <div class="form-grid">
-            <input class="input" id="bitcoinTxId" placeholder="64 hex chars..." autocomplete="off" />
-            <div style="display:flex; gap:8px; flex-wrap:wrap">
-              <button class="btn" id="watchPeginBtn" type="button">Check BTC address</button>
-              <button class="btn primary" id="submitPeginBtn" type="button">Register pegin</button>
-              <button class="btn" id="diagnosePeginBtn" type="button">Check pegin status</button>
-            </div>
-          </div>
-          <div id="peginWatchResult" style="margin-top:10px"></div>
-        </div>
-        <details>
-          <summary>advanced data</summary>
-          <pre>${html(JSON.stringify({
-            scriptPubKey: data.scriptPubKey,
-            internalKey: data.internalKey,
-            recoveryKey: data.recoveryKey,
-            csvLock: data.csvLock,
-          }, null, 2))}</pre>
-        </details>
-        <div id="peginSubmitResult"></div>
-      `;
-
-      document.querySelectorAll("[data-copy]").forEach((button) => {
-        button.addEventListener("click", () => copyText(button.dataset.copy));
-      });
-      $("submitPeginBtn").addEventListener("click", () => submitPegin(data));
-      $("watchPeginBtn").addEventListener("click", () => watchPeginAddress(data));
-      $("diagnosePeginBtn").addEventListener("click", () => diagnosePegin());
-      checkPeginCycle(data);
-      watchPeginAddress(data);
-    }
-
-    async function checkPeginCycle(data) {
-      const target = $("peginCycleStatus");
-      if (!target) return;
-      try {
-        const info = await api("info");
-        const currentKey = String((info.ContractTeleport && info.ContractTeleport.InternalKey) || "");
-        const sameKey = currentKey && currentKey.toLowerCase() === String(data.internalKey || "").toLowerCase();
-        if (sameKey) {
-          target.className = "empty";
-          target.innerHTML = `${pill("VALID CYCLE", "ok")} Current internal key matches this deposit address. You can send signet BTC while this remains valid.`;
-        } else {
-          target.className = "error";
-          target.innerHTML = `${pill("EXPIRED CYCLE", "bad")} Internal key changed. Do not send BTC to this old address. Generate a new address.`;
-        }
-      } catch (error) {
-        target.className = "error";
-        target.textContent = `Cannot check Teleport cycle: ${error.message}`;
-      }
-    }
-
-    async function watchPeginAddress(data) {
-      const target = $("peginWatchResult");
-      if (!target) return;
-      target.innerHTML = `<div class="empty">Checking signet mempool/address...</div>`;
-      try {
-        const url = new URL("/api/signet-address", location.origin);
-        url.searchParams.set("address", data.btcAddress);
-        const response = await fetch(url, { cache: "no-store" });
-        const json = await response.json();
-        if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
-
-        const funded = Number(json.chainFundedSats || 0) + Number(json.mempoolFundedSats || 0);
-        const txs = Array.isArray(json.txs) ? json.txs : [];
-        const firstTx = txs[0];
-        if (firstTx && $("bitcoinTxId") && !$("bitcoinTxId").value) $("bitcoinTxId").value = firstTx.txid;
-        const txRows = txs.length ? txs.map((tx) => `
-          <div class="copy-row">
-            <div class="codebox mono">${link(BTC_TX + tx.txid, short(tx.txid))} ${pill(tx.confirmed ? "confirmed" : "mempool", tx.confirmed ? "ok" : "warn")}</div>
-            <button class="btn" type="button" data-copy="${html(tx.txid)}">Copy txid</button>
-          </div>
-        `).join("") : `<div class="small">No tx yet. If faucet is pending, wait and press Check again.</div>`;
-
-        target.innerHTML = `
-          <div class="result">
-            <div>${pill(funded > 0 ? "BTC SEEN" : "WAITING", funded > 0 ? "ok" : "warn")} Received: <strong>${satsToBtc(funded)}</strong> signet BTC</div>
-            <div class="small">Confirmed txs: ${num(json.chainTxCount)} · mempool txs: ${num(json.mempoolTxCount)}</div>
-            ${txRows}
-          </div>
-        `;
-        target.querySelectorAll("[data-copy]").forEach((button) => {
-          button.addEventListener("click", () => copyText(button.dataset.copy));
-        });
-      } catch (error) {
-        target.innerHTML = `<div class="error">Cannot watch signet address: ${html(error.message)}</div>`;
-      }
-    }
-
-    async function generatePeginAddress() {
-      const receiverAddr = $("receiverAddr").value.trim();
-      $("generatePeginBtn").disabled = true;
-      $("peginResult").classList.remove("hide");
-      $("peginResult").innerHTML = `<div class="empty">Generating Taproot signet address...</div>`;
-      try {
-        const result = await postJson("/api/pegin-address", { receiverAddr });
-        renderPeginAddress(result);
-      } catch (error) {
-        $("peginResult").innerHTML = `<div class="error">Не удалось сгенерировать pegin address: ${html(error.message)}</div>`;
-      } finally {
-        $("generatePeginBtn").disabled = false;
-      }
-    }
-
-    async function diagnosePegin() {
-      const target = $("peginSubmitResult");
-      const bitcoinTxID = $("bitcoinTxId") && $("bitcoinTxId").value.trim();
-      if (!target || !bitcoinTxID) return;
-      target.innerHTML = `<div class="empty">Checking pegin status and sandbox BTC Client lag...</div>`;
-      try {
-        const url = new URL("/api/pegin-status", location.origin);
-        url.searchParams.set("txid", bitcoinTxID);
-        const response = await fetch(url, { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok || data.success === false) throw new Error(data.message || data.error || `HTTP ${response.status}`);
-        const status = data.mint ? opStatus(data.mint) : data.stage;
-        target.innerHTML = `
-          <div class="result">
-            <div>${pill(data.stage, statusKind(status))} ${html(data.reason)}</div>
-            <div class="kv">
-              ${row("Bitcoin tx", link(BTC_TX + bitcoinTxID, `<span class="mono">${short(bitcoinTxID)}</span>`))}
-              ${row("Confirmed", pill(String(Boolean(data.bitcoin && data.bitcoin.confirmed)), data.bitcoin && data.bitcoin.confirmed ? "ok" : "warn"))}
-              ${row("Mint status", pill(status || "not found", statusKind(status)))}
-              ${row("BTC client lag", `${num(data.bridge.lag)} blocks`)}
-              ${row("Network / client", `${num(data.bridge.networkHeight)} / ${num(data.bridge.clientHeight)}`)}
-              ${row("Sandbox history", link("https://sandbox.teleport.tg/app/history", "Open Teleport history"))}
-            </div>
-            <div class="small">If BTC is confirmed and mint is PENDING while lag is high, your frontend did its job. The sandbox relayer/Bitcoin Client must catch up before SUCCESS can happen.</div>
-          </div>
-        `;
-      } catch (error) {
-        target.innerHTML = `<div class="error">Cannot diagnose pegin: ${html(error.message)}</div>`;
-      }
-    }
-
-    async function submitPegin(peginData) {
-      const bitcoinTxID = $("bitcoinTxId").value.trim();
-      $("submitPeginBtn").disabled = true;
-      $("peginSubmitResult").innerHTML = `<div class="empty">Checking Bitcoin tx and registering pegin...</div>`;
-      try {
-        const result = await postJson("/api/create-pegin", {
-          receiverAddr: peginData.receiverAddr,
-          bitcoinTxID,
-          internalKey: peginData.internalKey,
-          recoveryKey: peginData.recoveryKey,
-        });
-        $("peginSubmitResult").innerHTML = `
-          <div class="result">
-            <div>${pill("REGISTERED", "ok")} Pegin accepted by sandbox indexer.</div>
-            <div class="kv">
-              ${row("Pegin ID", html(result.data.id))}
-              ${row("Mint status", pill(result.data.mint.status, statusKind(result.data.mint.status)))}
-              ${row("vout", num(result.data.voutIndex))}
-              ${row("amount sats", html(result.data.mint.amount))}
-              ${row("Bitcoin tx", link(BTC_TX + bitcoinTxID, `<span class="mono">${short(bitcoinTxID)}</span>`))}
-              ${row("Receiver wallet", link(TONVIEWER + peginData.receiverAddr, `<span class="mono">${short(peginData.receiverAddr, 16, 10)}</span>`))}
-              ${row("Sandbox history", link("https://sandbox.teleport.tg/app/history", "Open Teleport history"))}
-            </div>
-            <div class="small">If status is PENDING, wait for sandbox relayer/indexer to send the TON mint transaction. When it becomes SUCCESS, tgBTC should appear in the receiver wallet.</div>
-          </div>
-        `;
-        load();
-      } catch (error) {
-        $("peginSubmitResult").innerHTML = `<div class="error">Indexer rejected pegin: ${html(error.message)}</div>`;
-      } finally {
-        $("submitPeginBtn").disabled = false;
-      }
-    }
-
-    function btcToSatsDecimal(value) {
-      const text = String(value || "").trim();
-      if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error("Invalid amount");
-      const [whole, frac = ""] = text.split(".");
-      return BigInt(whole) * 100000000n + BigInt((frac + "00000000").slice(0, 8));
-    }
-
-    function compactSizeBytes(value) {
-      if (value < 253) return 1;
-      if (value <= 0xffff) return 3;
-      if (value <= 0xffffffff) return 5;
-      return 9;
-    }
-
-    function estimatePegoutFeeSats(info) {
-      const teleport = info.ContractTeleport || {};
-      const inputs = Math.max(1, ((teleport.UTXOset || []).length || 1));
-      const outputs = 2;
-      const svb = Math.max(1, Number(teleport.BaseSVB || 0) + Number(teleport.NextSVB || 0));
-      const witnessSize = inputs * (1 + 1 + 64);
-      const vsize = 4 + 2 + compactSizeBytes(inputs) + inputs * (32 + 4 + 1 + 4) + 1 + outputs * (8 + 1 + 34) + Math.floor(witnessSize / 4) + 4;
-      return { inputs, outputs, svb, vsize, fee: vsize * svb };
-    }
-
-    function renderProtocol(info, plots, dkg) {
-      const teleport = info.ContractTeleport || {};
-      const network = info.BitcoinNetworkInfo || {};
-      const client = info.ContractBitcoinClient || {};
-      const currentDkg = dkg.DkgInfo || {};
-      const limits = teleport.Limits || {};
-      const lag = Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0);
-      const bridgeReady = Boolean(teleport.Enabled) && network.Chain === "signet" && lag >= 0 && lag < 100;
-      const checks = [
-        ["Teleport enabled", Boolean(teleport.Enabled)],
-        ["Bitcoin chain is signet", network.Chain === "signet"],
-        ["Confirmations configured", Number(client.ConfirmationsNeeded || 0) > 0],
-        ["Min pegin configured", Number(limits.MinPeginAmount || 0) > 0],
-        ["Tweaked key exists", Boolean(teleport.TweakedPubkey)],
-        ["BTC client lag < 100 blocks", lag >= 0 && lag < 100],
-      ];
-      const passed = checks.filter(([, ok]) => ok).length;
-      $("healthBar").style.width = `${(passed / checks.length) * 100}%`;
-      $("healthHint").textContent = bridgeReady
-        ? `${passed}/${checks.length}: bridge looks usable for a small signet test. Keep the deposit address in VALID CYCLE.`
-        : `${passed}/${checks.length}: explorer works, but bridge actions may stay PENDING. BTC Client lag is ${lag} blocks.`;
-      $("checks").innerHTML = checks.map(([label, ok]) => `
-        <div class="check"><span>${html(label)}</span>${pill(ok ? "OK" : "CHECK", ok ? "ok" : "warn")}</div>
-      `).join("");
-      $("protocolKv").innerHTML = [
-        row("Environment", pill("Sandbox / TON testnet", "violet")),
-        row("Teleport", pill(String(Boolean(teleport.Enabled)), teleport.Enabled ? "ok" : "bad")),
-        row("Bridge mode", pill(bridgeReady ? "ready" : "degraded", bridgeReady ? "ok" : "warn")),
-        row("BTC client lag", `${num(lag)} blocks`),
-        row("Processing pegins", num(teleport.PeginsCount)),
-        row("DKG state", pill(currentDkg.State || "-", statusKind(currentDkg.State))),
-        row("Last pegout tx", teleport.LastPegoutTxID ? link(BTC_TX + teleport.LastPegoutTxID, short(teleport.LastPegoutTxID), "mono") : "-"),
-        row("Min pegin", satsToBtc(limits.MinPeginAmount)),
-        row("Min pegout", satsToBtc(limits.MinPegoutAmount)),
-      ].join("");
-      $("statusStrip").innerHTML = [
-        pill("SANDBOX", "violet"),
-        pill(network.Chain || "chain unknown", "info"),
-        pill(teleport.Enabled ? "TELEPORT ON" : "TELEPORT OFF", teleport.Enabled ? "ok" : "bad"),
-        pill(bridgeReady ? "BRIDGE READY" : `BTC CLIENT LAG ${lag}`, bridgeReady ? "ok" : "warn"),
-        pill(`CONF ${client.ConfirmationsNeeded || "?"}`, "info"),
-        pill(`DKG ${currentDkg.State || "?"}`, statusKind(currentDkg.State)),
-      ].join("");
-    }
-
     async function load() {
       $("refreshBtn").disabled = true;
       $("updatedAt").textContent = "загрузка...";
       try {
-        const [info, plots, dkg] = await Promise.all([
+        const [info, plots, dkg, alerts] = await Promise.all([
           api("info"),
           api("plots_summary"),
           api("dkg_status"),
+          api("alerts").catch(() => []),
         ]);
-        renderCards(info, plots);
-        renderProtocol(info, plots, dkg);
+        state.lastInfo = info;
+        renderCards(info, plots, dkg);
+        renderHealth(info, dkg);
         renderSide(info, dkg);
+        renderAlerts(alerts);
         renderUtxo(info);
         $("updatedAt").textContent = `обновлено: ${new Date().toLocaleString("ru-RU", { hour12: false })}`;
 
-        const [mints, burns] = await Promise.all([
-          api("mints", { limit: 50 }),
-          api("burns", { limit: 50 }),
-        ]);
+        const [mints, burns] = await Promise.all([api("mints", { limit: 80 }), api("burns", { limit: 80 })]);
         state.mints = Array.isArray(mints) ? mints : [];
         state.burns = Array.isArray(burns) ? burns : [];
         renderOps();
@@ -1153,6 +972,20 @@
       } finally {
         $("refreshBtn").disabled = false;
       }
+    }
+
+    function scheduleAutoRefresh() {
+      if (state.timer) clearTimeout(state.timer);
+      if (!state.auto) return;
+      state.timer = setTimeout(async () => {
+        await load();
+        if (state.pegin) {
+          await checkPeginCycle(state.pegin);
+          await watchPeginAddress(state.pegin);
+        }
+        if ($("withdrawOwnerAddress").value.trim()) await checkWithdrawStatus().catch(() => {});
+        scheduleAutoRefresh();
+      }, 30000);
     }
 
     $("refreshBtn").addEventListener("click", load);
@@ -1166,10 +999,7 @@
     $("resolveWalletBtn").addEventListener("click", () => resolveTgBtcWallet().catch(() => {}));
     $("checkWithdrawStatusBtn").addEventListener("click", () => checkWithdrawStatus().catch(() => {}));
     $("prepareWithdrawBtn").addEventListener("click", prepareWithdraw);
-    $("opSearch").addEventListener("input", (event) => {
-      state.query = event.target.value;
-      renderOps();
-    });
+    $("opSearch").addEventListener("input", (event) => { state.query = event.target.value; renderOps(); });
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => {
         state.activeTab = button.dataset.tab;
@@ -1177,22 +1007,6 @@
         renderOps();
       });
     });
-
-    function scheduleAutoRefresh() {
-      if (state.timer) clearTimeout(state.timer);
-      if (!state.auto) return;
-      state.timer = setTimeout(async () => {
-        await load();
-        if (state.pegin) {
-          await checkPeginCycle(state.pegin);
-          await watchPeginAddress(state.pegin);
-        }
-        if ($("withdrawOwnerAddress").value.trim()) {
-          await checkWithdrawStatus().catch(() => {});
-        }
-        scheduleAutoRefresh();
-      }, 30000);
-    }
 
     initTonConnect();
     load().then(scheduleAutoRefresh);
