@@ -1,10 +1,10 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "0.8.0-one-click-tgbtc",
+  "version": "0.2.0",
   "private": true,
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
-    "@ton/core": "^0.63.1"
+    "@ton/core": "^0.61.0"
   },
   "scripts": {
     "dev": "vercel dev",
