@@ -52,8 +52,14 @@
     .violet { color: var(--violet); background: #f3efff; border-color: #d9cff9; }
     .status-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
     .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .risk-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
     .card, .section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
     .card { min-height: 104px; padding: 13px; }
+    .risk-card { padding: 13px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
+    .risk-meter { width: 100%; height: 7px; border-radius: 999px; background: #e6edf5; overflow: hidden; margin-top: 10px; }
+    .risk-meter span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--green); }
+    .risk-meter.warn span { background: var(--amber); }
+    .risk-meter.bad span { background: var(--red); }
     .label { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
     .value { font-size: 21px; line-height: 1.15; font-weight: 900; overflow-wrap: anywhere; }
     .hint, .small { color: var(--muted); line-height: 1.38; }
@@ -101,11 +107,12 @@
     pre { margin: 0; background: #101828; color: #dbe7ff; border-radius: 8px; padding: 12px; overflow: auto; max-height: 360px; line-height: 1.45; font-size: 12px; }
     details summary { cursor: pointer; color: var(--blue); font-weight: 850; }
     .hide { display: none; }
-    @media (max-width: 1180px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 1180px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .risk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
     @media (max-width: 760px) {
       .app { width: min(100% - 20px, 1500px); padding-top: 14px; }
       .top { display: block; } .controls { justify-content: flex-start; margin-top: 12px; min-width: 0; }
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .risk-grid { grid-template-columns: 1fr; }
       .split, .kv, .form-grid, .copy-row { grid-template-columns: 1fr; }
       table { min-width: 820px; }
     }
@@ -129,6 +136,7 @@
 
     <div class="status-strip" id="statusStrip"></div>
     <section class="cards" id="cards"></section>
+    <section class="risk-grid" id="riskGrid"></section>
 
     <div class="layout">
       <div>
@@ -338,6 +346,16 @@
       return date.toLocaleString("ru-RU", { hour12: false });
     }
 
+    function durationFromSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(Number(totalSeconds || 0)));
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
     async function api(source, params = {}) {
       const url = new URL(API, location.origin);
       url.searchParams.set("source", source);
@@ -387,6 +405,94 @@
         pegoutReady: Boolean(teleport.Enabled) && signingHealthy && Array.isArray(teleport.UTXOset) && teleport.UTXOset.length > 0,
         signingHealthy,
       };
+    }
+
+    function getRiskModel(info, dkg) {
+      const teleport = info.ContractTeleport || {};
+      const network = info.BitcoinNetworkInfo || {};
+      const client = info.ContractBitcoinClient || {};
+      const currentDkg = dkg.DkgInfo || {};
+      const lag = Math.max(0, Number(network.Blocks || 0) - Number(client.LastConfirmedBlockHeight || 0));
+      const inDkg = Number(currentDkg.ValidatorsCountInDkg || 0);
+      const maxDkg = Math.max(1, Number(currentDkg.ValidatorsCountMax || 0));
+      const dkgPercent = Math.round((inDkg / maxDkg) * 100);
+      const blockWarning = 20;
+      const blockCritical = 100;
+      const dkgWarning = 80;
+      const dkgCritical = 65;
+      const estimatedBlockSeconds = 600;
+      const relayerCycleSeconds = 10;
+      const catchupHoursAt10s = lag * relayerCycleSeconds / 3600;
+      return {
+        lag,
+        blocksToPeginWarning: Math.max(0, blockWarning - lag),
+        blocksToPeginCritical: Math.max(0, blockCritical - lag),
+        timeToPeginWarning: Math.max(0, blockWarning - lag) * estimatedBlockSeconds,
+        timeToPeginCritical: Math.max(0, blockCritical - lag) * estimatedBlockSeconds,
+        catchupHoursAt10s,
+        dkgPercent,
+        dkgState: currentDkg.State || "unknown",
+        dkgToWarning: Math.max(0, dkgPercent - dkgWarning),
+        dkgToCritical: Math.max(0, dkgPercent - dkgCritical),
+        teleportEnabled: Boolean(teleport.Enabled),
+        reserveUtxos: Array.isArray(teleport.UTXOset) ? teleport.UTXOset.length : 0,
+        lastPegoutTx: teleport.LastPegoutTxID || "",
+      };
+    }
+
+    function renderRiskGrid(info, dkg) {
+      const risk = getRiskModel(info, dkg);
+      const lagKind = risk.lag >= 100 ? "bad" : risk.lag >= 20 ? "warn" : "ok";
+      const dkgKind = risk.dkgPercent < 65 ? "bad" : risk.dkgPercent < 80 ? "warn" : "ok";
+      const opKind = risk.teleportEnabled ? "ok" : "bad";
+      const reserveKind = risk.reserveUtxos > 0 ? "ok" : "bad";
+      const lagWidth = Math.min(100, Math.round((risk.lag / 100) * 100));
+      const dkgWidth = Math.min(100, Math.max(0, risk.dkgPercent));
+      const opWidth = risk.teleportEnabled ? 100 : 0;
+      const reserveWidth = risk.reserveUtxos > 0 ? 100 : 0;
+      $("riskGrid").innerHTML = [
+        {
+          title: "Pegin stop risk",
+          value: risk.lag >= 100 ? "Critical" : risk.lag >= 20 ? "Warning" : "Healthy",
+          kind: lagKind,
+          width: lagWidth,
+          text: risk.lag >= 100
+            ? `BTC -> tgBTC почти точно будет PENDING. Lag ${num(risk.lag)} blocks.`
+            : `До warning: ${num(risk.blocksToPeginWarning)} blocks / ${durationFromSeconds(risk.timeToPeginWarning)}. До critical: ${num(risk.blocksToPeginCritical)} blocks / ${durationFromSeconds(risk.timeToPeginCritical)}.`,
+        },
+        {
+          title: "Catch-up estimate",
+          value: `${risk.catchupHoursAt10s.toFixed(1)}h`,
+          kind: risk.lag > 1000 ? "warn" : "info",
+          width: Math.min(100, Math.round(risk.catchupHoursAt10s)),
+          text: `Если relayer шлёт 1 header каждые 10s, догонять ${num(risk.lag)} blocks примерно ${risk.catchupHoursAt10s.toFixed(1)} hours плюс TON finality/gas.`,
+        },
+        {
+          title: "DKG stop risk",
+          value: `${risk.dkgPercent}%`,
+          kind: dkgKind,
+          width: dkgWidth,
+          text: risk.dkgPercent < 65
+            ? `Critical: pegout может висеть SIGNING. State ${risk.dkgState}.`
+            : `До warning осталось ${num(risk.dkgToWarning)} percentage points, до critical ${num(risk.dkgToCritical)}.`,
+        },
+        {
+          title: "Protocol operation",
+          value: risk.teleportEnabled ? "Enabled" : "Disabled",
+          kind: risk.teleportEnabled ? reserveKind : opKind,
+          width: Math.min(opWidth, reserveWidth),
+          text: risk.reserveUtxos > 0
+            ? `Reserve UTXO есть: ${num(risk.reserveUtxos)}. Last pegout: ${risk.lastPegoutTx ? short(risk.lastPegoutTx) : "none"}.`
+            : "Reserve UTXO не найден: withdraw невозможен или опасен.",
+        },
+      ].map((item) => `
+        <article class="risk-card">
+          <div class="label">${html(item.title)}</div>
+          <div class="value">${html(item.value)}</div>
+          <div class="hint">${pill(item.kind.toUpperCase(), item.kind)} ${html(item.text)}</div>
+          <div class="risk-meter ${item.kind}"><span style="width:${Math.max(3, item.width)}%"></span></div>
+        </article>
+      `).join("");
     }
 
     function renderCards(info, plots, dkg) {
@@ -955,6 +1061,7 @@
         ]);
         state.lastInfo = info;
         renderCards(info, plots, dkg);
+        renderRiskGrid(info, dkg);
         renderHealth(info, dkg);
         renderSide(info, dkg);
         renderAlerts(alerts);
