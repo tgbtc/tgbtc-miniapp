@@ -262,7 +262,10 @@
                 <div id="tonConnectButton"></div>
                 <div class="small" id="walletHint" style="margin-top:8px">Connect a TON testnet wallet or paste the owner address below.</div>
               </div>
-              <button class="btn" id="resolveWalletBtn" type="button">Check tgBTC wallet</button>
+              <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <button class="btn" id="resolveWalletBtn" type="button">Check tgBTC wallet</button>
+                <button class="btn" id="checkWithdrawStatusBtn" type="button">Check withdraw/refund</button>
+              </div>
             </div>
             <div style="height: 8px"></div>
             <div class="field">
@@ -270,6 +273,7 @@
               <input class="input" id="withdrawOwnerAddress" placeholder="Your TON testnet wallet address" autocomplete="off" />
             </div>
             <div id="walletResult" class="result hide"></div>
+            <div id="withdrawStatusResult" class="result hide"></div>
             <div style="height: 12px"></div>
             <div class="split">
               <div class="field">
@@ -558,9 +562,37 @@
           </div>
         `;
         load();
-        diagnosePegin();
+        setTimeout(() => checkWithdrawStatus().catch(() => {}), 6000);
       } catch (error) {
         resultTarget.innerHTML = `<div class="error">Wallet did not send burn: ${html(error.message || String(error))}</div>`;
+      }
+    }
+
+    async function checkWithdrawStatus() {
+      const owner = $("withdrawOwnerAddress").value.trim();
+      $("withdrawStatusResult").classList.remove("hide");
+      $("withdrawStatusResult").innerHTML = `<div class="empty">Checking latest burn/refund on TON testnet...</div>`;
+      try {
+        const url = new URL("/api/withdraw-status", location.origin);
+        url.searchParams.set("owner", owner);
+        const response = await fetch(url, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error(data.message || data.error || `HTTP ${response.status}`);
+        const kind = data.status === "REFUNDED" ? "warn" : data.status === "BURN_FAILED" ? "bad" : data.status === "BURN_SENT" ? "ok" : "info";
+        $("withdrawStatusResult").innerHTML = `
+          <div>${pill(data.status, kind)} ${html(data.message)}</div>
+          <div class="kv">
+            ${row("Balance", `${html(data.balanceTgBtc || "0")} tgBTC`)}
+            ${row("Jetton wallet", data.walletAddress ? link(TONVIEWER + data.walletAddress, `<span class="mono">${short(data.walletAddress, 16, 10)}</span>`) : "-")}
+            ${row("Last burn", data.burn ? `${html(data.burn.amountTgBtc)} tgBTC / <span class="mono">${short(data.burn.hash, 12, 8)}</span>` : "-")}
+            ${row("Refund", data.refund ? `${html(data.refund.amountTgBtc)} tgBTC / <span class="mono">${short(data.refund.hash, 12, 8)}</span>` : "-")}
+          </div>
+          <div class="small">REFUNDED means tgBTC returned on TON. In that case no signet BTC transaction should appear for the requested Bitcoin address.</div>
+        `;
+        return data;
+      } catch (error) {
+        $("withdrawStatusResult").innerHTML = `<div class="error">Cannot check withdraw/refund: ${html(error.message)}</div>`;
+        throw error;
       }
     }
 
@@ -1108,6 +1140,7 @@
     });
     $("generatePeginBtn").addEventListener("click", generatePeginAddress);
     $("resolveWalletBtn").addEventListener("click", () => resolveTgBtcWallet().catch(() => {}));
+    $("checkWithdrawStatusBtn").addEventListener("click", () => checkWithdrawStatus().catch(() => {}));
     $("prepareWithdrawBtn").addEventListener("click", prepareWithdraw);
     $("opSearch").addEventListener("input", (event) => {
       state.query = event.target.value;
@@ -1129,6 +1162,9 @@
         if (state.pegin) {
           await checkPeginCycle(state.pegin);
           await watchPeginAddress(state.pegin);
+        }
+        if ($("withdrawOwnerAddress").value.trim()) {
+          await checkWithdrawStatus().catch(() => {});
         }
         scheduleAutoRefresh();
       }, 30000);
