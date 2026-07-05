@@ -1,5 +1,6 @@
 const TONAPI = "https://testnet.tonapi.io/v2";
 const TGBTC_MASTER = "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074";
+const METRICS_API = "https://sandbox.teleport.tg/metrics/api";
 
 async function fetchJson(url) {
   const response = await fetch(url, {
@@ -30,6 +31,14 @@ function op(tx) {
 
 function amount(tx) {
   return tx && tx.in_msg && tx.in_msg.decoded_body && String(tx.in_msg.decoded_body.amount || "");
+}
+
+function amountBtcToSats(value) {
+  const match = String(value || "").match(/^([0-9]+)(?:\.([0-9]{1,8}))?\s*BTC$/i);
+  if (!match) return "";
+  const whole = match[1];
+  const frac = (match[2] || "").padEnd(8, "0");
+  return (BigInt(whole) * 100000000n + BigInt(frac || "0")).toString();
 }
 
 module.exports = async function handler(req, res) {
@@ -63,9 +72,24 @@ module.exports = async function handler(req, res) {
       })
       : null;
 
+    const burns = await fetchJson(`${METRICS_API}?source=burns`).catch(() => []);
+    const latestTeleportBurn = Array.isArray(burns) && latestBurn
+      ? burns.find((item) => {
+        const sameSender = String(item.sender_addr || "").toLowerCase() === owner.toLowerCase();
+        const burnSats = BigInt(amount(latestBurn) || "0");
+        const outputSats = BigInt(amountBtcToSats(item.amount) || "0");
+        return sameSender && outputSats > 0n && outputSats <= burnSats;
+      })
+      : null;
+
     let status = "NO_RECENT_BURN";
     let message = "No recent tgBTC burn found for this wallet.";
-    if (latestBurn && latestRefund) {
+    if (latestTeleportBurn && latestTeleportBurn.pegout_status) {
+      status = latestTeleportBurn.pegout_status;
+      message = latestTeleportBurn.bitcoin_tx_id && latestTeleportBurn.bitcoin_tx_id !== "_"
+        ? "Teleport produced a Bitcoin transaction for this withdraw."
+        : "Teleport accepted the burn and the pegout is waiting for validator signatures.";
+    } else if (latestBurn && latestRefund) {
       status = "REFUNDED";
       message = "Burn was accepted by the jetton wallet, then tgBTC was minted back to the owner. No BTC pegout was produced.";
     } else if (latestBurn && latestBurn.success) {
@@ -98,6 +122,15 @@ module.exports = async function handler(req, res) {
         success: latestRefund.success,
         amount: amount(latestRefund),
         amountTgBtc: fmt(amount(latestRefund)),
+      } : null,
+      teleport: latestTeleportBurn ? {
+        amount: latestTeleportBurn.amount,
+        tonTx: latestTeleportBurn.ton_tx,
+        pegoutAddr: latestTeleportBurn.pegout_addr,
+        senderAddr: latestTeleportBurn.sender_addr,
+        bitcoinTxId: latestTeleportBurn.bitcoin_tx_id,
+        pegoutStatus: latestTeleportBurn.pegout_status,
+        createdAt: latestTeleportBurn.created_at,
       } : null,
     });
   } catch (error) {
