@@ -1017,47 +1017,6 @@
       return BigInt(whole) * 100000000n + BigInt((frac + "00000000").slice(0, 8));
     }
 
-    async function prepareWithdraw() {
-      const address = $("withdrawBtcAddress").value.trim();
-      const amountText = $("withdrawAmount").value.trim();
-      const userFee = Number.parseInt($("withdrawFee").value || "0", 10) || 0;
-      $("prepareWithdrawBtn").disabled = true;
-      $("withdrawResult").classList.remove("hide");
-      $("withdrawResult").innerHTML = `<div class="empty">Checking Bitcoin address and Teleport limits...</div>`;
-      try {
-        const [script, info] = await Promise.all([
-          fetch(`/api/bitcoin-script?address=${encodeURIComponent(address)}`, { cache: "no-store" }).then(async (response) => {
-            const json = await response.json();
-            if (!response.ok || json.success === false) throw new Error(json.message || json.error || `HTTP ${response.status}`);
-            return json;
-          }),
-          api("info"),
-        ]);
-        const amountSats = btcToSatsDecimal(amountText);
-        const teleport = info.ContractTeleport || {};
-        const limits = teleport.Limits || {};
-        const minPegout = BigInt(Number(limits.MinPegoutAmount || 0));
-        const okAmount = amountSats >= minPegout;
-        const payload = `${script.scriptLength.toString(16).padStart(2, "0")}${script.scriptPubKey}${BigInt(userFee).toString(16).padStart(16, "0")}`;
-        $("withdrawResult").innerHTML = `
-          <div>${pill(okAmount ? "READY" : "TOO SMALL", okAmount ? "ok" : "bad")} Burn <strong>${html(amountText)} tgBTC</strong> to receive signet BTC.</div>
-          <div class="kv">
-            ${row("Min pegout", satsToBtc(limits.MinPegoutAmount))}
-            ${row("Amount", `${satsToBtc(amountSats)} / ${amountSats.toString()} sats`)}
-            ${row("Bitcoin script", `<span class="mono">${html(script.scriptPubKey)}</span>`)}
-            ${row("Burn payload", `<span class="mono">${html(payload)}</span>`)}
-            ${row("User fee", `${num(userFee)} sats`)}
-          </div>
-          <div class="small">Payload format: script_len:uint8 + script + user_fee:uint64. After burn, monitor below: PENDING means validators/relayer are signing; CONFIRMED/DONE means BTC pegout tx exists; REFUNDED means tgBTC returned or rejected.</div>
-          <div class="small">Next implementation step: TonConnect button to send the burn directly from this miniapp.</div>
-        `;
-      } catch (error) {
-        $("withdrawResult").innerHTML = `<div class="error">Cannot prepare withdraw: ${html(error.message)}</div>`;
-      } finally {
-        $("prepareWithdrawBtn").disabled = false;
-      }
-    }
-
     function renderProtocol(info, plots, dkg) {
       const teleport = info.ContractTeleport || {};
       const network = info.BitcoinNetworkInfo || {};
