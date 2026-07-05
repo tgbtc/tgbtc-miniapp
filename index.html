@@ -578,7 +578,7 @@
         const response = await fetch(url, { cache: "no-store" });
         const data = await response.json();
         if (!response.ok || data.success === false) throw new Error(data.message || data.error || `HTTP ${response.status}`);
-        const kind = data.status === "REFUNDED" ? "warn" : data.status === "BURN_FAILED" ? "bad" : data.status === "BURN_SENT" ? "ok" : "info";
+        const kind = data.status === "REFUNDED" ? "warn" : data.status === "BURN_FAILED" ? "bad" : data.status === "BURN_SENT" || data.status === "SIGNING" ? "ok" : "info";
         $("withdrawStatusResult").innerHTML = `
           <div>${pill(data.status, kind)} ${html(data.message)}</div>
           <div class="kv">
@@ -586,8 +586,11 @@
             ${row("Jetton wallet", data.walletAddress ? link(TONVIEWER + data.walletAddress, `<span class="mono">${short(data.walletAddress, 16, 10)}</span>`) : "-")}
             ${row("Last burn", data.burn ? `${html(data.burn.amountTgBtc)} tgBTC / <span class="mono">${short(data.burn.hash, 12, 8)}</span>` : "-")}
             ${row("Refund", data.refund ? `${html(data.refund.amountTgBtc)} tgBTC / <span class="mono">${short(data.refund.hash, 12, 8)}</span>` : "-")}
+            ${row("Teleport status", data.teleport ? pill(data.teleport.pegoutStatus || "-", statusKind(data.teleport.pegoutStatus)) : "-")}
+            ${row("Pegout contract", data.teleport && data.teleport.pegoutAddr ? link(TONVIEWER + data.teleport.pegoutAddr, `<span class="mono">${short(data.teleport.pegoutAddr, 16, 10)}</span>`) : "-")}
+            ${row("Bitcoin tx", data.teleport && data.teleport.bitcoinTxId && data.teleport.bitcoinTxId !== "_" ? link(BTC_TX + data.teleport.bitcoinTxId, `<span class="mono">${short(data.teleport.bitcoinTxId)}</span>`) : "waiting")}
           </div>
-          <div class="small">REFUNDED means tgBTC returned on TON. In that case no signet BTC transaction should appear for the requested Bitcoin address.</div>
+          <div class="small">SIGNING means the burn is accepted and validators/relayer must sign and broadcast the signet BTC transaction. REFUNDED means tgBTC returned on TON.</div>
         `;
         return data;
       } catch (error) {
