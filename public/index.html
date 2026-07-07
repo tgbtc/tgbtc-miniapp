@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tgBTC Mainnet Explorer</title>
+  <meta name="description" content="tgBTC explorer with mainnet-first switch and testnet fallback." />
+  <style>
+    :root{color-scheme:light;--bg:#f4f7fb;--panel:#fff;--soft:#f8fafc;--text:#142033;--muted:#66758a;--line:#dce4ef;--blue:#2563eb;--green:#138348;--amber:#b96512;--red:#bd3030;--violet:#6046b6;--shadow:0 10px 28px rgba(18,32,51,.07);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:14px}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}button,input,select{font:inherit}.app{width:min(1480px,calc(100vw - 28px));margin:0 auto;padding:22px 0 40px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}h1{margin:0 0 6px;font-size:26px;line-height:1.1}.subtitle{color:var(--muted);line-height:1.45;max-width:920px}.controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;min-width:300px}.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);min-height:36px;border-radius:6px;padding:8px 12px;font-weight:750;cursor:pointer;display:inline-flex;align-items:center;gap:8px}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:disabled{opacity:.6;cursor:not-allowed}.mode-switch{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.mode-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 14px;font-weight:850;cursor:pointer}.mode-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}.status-strip{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.pill{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid transparent;white-space:nowrap}.ok{color:var(--green);background:#e9f8ef;border-color:#bde8cc}.warn{color:var(--amber);background:#fff4e4;border-color:#ffd49d}.bad{color:var(--red);background:#fff0f0;border-color:#ffc7c7}.info{color:var(--blue);background:#eef4ff;border-color:#cbdbff}.violet{color:var(--violet);background:#f2efff;border-color:#d8cff8}.cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}.card,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}.card{min-height:100px;padding:13px}.label{color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}.value{font-size:21px;line-height:1.15;font-weight:850;overflow-wrap:anywhere}.hint{color:var(--muted);margin-top:7px;line-height:1.35;overflow-wrap:anywhere}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(360px,.75fr);gap:12px;align-items:start}.section{overflow:hidden;margin-bottom:12px}.head{padding:13px 15px;border-bottom:1px solid var(--line);background:var(--soft);display:flex;justify-content:space-between;align-items:center;gap:12px}h2{margin:0;font-size:15px}.body{padding:14px 15px}.small{color:var(--muted);font-size:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:12px}.kv{display:grid;grid-template-columns:175px minmax(0,1fr);gap:10px 12px}.kv .k{color:var(--muted)}.kv .v{font-weight:650;overflow-wrap:anywhere}.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.bar{width:100%;height:8px;border-radius:999px;background:#e8eef6;overflow:hidden}.bar span{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--green),var(--blue))}.checks{display:grid;gap:8px;margin-top:12px}.check{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 10px;background:var(--soft);border:1px solid var(--line);border-radius:6px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.search{min-height:36px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:min(420px,100%);background:#fff;color:var(--text)}.tabs{display:inline-flex;background:#e9eef6;border-radius:7px;padding:3px}.tab{border:0;background:transparent;min-height:30px;padding:6px 10px;border-radius:5px;cursor:pointer;font-weight:800;color:var(--muted)}.tab.active{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(18,32,51,.12)}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:var(--soft);color:var(--muted);font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.04em}tbody tr:hover td{background:#fbfdff}.table-wrap{overflow:auto}.empty,.error{padding:13px;border-radius:8px;border:1px dashed var(--line);background:var(--soft);color:var(--muted)}.error{color:var(--red);background:#fff6f6;border-color:#ffc7c7}.danger-note{color:var(--red);font-weight:750;line-height:1.45}.copy-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.codebox{min-height:36px;display:flex;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;overflow-wrap:anywhere}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}pre{margin:0;background:#101828;color:#dbe7ff;border-radius:8px;padding:12px;overflow:auto;max-height:420px;line-height:1.45;font-size:12px}details summary{cursor:pointer;color:var(--blue);font-weight:800}.hide{display:none}@media(max-width:1180px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}.layout{grid-template-columns:1fr}}@media(max-width:760px){.app{width:min(100% - 20px,1480px);padding-top:14px}.top{display:block}.controls{justify-content:flex-start;margin-top:12px;min-width:0}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.split,.kv,.grid-3{grid-template-columns:1fr}.copy-row{grid-template-columns:1fr}table{min-width:780px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="top">
+      <div>
+        <h1>tgBTC Explorer</h1>
+        <div class="subtitle">Сначала показывает <b>Mainnet/Prod</b>, а при необходимости можно переключиться на <b>Testnet/Sandbox</b>. Mainnet показывает только реальные данные: full metrics, если доступны, или on-chain данные без выдуманных значений.</div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v13 MAINNET FIRST VERCEL SAFE</span> <span class="pill violet">mainnet + testnet</span></div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
+        <button class="btn" id="autoBtn" type="button">Auto: ON</button>
+        <a class="btn" id="teleportLink" href="https://sandbox.teleport.tg/app/dashboard" target="_blank" rel="noreferrer">Teleport</a>
+        <a class="btn" id="tonviewerLink" href="https://testnet.tonviewer.com/0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c" target="_blank" rel="noreferrer">Tonviewer</a>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="head"><h2>Network switch</h2><span class="small">один UI, разные источники данных</span></div>
+      <div class="body">
+        <div class="mode-switch">
+          <button class="mode-btn active" id="mainnetBtn" type="button">Mainnet / Prod</button>
+          <button class="mode-btn" id="testnetBtn" type="button">Sandbox / Testnet</button>
+        </div>
+        <div class="small" id="networkNote" style="margin-top:10px">Mainnet по умолчанию: реальные TON mainnet контракты. Sandbox/signet metrics специально игнорируются, чтобы не показывать ложный mainnet.</div>
+      </div>
+    </section>
+
+    <div class="status-strip" id="statusStrip"></div>
+
+    <section class="cards" id="cards"></section>
+
+    <div class="layout">
+      <div>
+        <section class="section">
+          <div class="head"><h2>Состояние протокола</h2><span class="small" id="updatedAt">загрузка...</span></div>
+          <div class="body">
+            <div id="mainnetSafety" class="danger-note hide" style="margin-bottom:12px">MAINNET по умолчанию. Отправка real BTC отключена, потому что в prod config MAINTENANCE_MODE=1. Здесь показываются только реальные mainnet данные из TON mainnet. Если full prod metrics возвращает sandbox/signet, он специально игнорируется.</div>
+            <div class="split">
+              <div class="kv" id="protocolKv"></div>
+              <div>
+                <div class="label">Health score</div>
+                <div class="bar"><span id="healthBar"></span></div>
+                <div class="hint" id="healthHint"></div>
+                <div class="checks" id="checks"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head"><h2>Что сейчас можно делать</h2><span class="small" id="actionSubtitle">risk summary</span></div>
+          <div class="body">
+            <div class="grid-3" id="actionCards"></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head">
+            <h2>Операции</h2>
+            <div class="toolbar">
+              <div class="tabs">
+                <button class="tab active" data-tab="mints" type="button">Mint</button>
+                <button class="tab" data-tab="burns" type="button">Burn / Withdraw</button>
+              </div>
+              <input class="search" id="opSearch" placeholder="Поиск tx, адреса, статуса..." />
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th style="width:160px">Время</th><th style="width:130px">Сумма</th><th style="width:120px">Статус</th><th>Bitcoin tx</th><th>TON tx / адрес</th></tr></thead>
+              <tbody id="opsBody"><tr><td colspan="5"><div class="empty">Операции загружаются...</div></td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="head"><h2>Withdraw queue</h2><span class="small">latest burns and pegouts</span></div>
+          <div class="body" id="withdrawMonitor"><div class="empty">Burn operations are loading...</div></div>
+        </section>
+
+        <section class="section">
+          <div class="head"><h2>BTC UTXO reserve</h2><span class="small" id="reserveSubtitle">backing reserve</span></div>
+          <div class="table-wrap">
+            <table><thead><tr><th style="width:135px">Amount</th><th>Tx ID</th><th style="width:72px">Index</th><th>Script</th></tr></thead><tbody id="utxoBody"></tbody></table>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="section"><div class="head"><h2>Контракты</h2></div><div class="body"><div class="kv" id="contractsKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Bitcoin sync</h2></div><div class="body"><div class="kv" id="bitcoinKv"></div></div></section>
+        <section class="section"><div class="head"><h2>DKG / signers</h2></div><div class="body"><div class="kv" id="dkgKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Ключи и лимиты</h2></div><div class="body"><div class="kv" id="keysKv"></div></div></section>
+        <section class="section"><div class="head"><h2>Alerts</h2></div><div class="body" id="alertsBox"><div class="empty">No alerts loaded.</div></div></section>
+        <section class="section"><div class="head"><h2>Raw JSON</h2></div><div class="body"><details open><summary>info</summary><pre id="rawInfo">загрузка...</pre></details><div style="height:10px"></div><details><summary>dkg_status</summary><pre id="rawDkg">загрузка...</pre></details></div></section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const state = { network:'mainnet', activeTab:'mints', query:'', auto:true, timer:null, info:null, plots:null, dkg:null, mints:[], burns:[], alerts:[] };
+    const NETWORKS = {
+      mainnet: { label:'MAINNET / PROD', env:'prod', chain:'bitcoin', tonviewer:'https://tonviewer.com/', btcTx:'https://mempool.space/tx/', teleport:'https://teleport.tg/', history:'https://teleport.tg/', minter:'EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU', teleportAddr:'EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-', maintenance:true },
+      testnet: { label:'SANDBOX / TESTNET', env:'sand', chain:'signet', tonviewer:'https://testnet.tonviewer.com/', btcTx:'https://mempool.space/signet/tx/', teleport:'https://sandbox.teleport.tg/app/dashboard', history:'https://sandbox.teleport.tg/app/history', minter:'EQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdLub', teleportAddr:'EQDhF3lwtyKpQi2O9nS4XNyyyIKV7jl9cVCko4L5GSFAnHRo', maintenance:false }
+    };
+    const $ = (id) => document.getElementById(id);
+    function cfg(){ return NETWORKS[state.network]; }
+    function html(v){return String(v??'').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function pill(text,kind='info'){return `<span class="pill ${kind}">${html(text)}</span>`;}
+    function kind(text){const v=String(text||'').toUpperCase(); if(/OK|ON|TRUE|SUCCESS|CONFIRMED|FINISHED|READY/.test(v))return'ok'; if(/WARN|PENDING|WAIT|SIGNING|PROGRESS|MAINT/.test(v))return'warn'; if(/BAD|ERROR|FAIL|REFUND|OFF|DISABLED|CRITICAL/.test(v))return'bad'; return'info';}
+    function row(k,v){return `<div class="k">${html(k)}</div><div class="v">${v}</div>`;}
+    function short(v,l=10,r=8){const t=String(v||''); if(!t)return'—'; return t.length<=l+r+3?html(t):`${html(t.slice(0,l))}...${html(t.slice(-r))}`;}
+    function link(url,text,cls=''){return `<a class="${cls}" href="${html(url)}" target="_blank" rel="noreferrer">${text}</a>`;}
+    function isKnown(v){return v!==undefined && v!==null && v!=='' && Number.isFinite(Number(v));}
+    function satsToBtc(v){if(!isKnown(v)) return '—'; const n=Number(v); return `${(n/1e8).toLocaleString('en-US',{minimumFractionDigits:8,maximumFractionDigits:8})} BTC`;}
+    function num(v){if(!isKnown(v)) return '—'; return Number(v).toLocaleString('en-US');}
+    function dateFmt(v){if(!v)return'—'; const d=typeof v==='number'?new Date(v*1000):new Date(v); return Number.isNaN(d.getTime())?'—':d.toLocaleString('ru-RU',{hour12:false});}
+    function flatten(v,out=[]){if(v==null)return out; if(typeof v==='object'){ if(Array.isArray(v))v.forEach(x=>flatten(x,out)); else Object.entries(v).forEach(([k,x])=>{out.push(String(k)); flatten(x,out);}); } else out.push(String(v)); return out;}
+    function deep(v,patterns){if(!v||typeof v!=='object')return''; const q=[v]; while(q.length){const it=q.shift(); if(!it||typeof it!=='object')continue; for(const [k,val] of Object.entries(it)){const kk=k.toLowerCase().replace(/[^a-z0-9]/g,''); if(patterns.some(p=>kk.includes(p))&&val!=null&&typeof val!=='object')return String(val); if(val&&typeof val==='object')q.push(val);} } return'';}
+    function firstHex64(v){const m=flatten(v).join(' ').match(/\b[0-9a-fA-F]{64}\b/); return m?m[0]:'';}
+
+    async function api(source, params={}){
+      const url=new URL('/api/metrics',location.origin); url.searchParams.set('network',state.network); url.searchParams.set('source',source); for(const[k,v]of Object.entries(params))url.searchParams.set(k,v);
+      const r=await fetch(url,{cache:'no-store'}); const txt=await r.text(); let json; try{json=txt?JSON.parse(txt):null;}catch{json={raw:txt};} if(!r.ok||json?.success===false)throw new Error(json?.message||json?.error||`HTTP ${r.status}`); return json;
+    }
+
+    function opStatus(op){return op.status||op.pegout_status||op.Status||op.State||deep(op,['status','state'])||'—';}
+    function opAmount(op){return op.amount||op.Amount||deep(op,['amount','value','sats'])||'—';}
+    function opTime(op){return op.created_at||op.CreatedAt||op.Time||op.createdAt||op.timestamp||deep(op,['createdat','created','time','utime','timestamp']);}
+    function opBtcTx(op){return op.bitcoin_tx_id||op.BitcoinTxID||op.bitcoinTxID||op.TxID||op.txid||deep(op,['bitcointxid','btctxid','bitcointransaction','txid'])||firstHex64(op);}
+    function opTon(op){return op.ton_tx||op.tonTx||op.receiver_addr||op.sender_addr||op.TonTxHash||op.TonAddress||deep(op,['tontx','receiveraddr','senderaddr','tonaddress','eventid','traceid'])||'';}
+    function opPegout(op){return op.pegout_addr||op.pegoutAddress||op.PegoutContract||deep(op,['pegoutaddr','pegoutcontract']);}
+    function opText(op){return flatten(op).join(' ').toLowerCase();}
+
+    function renderCards(){
+      const info=state.info||{}, plots=state.plots||{}, dkg=state.dkg||{};
+      const teleport=info.ContractTeleport||{}, network=info.BitcoinNetworkInfo||{}, client=info.ContractBitcoinClient||{}, di=dkg.DkgInfo||{};
+      const supplyKnown = isKnown(plots.total_supply) || isKnown(info.JettonSummary?.supply);
+      const minted=Number(plots.total_minted ?? plots.total_supply ?? info.JettonSummary?.supply ?? 0);
+      const burned=Number(plots.total_burned||0);
+      const supply=supplyKnown ? (isKnown(plots.total_supply) ? Number(plots.total_supply) : (minted-burned)) : null;
+      const hasClient=isKnown(client.LastConfirmedBlockHeight) && isKnown(network.Blocks);
+      const lag=hasClient ? Number(network.Blocks)-Number(client.LastConfirmedBlockHeight) : null;
+      const utxoArr = Array.isArray(teleport.UTXOset) ? teleport.UTXOset : [];
+      const utxo=utxoArr.reduce((s,x)=>s+Number(x.Amount||0),0);
+      const dataMode = info.ChainOnly ? 'on-chain only' : 'full metrics API';
+      const cards=[
+        ['Network', cfg().label, cfg().maintenance?'mainnet first / read-only':'sandbox bridge mode', cfg().maintenance?'warn':'ok'],
+        ['Data source', info.ChainOnly?'Chain data':'Metrics API', dataMode, info.ChainOnly?'warn':'ok'],
+        ['Supply', supplyKnown?`${Number(supply).toLocaleString('en-US',{maximumFractionDigits:8})} tgBTC`:'—', `holders ${num(plots.holders_count ?? info.JettonSummary?.holders)}`, 'info'],
+        ['BTC reserve', utxoArr.length?satsToBtc(utxo):'not exposed', utxoArr.length?`${utxoArr.length} UTXO`:'mainnet full metrics needed', utxoArr.length?'ok':'warn'],
+        ['Bitcoin client', hasClient?`${num(client.LastConfirmedBlockHeight)} / ${num(network.Blocks)}`:'not exposed', hasClient?`lag ${num(lag)} blocks`:'chain-only mode', hasClient?(lag<20?'ok':lag<100?'warn':'bad'):'warn'],
+        ['DKG / signers', di.State||'NOT_EXPOSED', isKnown(di.ValidatorsCountInDkg)?`${num(di.ValidatorsCountInDkg)} in / ${num(di.ValidatorsCountNotInDkg)} out`:'full metrics needed', /FINISHED|OK/i.test(di.State||'')?'ok':/NOT_EXPOSED|UNKNOWN/i.test(di.State||'')?'warn':'warn']
+      ];
+      $('cards').innerHTML=cards.map(([a,b,c,k])=>`<article class="card"><div class="label">${a}</div><div class="value">${html(b)}</div><div class="hint">${pill(k.toUpperCase(),k)} ${html(c)}</div></article>`).join('');
+      $('statusStrip').innerHTML=[
+        pill(cfg().label,cfg().maintenance?'warn':'violet'),
+        pill(network.Chain||cfg().chain,'info'),
+        pill(info.ChainOnly?'CHAIN DATA':'FULL METRICS',info.ChainOnly?'warn':'ok'),
+        pill(teleport.Enabled?'CONTRACT ACTIVE':'CONTRACT UNKNOWN',teleport.Enabled?'ok':'warn'),
+        pill(`CONF ${client.ConfirmationsNeeded||'?'}`,'info'),
+        pill(`DKG ${di.State||'NOT_EXPOSED'}`,kind(di.State))
+      ].join('');
+    }
+
+    function renderProtocol(){
+      const info=state.info||{}, dkg=state.dkg||{}; const teleport=info.ContractTeleport||{}, network=info.BitcoinNetworkInfo||{}, client=info.ContractBitcoinClient||{}, di=dkg.DkgInfo||{}, limits=teleport.Limits||{};
+      const hasClient=isKnown(client.LastConfirmedBlockHeight) && isKnown(network.Blocks);
+      const lag=hasClient ? Number(network.Blocks)-Number(client.LastConfirmedBlockHeight) : null;
+      const hasLimits=isKnown(limits.MinPeginAmount)||isKnown(limits.MinPegoutAmount);
+      const hasReserve=Array.isArray(teleport.UTXOset)&&teleport.UTXOset.length>0;
+      const checks=[
+        ['Contract active',Boolean(teleport.Enabled),'tgBTC/Teleport mainnet contract is visible on TON'],
+        ['Full metrics available',!info.ChainOnly,'Needed for exact BTC client, DKG, reserve and fees'],
+        ['BTC Client lag known',hasClient,'Shows whether BTC → tgBTC can mint without long pending'],
+        ['DKG/signers known',!/NOT_EXPOSED|UNKNOWN/i.test(di.State||''),'Needed for exact tgBTC → BTC signing status'],
+        ['Reserve UTXO known',hasReserve,'Needed to prove BTC backing from the protocol API'],
+        ['Mainnet send allowed',state.network!=='mainnet' || !cfg().maintenance,'If maintenance=1, keep real BTC sending disabled']
+      ];
+      const passed=checks.filter(x=>x[1]).length; $('healthBar').style.width=`${Math.round(passed/checks.length*100)}%`;
+      const reasons=[]; if(info.ChainOnly)reasons.push('mainnet chain-only mode'); if(hasClient&&lag>=20)reasons.push(`BTC Client lag ${num(lag)} blocks`); if(!hasClient)reasons.push('BTC client not exposed'); if(/NOT_EXPOSED|UNKNOWN/i.test(di.State||''))reasons.push('DKG not exposed'); if(cfg().maintenance)reasons.push('maintenance=1');
+      $('healthHint').textContent=reasons.length?`Важно: ${reasons.join(', ')}.`:'Full metrics loaded; mainnet internals are visible.';
+      $('checks').innerHTML=checks.map(([a,ok,h])=>`<div class="check"><div><b>${html(a)}</b><div class="small">${html(h)}</div></div>${pill(ok?'OK':'CHECK',ok?'ok':'warn')}</div>`).join('');
+      $('protocolKv').innerHTML=[
+        row('Environment',pill(`${cfg().env} / ${cfg().chain}`,cfg().maintenance?'warn':'violet')),
+        row('Data mode',pill(info.ChainOnly?'CHAIN ONLY':'FULL METRICS',info.ChainOnly?'warn':'ok')),
+        row('Contract active',pill(String(Boolean(teleport.Enabled)),teleport.Enabled?'ok':'warn')),
+        row('Maintenance',pill(cfg().maintenance?'1 / read-only':'0','warn')),
+        row('Processing pegins',num(teleport.PeginsCount)),
+        row('DKG state',pill(di.State||'NOT_EXPOSED',kind(di.State))),
+        row('Last pegout tx',teleport.LastPegoutTxID?link(cfg().btcTx+teleport.LastPegoutTxID,short(teleport.LastPegoutTxID),'mono'):'—'),
+        row('Min pegin',satsToBtc(limits.MinPeginAmount)),
+        row('Min pegout',satsToBtc(limits.MinPegoutAmount))
+      ].join('');
+      $('mainnetSafety').classList.toggle('hide',state.network!=='mainnet');
+      $('actionCards').innerHTML=[
+        ['Mainnet view', state.network==='mainnet'?'Visible by default':'Testnet selected', state.network==='mainnet'?(info.ChainOnly?'Showing real on-chain mainnet data; full protocol metrics not exposed.':'Full mainnet metrics loaded.'):'Sandbox/testnet data is selected.', state.network==='mainnet'?(info.ChainOnly?'warn':'ok'):'info'],
+        ['BTC → tgBTC', state.network==='mainnet'?'Disabled for safety':(hasClient&&lag>20?'Pending risk':'Can test'), state.network==='mainnet'?'MAINTENANCE_MODE=1, so no real BTC send button.':(hasClient&&lag>20?`Pegin can hang: lag ${num(lag)} blocks.`:'Signet test looks possible.'), state.network==='mainnet'?'warn':(hasClient&&lag>20?'warn':'ok')],
+        ['tgBTC → BTC', state.network==='mainnet'?'Watch only':(/FINISHED|OK/i.test(di.State||'')?'Can test':'Signing risk'), state.network==='mainnet'?'Burn/pegout history is visible; sending real mainnet tx is disabled here.':(/FINISHED|OK/i.test(di.State||'')?'DKG looks ready.':'Burn may wait for signatures.'), state.network==='mainnet'?'warn':(/FINISHED|OK/i.test(di.State||'')?'ok':'warn')]
+      ].map(([a,b,c,k])=>`<article class="card"><div class="label">${a}</div><div class="value">${html(b)}</div><div class="hint">${pill(k.toUpperCase(),k)} ${html(c)}</div></article>`).join('');
+    }
+
+    function renderSide(){
+      const info=state.info||{}, dkg=state.dkg||{}; const teleport=info.ContractTeleport||{}, network=info.BitcoinNetworkInfo||{}, client=info.ContractBitcoinClient||{}, di=dkg.DkgInfo||{}, limits=teleport.Limits||{};
+      const entries={tgBTC:teleport.MinterAddress||cfg().minter,Teleport:teleport.TeleportAddress||cfg().teleportAddr,Coordinator:teleport.CoordinatorAddress, 'Bitcoin Client':teleport.BitcoinClientAddress, Inspector:teleport.InspectorAddress, Configurator:teleport.ConfiguratorAddress};
+      $('contractsKv').innerHTML=Object.entries(entries).filter(([,v])=>v).map(([k,v])=>row(k,link(cfg().tonviewer+v,`<span class="mono">${html(v)}</span>`))).join('');
+      const hasClient=isKnown(client.LastConfirmedBlockHeight) && isKnown(network.Blocks);
+      const lag=hasClient?Number(network.Blocks)-Number(client.LastConfirmedBlockHeight):null;
+      $('bitcoinKv').innerHTML=[row('Chain',html(network.Chain||cfg().chain)),row('Network height',num(network.Blocks)),row('Client height',num(client.LastConfirmedBlockHeight)),row('Lag',hasClient?`${num(lag)} blocks`:'—'),row('Confirmations',num(client.ConfirmationsNeeded)),row('Best block',`<span class="mono">${short(network.BestBlockHash,14,10)}</span>`),row('Client block',`<span class="mono">${short(client.LastConfirmedBlockHash,14,10)}</span>`)].join('');
+      $('dkgKv').innerHTML=[row('Standalone',dkg.StandaloneMode===null?'—':pill(String(Boolean(dkg.StandaloneMode)),dkg.StandaloneMode?'warn':'ok')),row('Current state',pill(di.State||'NOT_EXPOSED',kind(di.State))),row('VSet size',num(di.VSetSize)),row('Max validators',num(di.ValidatorsCountMax)),row('In DKG',num(di.ValidatorsCountInDkg)),row('Not in DKG',num(di.ValidatorsCountNotInDkg)),row('Evicted',num(di.ValidatorsCountEvicted))].join('');
+      $('keysKv').innerHTML=[row('Tweaked key',`<span class="mono">${html(teleport.TweakedPubkey||'—')}</span>`),row('Internal key',`<span class="mono">${html(teleport.InternalKey||'—')}</span>`),row('CSV locktime',num(teleport.CsvLock)),row('Pegout counter',num(teleport.PegoutCounter)),row('Total service fee',isKnown(teleport.TotalServiceFee)?`${num(teleport.TotalServiceFee)} sats`:'—'),row('Base fee',isKnown(teleport.BaseSVB)?`${num(teleport.BaseSVB)} sat/vByte`:'—'),row('Next fee',isKnown(teleport.NextSVB)?`${num(teleport.NextSVB)} sat/vByte`:'—'),row('Min pegin',satsToBtc(limits.MinPeginAmount))].join('');
+      $('rawInfo').textContent=JSON.stringify(info,null,2); $('rawDkg').textContent=JSON.stringify(dkg,null,2);
+      if(!state.alerts.length) $('alertsBox').innerHTML='<div class="empty">No alerts loaded.</div>'; else $('alertsBox').innerHTML=state.alerts.map(a=>`<div class="check"><span>${html(a.message||a.text||JSON.stringify(a))}</span>${pill(a.level||a.severity||'alert',kind(a.level||a.severity))}</div>`).join('');
+    }
+
+    function renderUtxo(){
+      const utxos=(state.info?.ContractTeleport?.UTXOset);
+      $('reserveSubtitle').textContent=state.network==='mainnet'?'mainnet BTC backing':'signet BTC backing';
+      if(!Array.isArray(utxos) || !utxos.length){$('utxoBody').innerHTML='<tr><td colspan="4"><div class="empty">Reserve UTXO not exposed by current mainnet source. If full metrics API becomes available, it will appear here.</div></td></tr>';return;}
+      $('utxoBody').innerHTML=utxos.map(u=>`<tr><td>${satsToBtc(u.Amount)}</td><td>${u.Address?link(cfg().btcTx+u.Address,`<span class="mono">${html(u.Address)}</span>`):'—'}</td><td>${num(u.Index)}</td><td class="mono">${html(u.Script||'—')}</td></tr>`).join('');
+    }
+
+    function renderOps(){
+      const list=(state.activeTab==='mints'?state.mints:state.burns)||[]; const q=state.query.trim().toLowerCase(); const rows=(q?list.filter(op=>opText(op).includes(q)):list).slice(0,80);
+      if(!rows.length){$('opsBody').innerHTML='<tr><td colspan="5"><div class="empty">Нет операций по текущему фильтру.</div></td></tr>'; return;}
+      $('opsBody').innerHTML=rows.map(op=>{const st=opStatus(op), btc=opBtcTx(op), ton=opTon(op); return `<tr><td>${dateFmt(opTime(op))}</td><td>${html(opAmount(op))}</td><td>${pill(st,kind(st))}</td><td>${btc?link(cfg().btcTx+btc,`<span class="mono">${short(btc)}</span>`):'—'}</td><td>${ton?`<span class="mono">${short(ton,16,10)}</span>`:'—'}</td></tr>`;}).join('');
+    }
+
+    function renderWithdraw(){
+      const rows=(state.burns||[]).slice(0,10); if(!rows.length){$('withdrawMonitor').innerHTML='<div class="empty">No burn/withdraw rows returned.</div>';return;}
+      $('withdrawMonitor').innerHTML=rows.map(op=>{const st=opStatus(op), btc=opBtcTx(op), ton=opTon(op), peg=opPegout(op); return `<div class="check"><div><div><strong>${html(opAmount(op))}</strong> ${pill(st,kind(st))}</div><div class="small">${dateFmt(opTime(op))}</div><div class="small">TON: ${ton?`<span class="mono">${short(ton,14,8)}</span>`:'waiting'} ${peg?` · Pegout: <span class="mono">${short(peg,14,8)}</span>`:''}</div><div class="small">BTC: ${btc?link(cfg().btcTx+btc,short(btc),'mono'):'waiting for signatures/broadcast'}</div></div></div>`;}).join('');
+    }
+
+    function renderAll(){ renderCards(); renderProtocol(); renderSide(); renderUtxo(); renderOps(); renderWithdraw(); }
+
+    async function load(){
+      $('refreshBtn').disabled=true; $('updatedAt').textContent='загрузка...';
+      try{
+        const [info,plots,dkg,mints,burns,alerts]=await Promise.all([api('info'),api('plots_summary'),api('dkg_status'),api('mints',{limit:100}),api('burns',{limit:100}),api('alerts',{limit:50}).catch(()=>[])]);
+        state.info=info; state.plots=plots; state.dkg=dkg; state.mints=Array.isArray(mints)?mints:[]; state.burns=Array.isArray(burns)?burns:[]; state.alerts=Array.isArray(alerts)?alerts:[];
+        $('updatedAt').textContent=`обновлено: ${new Date().toLocaleString('ru-RU',{hour12:false})}`; renderAll();
+      }catch(e){$('cards').innerHTML=`<article class="card" style="grid-column:1/-1"><div class="error">Не удалось загрузить ${html(state.network)}: ${html(e.message)}</div></article>`; $('updatedAt').textContent='ошибка';}
+      finally{$('refreshBtn').disabled=false; schedule();}
+    }
+
+    function setNetwork(net,push=true){state.network=net==='mainnet'?'mainnet':'testnet'; $('mainnetBtn').classList.toggle('active',state.network==='mainnet'); $('testnetBtn').classList.toggle('active',state.network==='testnet'); const c=cfg(); $('networkNote').innerHTML=state.network==='mainnet'?'Mainnet по умолчанию: реальные TON mainnet контракты, read-only пока MAINTENANCE_MODE=1. Sandbox metrics не подмешиваются.':'Testnet: sandbox.teleport.tg, signet BTC и TON testnet.'; $('teleportLink').href=c.teleport; $('tonviewerLink').href=c.tonviewer+c.teleportAddr; document.title=state.network==='mainnet'?'tgBTC Mainnet Explorer':'tgBTC Testnet Explorer'; if(push){const u=new URL(location.href); u.searchParams.set('mode',state.network); history.replaceState(null,'',u.toString());} load();}
+    function schedule(){ if(state.timer) clearTimeout(state.timer); if(!state.auto)return; state.timer=setTimeout(load,state.network==='mainnet'?45000:30000); }
+
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{state.activeTab=b.dataset.tab; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b)); renderOps();}));
+    $('opSearch').addEventListener('input',e=>{state.query=e.target.value; renderOps();});
+    $('refreshBtn').addEventListener('click',load); $('autoBtn').addEventListener('click',()=>{state.auto=!state.auto; $('autoBtn').textContent=`Auto: ${state.auto?'ON':'OFF'}`; schedule();});
+    $('testnetBtn').addEventListener('click',()=>setNetwork('testnet')); $('mainnetBtn').addEventListener('click',()=>setNetwork('mainnet'));
+    const m=new URL(location.href).searchParams.get('mode'); setNetwork(m==='testnet'||m==='sand'||m==='sandbox'?'testnet':'mainnet',false);
+  </script>
+</body>
+</html>
