@@ -34,3 +34,9 @@ Coordinator: Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk
 Bitcoin Client: EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2
 Maintenance: 1, read-only
 ```
+
+
+## v14 Vercel public output fix
+
+This build creates a public/ output directory during npm run build and sets vercel.json outputDirectory to public. Upload root files and api/ to GitHub, not the zip itself.
+
