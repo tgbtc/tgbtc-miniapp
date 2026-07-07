@@ -1,42 +1,28 @@
-# tgBTC Miniapp v12 — Mainnet real first + Testnet switch
+# tgBTC Miniapp v15 — Mainnet first, Hobby plan safe
 
-Открытие без параметров сразу показывает MAINNET / PROD.
+This build fixes the Vercel Hobby plan error:
 
-Mainnet в этой версии НЕ берёт `https://teleport.tg/metrics/api`, потому что этот endpoint может отдавать sandbox/signet данные. Чтобы не показывать ложный mainnet, v12 принудительно показывает mainnet через реальные TON mainnet контракты: tgBTC master, Teleport, Bitcoin Client account, holders/events через TonAPI.
+`No more than 12 Serverless Functions can be added to a Deployment on the Hobby plan.`
 
-Testnet/Sandbox остаётся как раньше и использует full metrics: `https://sandbox.teleport.tg/metrics/api`.
+It deploys only one function:
 
-## URL
+- `api/metrics.js`
 
-- Mainnet default: `https://tgbtc-miniapp.vercel.app/`
-- Mainnet explicit: `https://tgbtc-miniapp.vercel.app/?mode=mainnet`
-- Testnet: `https://tgbtc-miniapp.vercel.app/?mode=testnet`
+Mainnet opens by default. Testnet opens only after switching in the UI or with `?mode=testnet`.
 
-## Upload to GitHub/Vercel
+## Upload to GitHub root
 
-Upload all files to project root:
+Upload/replace these in the repository root:
 
-```text
-index.html
-package.json
-vercel.json
-tonconnect-manifest.json
-README.md
-api/
-```
+- `.vercelignore`
+- `api/metrics.js`
+- `public/index.html`
+- `public/tonconnect-manifest.json`
+- `index.html`
+- `tonconnect-manifest.json`
+- `package.json`
+- `package-lock.json`
+- `vercel.json`
+- `README.md`
 
-## Mainnet config
-
-```text
-tgBTC master: EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU
-Teleport: EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-
-Coordinator: Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk
-Bitcoin Client: EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2
-Maintenance: 1, read-only
-```
-
-
-## v14 Vercel public output fix
-
-This build creates a public/ output directory during npm run build and sets vercel.json outputDirectory to public. Upload root files and api/ to GitHub, not the zip itself.
-
+Important: old API files can remain in GitHub, but `.vercelignore` excludes them from Vercel deployment. Best practice is still to delete old unused files from `api/` and leave only `metrics.js`.

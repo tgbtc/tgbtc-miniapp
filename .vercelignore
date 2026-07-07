@@ -1,0 +1,11 @@
+# Vercel Hobby allows max 12 Serverless Functions.
+# This project only needs one function: api/metrics.js.
+# These rules prevent old bridge endpoints from being deployed if they remain in GitHub.
+api/*
+!api/metrics.js
+
+# Ignore uploaded archives and local output folders.
+*.zip
+outputs/
+tgbtc_*/
+v*/
