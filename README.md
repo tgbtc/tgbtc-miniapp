@@ -1,40 +1,37 @@
-# tgBTC Explorer v10 Full Switch
+# tgBTC Explorer v11 — Mainnet first
 
-Один сайт для `https://tgbtc-miniapp.vercel.app/` с переключателем:
+Один сайт для `https://tgbtc-miniapp.vercel.app/`.
 
-- Sandbox / Testnet — `https://sandbox.teleport.tg/metrics/api`, signet BTC, TON testnet.
-- Mainnet / Prod — `https://teleport.tg/metrics/api`, Bitcoin mainnet, TON mainnet.
+По умолчанию открывается **Mainnet / Prod**. Testnet/Sandbox можно включить кнопкой или URL:
 
-## Главные файлы
+- `/` — mainnet по умолчанию
+- `/?mode=mainnet` — mainnet
+- `/?mode=testnet` — sandbox/testnet
 
-Загружать в GitHub/Vercel прямо в корень проекта:
+## Что исправлено
 
-```text
-index.html
-package.json
-vercel.json
-tonconnect-manifest.json
-api/
-```
+- Mainnet теперь открыт по умолчанию.
+- Mainnet не показывает выдуманные `0` для BTC client / DKG / reserve, если full metrics API недоступен.
+- Если prod metrics API отвечает — показывается full view как в testnet.
+- Если prod metrics API не отдаёт источник — показывается chain-only mainnet: supply, holders, master/teleport activity, events, accounts, raw JSON.
+- Отправка real BTC в mainnet отключена, пока в официальном prod config `MAINTENANCE_MODE=1`.
 
 ## Mainnet config
 
-```js
-TON_CENTER_ENDPOINT: "https://toncenter.com"
-INDEXER_GRAPHQL_ENDPOINT: "https://teleport.tg/indexer/graphql"
-TON_CONTRACT_MINTER_ADDR: "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU"
-TON_CONTRACT_TELEPORT_ADDR: "EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-"
-TON_CONTRACT_COORDINATOR: "Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk"
-TON_CONTRACT_BITCLIENT_ADDR: "EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2"
-BITCOIN_RPC_ENDPOINT: "https://bitcoin-rpc.publicnode.com"
-MAINTENANCE_MODE: "1"
-```
+- tgBTC master: `EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU`
+- Teleport: `EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-`
+- Coordinator: `Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk`
+- Bitcoin Client: `EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2`
+- Indexer: `https://teleport.tg/indexer/graphql`
+- Metrics: `https://teleport.tg/metrics/api`
 
-Mainnet в этом билде показывает данные и риски. Реальная отправка BTC на mainnet не включена, пока официально стоит `MAINTENANCE_MODE=1`.
+## Deploy
 
-## URL
+Загрузи в корень GitHub/Vercel:
 
-```text
-/?mode=testnet
-/?mode=mainnet
-```
+- `index.html`
+- `package.json`
+- `vercel.json`
+- `tonconnect-manifest.json`
+- `README.md`
+- `api/`
