@@ -15,7 +15,7 @@
       <div>
         <h1>tgBTC Explorer</h1>
         <div class="subtitle">Сначала показывает <b>Mainnet/Prod</b>, а при необходимости можно переключиться на <b>Testnet/Sandbox</b>. Mainnet показывает только реальные данные: full metrics, если доступны, или on-chain данные без выдуманных значений.</div>
-        <div class="small" style="margin-top:8px"><span class="pill ok">v11 MAINNET FIRST</span> <span class="pill violet">mainnet + testnet</span></div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v12 MAINNET REAL FIRST</span> <span class="pill violet">mainnet + testnet</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -32,7 +32,7 @@
           <button class="mode-btn active" id="mainnetBtn" type="button">Mainnet / Prod</button>
           <button class="mode-btn" id="testnetBtn" type="button">Sandbox / Testnet</button>
         </div>
-        <div class="small" id="networkNote" style="margin-top:10px">Mainnet: реальные контракты tgBTC, Teleport и prod endpoints. По умолчанию read-only.</div>
+        <div class="small" id="networkNote" style="margin-top:10px">Mainnet по умолчанию: реальные TON mainnet контракты. Sandbox/signet metrics специально игнорируются, чтобы не показывать ложный mainnet.</div>
       </div>
     </section>
 
@@ -45,7 +45,7 @@
         <section class="section">
           <div class="head"><h2>Состояние протокола</h2><span class="small" id="updatedAt">загрузка...</span></div>
           <div class="body">
-            <div id="mainnetSafety" class="danger-note hide" style="margin-bottom:12px">MAINNET по умолчанию. Отправка real BTC отключена, потому что в prod config MAINTENANCE_MODE=1. Здесь показываются реальные mainnet данные: full metrics если доступны, иначе on-chain данные без выдуманных BTC client/DKG значений.</div>
+            <div id="mainnetSafety" class="danger-note hide" style="margin-bottom:12px">MAINNET по умолчанию. Отправка real BTC отключена, потому что в prod config MAINTENANCE_MODE=1. Здесь показываются только реальные mainnet данные из TON mainnet. Если full prod metrics возвращает sandbox/signet, он специально игнорируется.</div>
             <div class="split">
               <div class="kv" id="protocolKv"></div>
               <div>
@@ -254,7 +254,7 @@
       finally{$('refreshBtn').disabled=false; schedule();}
     }
 
-    function setNetwork(net,push=true){state.network=net==='mainnet'?'mainnet':'testnet'; $('mainnetBtn').classList.toggle('active',state.network==='mainnet'); $('testnetBtn').classList.toggle('active',state.network==='testnet'); const c=cfg(); $('networkNote').innerHTML=state.network==='mainnet'?'Mainnet показывается по умолчанию: реальные контракты, prod endpoints, read-only пока MAINTENANCE_MODE=1.':'Testnet: sandbox.teleport.tg, signet BTC и TON testnet.'; $('teleportLink').href=c.teleport; $('tonviewerLink').href=c.tonviewer+c.teleportAddr; document.title=state.network==='mainnet'?'tgBTC Mainnet Explorer':'tgBTC Testnet Explorer'; if(push){const u=new URL(location.href); u.searchParams.set('mode',state.network); history.replaceState(null,'',u.toString());} load();}
+    function setNetwork(net,push=true){state.network=net==='mainnet'?'mainnet':'testnet'; $('mainnetBtn').classList.toggle('active',state.network==='mainnet'); $('testnetBtn').classList.toggle('active',state.network==='testnet'); const c=cfg(); $('networkNote').innerHTML=state.network==='mainnet'?'Mainnet по умолчанию: реальные TON mainnet контракты, read-only пока MAINTENANCE_MODE=1. Sandbox metrics не подмешиваются.':'Testnet: sandbox.teleport.tg, signet BTC и TON testnet.'; $('teleportLink').href=c.teleport; $('tonviewerLink').href=c.tonviewer+c.teleportAddr; document.title=state.network==='mainnet'?'tgBTC Mainnet Explorer':'tgBTC Testnet Explorer'; if(push){const u=new URL(location.href); u.searchParams.set('mode',state.network); history.replaceState(null,'',u.toString());} load();}
     function schedule(){ if(state.timer) clearTimeout(state.timer); if(!state.auto)return; state.timer=setTimeout(load,state.network==='mainnet'?45000:30000); }
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{state.activeTab=b.dataset.tab; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b)); renderOps();}));
