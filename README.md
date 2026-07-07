@@ -1,4 +1,4 @@
-# tgBTC Miniapp v15 — Mainnet first, Hobby plan safe
+# tgBTC Miniapp v16 — Mainnet first + strict prod metrics probing
 
 This build fixes the Vercel Hobby plan error:
 
@@ -8,7 +8,7 @@ It deploys only one function:
 
 - `api/metrics.js`
 
-Mainnet opens by default. Testnet opens only after switching in the UI or with `?mode=testnet`.
+Mainnet opens by default. It first tries the prod full metrics endpoint in the same style as testnet. If the response is actually sandbox/signet, it is rejected and the UI falls back to real TON mainnet on-chain data. Testnet opens only after switching in the UI or with `?mode=testnet`.
 
 ## Upload to GitHub root
 

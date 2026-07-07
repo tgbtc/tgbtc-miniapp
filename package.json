@@ -1,6 +1,6 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "1.0.0-v15-hobby-one-function",
+  "version": "1.0.0-v16-try-prod-metrics",
   "private": true,
   "dependencies": {},
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
-  "description": "tgBTC explorer with Mainnet first, Testnet switch, and one Vercel serverless function for Hobby plan",
+  "description": "tgBTC explorer with Mainnet first, Testnet switch, one Vercel function, and strict prod metrics probing",
   "engines": {
     "node": "20.x"
   }

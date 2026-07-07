@@ -14,8 +14,8 @@
     <div class="top">
       <div>
         <h1>tgBTC Explorer</h1>
-        <div class="subtitle">Сначала показывает <b>Mainnet/Prod</b>, а при необходимости можно переключиться на <b>Testnet/Sandbox</b>. Mainnet показывает только реальные данные: full metrics, если доступны, или on-chain данные без выдуманных значений.</div>
-        <div class="small" style="margin-top:8px"><span class="pill ok">v13 MAINNET FIRST VERCEL SAFE</span> <span class="pill violet">mainnet + testnet</span></div>
+        <div class="subtitle">Сначала показывает <b>Mainnet/Prod</b>, а при необходимости можно переключиться на <b>Testnet/Sandbox</b>. Mainnet сначала пробует full metrics как testnet; если endpoint отдаёт sandbox/signet, он отклоняется и показывается реальный on-chain mainnet без выдуманных значений.</div>
+        <div class="small" style="margin-top:8px"><span class="pill ok">v16 MAINNET FULL METRICS TRY</span> <span class="pill violet">mainnet + testnet</span></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="refreshBtn" type="button">↻ Обновить</button>
@@ -32,7 +32,7 @@
           <button class="mode-btn active" id="mainnetBtn" type="button">Mainnet / Prod</button>
           <button class="mode-btn" id="testnetBtn" type="button">Sandbox / Testnet</button>
         </div>
-        <div class="small" id="networkNote" style="margin-top:10px">Mainnet по умолчанию: реальные TON mainnet контракты. Sandbox/signet metrics специально игнорируются, чтобы не показывать ложный mainnet.</div>
+        <div class="small" id="networkNote" style="margin-top:10px">Mainnet по умолчанию: реальные TON mainnet контракты. Full prod metrics пробуются первыми; sandbox/signet payload отклоняется, чтобы mainnet не показывался неправильно.</div>
       </div>
     </section>
 
@@ -45,7 +45,7 @@
         <section class="section">
           <div class="head"><h2>Состояние протокола</h2><span class="small" id="updatedAt">загрузка...</span></div>
           <div class="body">
-            <div id="mainnetSafety" class="danger-note hide" style="margin-bottom:12px">MAINNET по умолчанию. Отправка real BTC отключена, потому что в prod config MAINTENANCE_MODE=1. Здесь показываются только реальные mainnet данные из TON mainnet. Если full prod metrics возвращает sandbox/signet, он специально игнорируется.</div>
+            <div id="mainnetSafety" class="danger-note hide" style="margin-bottom:12px">MAINNET по умолчанию. Приложение пробует prod full metrics так же, как testnet. Если ответ не совпадает с mainnet contracts/bitcoin или возвращает sandbox/signet, он отклоняется. Отправка real BTC отключена, пока MAINTENANCE_MODE=1.</div>
             <div class="split">
               <div class="kv" id="protocolKv"></div>
               <div>
