@@ -1,23 +1,4 @@
 const NETWORKS = {
-  testnet: {
-    id: 'testnet',
-    label: 'Sandbox / Testnet',
-    environment: 'sand',
-    maintenance: '0',
-    metricsApi: 'https://sandbox.teleport.tg/metrics/api',
-    indexer: 'https://sandbox.teleport.tg/indexer/graphql',
-    tonCenter: 'https://testnet.toncenter.com',
-    tonApi: 'https://testnet.tonapi.io/v2',
-    btcExplorer: 'https://mempool.space/signet',
-    btcNetwork: 'signet',
-    minter: 'EQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdLub',
-    minterRaw: '0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074',
-    teleport: 'EQDhF3lwtyKpQi2O9nS4XNyyyIKV7jl9cVCko4L5GSFAnHRo',
-    teleportRaw: '0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c',
-    coordinator: 'EQD43RtdAQ_Y8nl86SqzxjlL_-rAvdZiBDk_s7OTF-oRxmwo',
-    bitclient: 'EQCuCNaMk85GtP2bjBMB6Jh0SMaH3gWU_kxE-LIBU0ydEJUt',
-    bitcoinRpc: 'https://bitcoin-rpc.ton-teleport.rsquad.solutions/'
-  },
   mainnet: {
     id: 'mainnet',
     label: 'Mainnet / Prod',
@@ -35,7 +16,29 @@ const NETWORKS = {
     teleportRaw: '0:baa3e462e10dd1dc5d7139368f6b067deb88aa85add3cc91809a98bc8785ea70',
     coordinator: 'Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk',
     bitclient: 'EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2',
-    bitcoinRpc: 'https://bitcoin-rpc.publicnode.com'
+    bitclientRaw: '0:bccd3100b7d06386d7b29919ceabc84aec0b949ec781d713cd1e3ade099b3034',
+    bitcoinRpc: 'https://bitcoin-rpc.publicnode.com',
+    readOnly: true
+  },
+  testnet: {
+    id: 'testnet',
+    label: 'Sandbox / Testnet',
+    environment: 'sand',
+    maintenance: '0',
+    metricsApi: 'https://sandbox.teleport.tg/metrics/api',
+    indexer: 'https://sandbox.teleport.tg/indexer/graphql',
+    tonCenter: 'https://testnet.toncenter.com',
+    tonApi: 'https://testnet.tonapi.io/v2',
+    btcExplorer: 'https://mempool.space/signet',
+    btcNetwork: 'signet',
+    minter: 'EQCxINuwGtspAnynQHKcnhVr2GweYkRZsbKNW0XtaHOAdLub',
+    minterRaw: '0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074',
+    teleport: 'EQDhF3lwtyKpQi2O9nS4XNyyyIKV7jl9cVCko4L5GSFAnHRo',
+    teleportRaw: '0:e1177970b722a9422d8ef674b85cdcb2c88295ee397d7150a4a382f91921409c',
+    coordinator: 'EQD43RtdAQ_Y8nl86SqzxjlL_-rAvdZiBDk_s7OTF-oRxmwo',
+    bitclient: 'EQCuCNaMk85GtP2bjBMB6Jh0SMaH3gWU_kxE-LIBU0ydEJUt',
+    bitcoinRpc: 'https://bitcoin-rpc.ton-teleport.rsquad.solutions/',
+    readOnly: false
   }
 };
 
@@ -51,13 +54,13 @@ function parseLimit(value) {
 }
 
 function selectNetwork(value) {
-  return value === 'mainnet' || value === 'prod' || value === 'main' ? NETWORKS.mainnet : NETWORKS.testnet;
+  return value === 'testnet' || value === 'sand' || value === 'sandbox' ? NETWORKS.testnet : NETWORKS.mainnet;
 }
 
 function headers(extra = {}) {
   return {
     accept: 'application/json',
-    'user-agent': 'tgbtc-mainnet-testnet-switch/1.0',
+    'user-agent': 'tgbtc-mainnet-default-explorer/1.1',
     ...extra,
   };
 }
@@ -78,12 +81,18 @@ function safeJson(text) {
   try { return text ? JSON.parse(text) : null; } catch { return { raw: text }; }
 }
 
+function looksLikeHtml(payload) {
+  if (!payload) return false;
+  if (typeof payload.raw === 'string' && /<!doctype|<html|<body/i.test(payload.raw)) return true;
+  return false;
+}
+
 async function proxyMetrics(cfg, source, limit) {
   const targetUrl = new URL(cfg.metricsApi);
   targetUrl.searchParams.set('source', source);
   const { response, text } = await fetchText(targetUrl.toString(), 20000, { headers: headers() });
   let payload = safeJson(text);
-  if (!response.ok) {
+  if (!response.ok || looksLikeHtml(payload)) {
     const err = new Error(`metrics API ${response.status}`);
     err.status = response.status;
     err.payload = payload;
@@ -105,33 +114,82 @@ async function getTonApi(cfg, path, params = {}) {
   return { ok: true, status: response.status, url: url.toString(), body };
 }
 
+async function postGraphql(cfg, query) {
+  try {
+    const { response, text } = await fetchText(cfg.indexer, 12000, {
+      method: 'POST',
+      headers: headers({ 'content-type': 'application/json' }),
+      body: JSON.stringify({ query })
+    });
+    const body = safeJson(text);
+    return { ok: response.ok, status: response.status, url: cfg.indexer, body };
+  } catch (error) {
+    return { ok: false, status: 0, url: cfg.indexer, body: { error: error.message } };
+  }
+}
+
 async function getBitcoinHeight(cfg) {
   try {
     const url = `${cfg.btcExplorer}/api/blocks/tip/height`;
-    const { response, text } = await fetchText(url, 8000, { headers: { accept: 'text/plain', 'user-agent': 'tgbtc-switch-height/1.0' } });
-    if (!response.ok) return 0;
-    return Number.parseInt(text, 10) || 0;
-  } catch { return 0; }
+    const { response, text } = await fetchText(url, 8000, { headers: { accept: 'text/plain', 'user-agent': 'tgbtc-switch-height/1.1' } });
+    if (!response.ok) return null;
+    const h = Number.parseInt(text, 10);
+    return Number.isFinite(h) ? h : null;
+  } catch { return null; }
 }
 
-function findActions(eventsBody) {
-  const events = (eventsBody && (eventsBody.events || eventsBody)) || [];
-  if (!Array.isArray(events)) return [];
+function eventList(eventsBody) {
+  const body = eventsBody || {};
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body.events)) return body.events;
+  if (Array.isArray(body.traces)) return body.traces;
+  return [];
+}
+
+function actionTitle(action) {
+  return String(action.type || action.action_type || action.simple_preview?.name || action.simple_preview?.description || 'ACTION');
+}
+
+function actionValue(action) {
+  const simple = action.simple_preview || {};
+  const byType = action.JettonMint || action.JettonBurn || action.JettonTransfer || action[action.type] || {};
+  return simple.value || byType.amount || byType.jetton_amount || byType.amount_str || byType.value || '';
+}
+
+function actionAddress(action) {
+  const simple = action.simple_preview || {};
+  const byType = action.JettonMint || action.JettonBurn || action.JettonTransfer || action[action.type] || {};
+  const accounts = simple.accounts || [];
+  return accounts[0]?.address || byType.sender?.address || byType.recipient?.address || byType.owner?.address || byType.wallet?.address || '';
+}
+
+function normalizeActions(eventsBody, sourceName) {
+  const events = eventList(eventsBody);
   const rows = [];
   for (const event of events) {
     const actions = Array.isArray(event.actions) ? event.actions : [];
-    for (const action of actions) {
-      const type = action.type || action.action_type || 'ACTION';
-      const simple = action.simple_preview || {};
-      const value = action.JettonMint || action.JettonBurn || action.JettonTransfer || action[action.type] || {};
+    if (!actions.length) {
       rows.push({
-        type,
-        timestamp: event.timestamp || event.utime || event.event_id,
-        event_id: event.event_id || event.trace_id || '',
+        type: 'TRANSACTION',
+        source: sourceName,
+        timestamp: event.timestamp || event.utime || event.now,
+        event_id: event.event_id || event.trace_id || event.hash || '',
+        status: event.is_scam ? 'WARN' : (event.success === false ? 'FAILED' : 'CONFIRMED'),
+        amount: '',
+        account: '',
+        raw: event
+      });
+      continue;
+    }
+    for (const action of actions) {
+      rows.push({
+        type: actionTitle(action),
+        source: sourceName,
+        timestamp: event.timestamp || event.utime || event.now,
+        event_id: event.event_id || event.trace_id || event.hash || '',
         status: action.status || (action.success === false ? 'FAILED' : 'CONFIRMED'),
-        amount: simple.value || value.amount || value.jetton_amount || value.amount_str || '',
-        account: simple.accounts?.[0]?.address || value.sender?.address || value.recipient?.address || value.owner?.address || '',
-        ton_tx: event.event_id || event.trace_id || '',
+        amount: actionValue(action),
+        account: actionAddress(action),
         raw: action
       });
     }
@@ -139,84 +197,151 @@ function findActions(eventsBody) {
   return rows;
 }
 
-function txRows(txBody) {
-  const txs = (txBody && (txBody.transactions || txBody)) || [];
-  if (!Array.isArray(txs)) return [];
-  return txs.map((tx) => ({
-    timestamp: tx.utime || tx.now || tx.created_at,
-    status: tx.success === false ? 'FAILED' : 'CONFIRMED',
-    ton_tx: tx.hash || tx.transaction_id?.hash || '',
-    account: tx.account?.address || '',
-    raw: tx
-  }));
+function toTokenAmount(raw, decimals) {
+  const n = Number(raw || 0);
+  if (!Number.isFinite(n)) return null;
+  return n / (10 ** decimals);
+}
+
+function accountActive(account) {
+  const body = account?.body || account || {};
+  return Boolean(body.status === 'active' || body.is_active || body.interfaces || body.balance !== undefined);
 }
 
 async function fallbackData(cfg, source, limit) {
-  const [jetton, holders, minterAccount, teleportAccount, minterEvents, teleportEvents, minterTx, teleportTx, bitcoinHeight] = await Promise.all([
+  const [jetton, holders, minterAccount, teleportAccount, bitclientAccount, minterEvents, teleportEvents, minterTx, teleportTx, bitcoinHeight, gqlPing] = await Promise.all([
     getTonApi(cfg, `/jettons/${encodeURIComponent(cfg.minter)}`),
     getTonApi(cfg, `/jettons/${encodeURIComponent(cfg.minter)}/holders`, { limit, offset: 0 }),
     getTonApi(cfg, `/blockchain/accounts/${encodeURIComponent(cfg.minter)}`),
     getTonApi(cfg, `/blockchain/accounts/${encodeURIComponent(cfg.teleport)}`),
+    getTonApi(cfg, `/blockchain/accounts/${encodeURIComponent(cfg.bitclient)}`),
     getTonApi(cfg, `/accounts/${encodeURIComponent(cfg.minter)}/events`, { limit }),
     getTonApi(cfg, `/accounts/${encodeURIComponent(cfg.teleport)}/events`, { limit }),
     getTonApi(cfg, `/blockchain/accounts/${encodeURIComponent(cfg.minter)}/transactions`, { limit }),
     getTonApi(cfg, `/blockchain/accounts/${encodeURIComponent(cfg.teleport)}/transactions`, { limit }),
-    getBitcoinHeight(cfg)
+    getBitcoinHeight(cfg),
+    postGraphql(cfg, '{ __typename }')
   ]);
 
   const jettonBody = jetton.ok ? jetton.body : {};
   const holdersBody = holders.ok ? holders.body : {};
-  const minterActions = findActions(minterEvents.ok ? minterEvents.body : null);
-  const teleportActions = findActions(teleportEvents.ok ? teleportEvents.body : null);
-  const allActions = [...minterActions, ...teleportActions].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
-  const mints = allActions.filter((r) => /mint/i.test(r.type)).map((r) => ({ created_at: r.timestamp ? new Date(Number(r.timestamp) * 1000).toISOString() : undefined, amount: r.amount || 'mint', status: r.status, ton_tx: r.ton_tx, receiver_addr: r.account, raw: r.raw }));
-  const burns = allActions.filter((r) => /burn|pegout|withdraw/i.test(r.type)).map((r) => ({ created_at: r.timestamp ? new Date(Number(r.timestamp) * 1000).toISOString() : undefined, amount: r.amount || 'burn', pegout_status: r.status, ton_tx: r.ton_tx, sender_addr: r.account, raw: r.raw }));
-
-  const totalSupplyRaw = jettonBody.total_supply || jettonBody.totalSupply || jettonBody.metadata?.total_supply || 0;
   const decimals = Number(jettonBody.metadata?.decimals || jettonBody.decimals || 8);
-  const supplyNum = Number(totalSupplyRaw || 0) / (10 ** decimals);
+  const rawSupply = jettonBody.total_supply || jettonBody.totalSupply || jettonBody.supply || 0;
+  const supplyNum = toTokenAmount(rawSupply, decimals);
+  const holdersCount = holdersBody.total || holdersBody.holders?.length || holdersBody.addresses?.length || 0;
+
+  const allActions = [
+    ...normalizeActions(minterEvents.ok ? minterEvents.body : null, 'minter'),
+    ...normalizeActions(teleportEvents.ok ? teleportEvents.body : null, 'teleport')
+  ].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+
+  const mints = allActions.filter((r) => /mint/i.test(r.type)).map((r) => ({
+    created_at: r.timestamp ? new Date(Number(r.timestamp) * 1000).toISOString() : undefined,
+    amount: r.amount || 'mint',
+    status: r.status,
+    ton_tx: r.event_id,
+    receiver_addr: r.account,
+    source: r.source,
+    raw: r.raw
+  }));
+
+  const burns = allActions.filter((r) => /burn|pegout|withdraw|contract called|call contract/i.test(r.type)).map((r) => ({
+    created_at: r.timestamp ? new Date(Number(r.timestamp) * 1000).toISOString() : undefined,
+    amount: r.amount || r.type,
+    pegout_status: r.status,
+    ton_tx: r.event_id,
+    sender_addr: r.account,
+    source: r.source,
+    raw: r.raw
+  }));
+
+  const fullMetricsMissing = true;
+  const activeMinter = accountActive(minterAccount);
+  const activeTeleport = accountActive(teleportAccount);
 
   const info = {
     Fallback: true,
-    FallbackReason: 'Official metrics endpoint was unavailable or did not return this source; this view is synthesized from TonAPI + public Bitcoin height.',
+    ChainOnly: true,
+    DataMode: 'CHAIN_ONLY_TONAPI',
+    FallbackReason: 'Official full metrics API did not return this source. Mainnet is shown from real TON mainnet contract data via TonAPI plus public Bitcoin height. Unknown protocol internals are left null, not guessed.',
     Environment: cfg.environment,
     MaintenanceMode: cfg.maintenance,
+    ReadOnly: cfg.readOnly,
     ContractTeleport: {
-      Enabled: cfg.maintenance !== '1',
+      Enabled: activeTeleport,
+      BridgeSendEnabled: false,
       MinterAddress: cfg.minterRaw || cfg.minter,
       TeleportAddress: cfg.teleportRaw || cfg.teleport,
       CoordinatorAddress: cfg.coordinator,
-      BitcoinClientAddress: cfg.bitclient,
-      Limits: { MinPeginAmount: 0, MinPegoutAmount: 0 },
-      UTXOset: [],
-      PeginsCount: 0,
-      TotalServiceFee: 0,
-      BaseSVB: 0,
-      NextSVB: 0,
-      CsvLock: 0,
-      TweakedPubkey: '',
-      InternalKey: ''
+      BitcoinClientAddress: cfg.bitclientRaw || cfg.bitclient,
+      Limits: { MinPeginAmount: null, MinPegoutAmount: null },
+      UTXOset: null,
+      PeginsCount: null,
+      TotalServiceFee: null,
+      BaseSVB: null,
+      NextSVB: null,
+      CsvLock: null,
+      PegoutCounter: null,
+      TweakedPubkey: null,
+      InternalKey: null,
+      LastPegoutTxID: null
     },
     BitcoinNetworkInfo: { Chain: cfg.btcNetwork, Blocks: bitcoinHeight, BestBlockHash: '' },
-    ContractBitcoinClient: { LastConfirmedBlockHeight: 0, LastConfirmedBlockHash: '', ConfirmationsNeeded: cfg.id === 'mainnet' ? 6 : 2 },
+    ContractBitcoinClient: { LastConfirmedBlockHeight: null, LastConfirmedBlockHash: '', ConfirmationsNeeded: cfg.id === 'mainnet' ? 6 : 2 },
     Jetton: jettonBody,
-    Holders: holdersBody,
-    Accounts: { minter: minterAccount, teleport: teleportAccount }
+    JettonSummary: {
+      active: activeMinter,
+      supply: supplyNum,
+      rawSupply,
+      decimals,
+      holders: holdersCount,
+      symbol: jettonBody.metadata?.symbol || jettonBody.symbol || 'tgBTC',
+      name: jettonBody.metadata?.name || jettonBody.name || 'tgBTC'
+    },
+    Accounts: { minter: minterAccount, teleport: teleportAccount, bitclient: bitclientAccount },
+    IndexerGraphql: gqlPing,
+    Notes: [
+      'Mainnet default is read-only while official prod config has MAINTENANCE_MODE=1.',
+      'BTC client lag, DKG, reserve UTXO and service fee require the official full metrics endpoint. They are not guessed in chain-only mode.'
+    ]
   };
 
   const plots = {
     fallback: true,
+    chain_only: true,
     total_minted: Number.isFinite(supplyNum) ? supplyNum : 0,
     total_burned: 0,
     mints_count: mints.length,
     burns_count: burns.length,
-    holders_count: holdersBody.total || holdersBody.holders?.length || holdersBody.addresses?.length || 0,
+    holders_count: holdersCount,
     total_supply: Number.isFinite(supplyNum) ? supplyNum : 0
   };
 
-  const dkg = { fallback: true, StandaloneMode: false, DkgInfo: { State: 'UNKNOWN', VSetSize: 0, ValidatorsCountMax: 0, ValidatorsCountInDkg: 0, ValidatorsCountNotInDkg: 0, ValidatorsCountEvicted: 0 } };
-  const alerts = cfg.maintenance === '1' ? [{ level: 'warn', message: 'Mainnet official config has MAINTENANCE_MODE=1. Explorer is read-only; bridge sending should stay disabled.' }] : [];
-  const system = { network: cfg, tonapi: { jetton, holders, minterAccount, teleportAccount, minterEvents, teleportEvents, minterTx, teleportTx } };
+  const dkg = {
+    fallback: true,
+    chain_only: true,
+    StandaloneMode: null,
+    DkgInfo: {
+      State: 'NOT_EXPOSED',
+      VSetSize: null,
+      ValidatorsCountMax: null,
+      ValidatorsCountInDkg: null,
+      ValidatorsCountNotInDkg: null,
+      ValidatorsCountEvicted: null
+    },
+    Note: 'DKG/signers state is not visible from TonAPI events. Need full Teleport metrics API for exact mainnet DKG.'
+  };
+
+  const alerts = [
+    { level: 'warn', message: `${cfg.label}: official prod config maintenance=${cfg.maintenance}; bridge sending is disabled in this app.` },
+    ...(fullMetricsMissing ? [{ level: 'info', message: 'Full protocol internals not exposed by this source; visible values are on-chain mainnet data.' }] : [])
+  ];
+
+  const system = {
+    network: cfg,
+    tonapi: { jetton, holders, minterAccount, teleportAccount, bitclientAccount, minterEvents, teleportEvents, minterTx, teleportTx },
+    graphql: gqlPing
+  };
 
   if (source === 'info') return info;
   if (source === 'plots_summary') return plots;
