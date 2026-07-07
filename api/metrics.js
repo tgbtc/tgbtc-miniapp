@@ -87,9 +87,10 @@ function looksLikeHtml(payload) {
   return false;
 }
 
-async function proxyMetrics(cfg, source, limit) {
+async function proxyMetrics(cfg, source, limit, extraParams = {}) {
   const targetUrl = new URL(cfg.metricsApi);
   targetUrl.searchParams.set('source', source);
+  for (const [k, v] of Object.entries(extraParams)) targetUrl.searchParams.set(k, v);
   const { response, text } = await fetchText(targetUrl.toString(), 20000, { headers: headers() });
   let payload = safeJson(text);
   if (!response.ok || looksLikeHtml(payload)) {
@@ -99,7 +100,88 @@ async function proxyMetrics(cfg, source, limit) {
     err.url = targetUrl.toString();
     throw err;
   }
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    payload._Explorer = { ...(payload._Explorer || {}), url: targetUrl.toString(), params: extraParams };
+  }
   if (ARRAY_SOURCES.has(source) && Array.isArray(payload)) payload = payload.slice(0, limit);
+  return payload;
+}
+
+const MAINNET_METRICS_PARAM_CANDIDATES = [
+  {},
+  { network: 'mainnet' },
+  { network: 'prod' },
+  { env: 'prod' },
+  { environment: 'prod' },
+  { chain: 'bitcoin' },
+  { mode: 'mainnet' },
+  { net: 'mainnet' }
+];
+
+let mainnetProbeCache = { ts: 0, result: null };
+
+function lowerFlat(payload) {
+  try { return JSON.stringify(payload || {}).toLowerCase(); } catch { return ''; }
+}
+
+function payloadLooksSandbox(payload) {
+  const flat = lowerFlat(payload);
+  const chain = String(payload?.BitcoinNetworkInfo?.Chain || '').toLowerCase();
+  return chain === 'signet' ||
+    flat.includes(NETWORKS.testnet.minterRaw.toLowerCase()) ||
+    flat.includes(NETWORKS.testnet.teleportRaw.toLowerCase()) ||
+    flat.includes('0:ae08d68c93ce46b4fd9b8c1301e8987448c687de0594fe4c44f8b201534c9d10') ||
+    flat.includes('sandbox.teleport.tg');
+}
+
+function payloadLooksMainnet(payload) {
+  const flat = lowerFlat(payload);
+  const chain = String(payload?.BitcoinNetworkInfo?.Chain || '').toLowerCase();
+  return chain === 'main' || chain === 'mainnet' || chain === 'bitcoin' ||
+    flat.includes(NETWORKS.mainnet.minterRaw.toLowerCase()) ||
+    flat.includes(NETWORKS.mainnet.teleportRaw.toLowerCase()) ||
+    flat.includes(NETWORKS.mainnet.bitclientRaw.toLowerCase());
+}
+
+async function discoverMainnetMetricsParams(limit) {
+  const now = Date.now();
+  if (mainnetProbeCache.result && now - mainnetProbeCache.ts < 15000) return mainnetProbeCache.result;
+  const rejected = [];
+  for (const params of MAINNET_METRICS_PARAM_CANDIDATES) {
+    try {
+      const info = await proxyMetrics(NETWORKS.mainnet, 'info', limit, params);
+      const sandbox = payloadLooksSandbox(info);
+      const mainnet = payloadLooksMainnet(info);
+      if (mainnet && !sandbox) {
+        const result = { ok: true, params, info, rejected };
+        mainnetProbeCache = { ts: now, result };
+        return result;
+      }
+      rejected.push({ params, reason: sandbox ? 'returned sandbox/signet payload' : 'does not contain mainnet markers', chain: info?.BitcoinNetworkInfo?.Chain || null, teleport: info?.ContractTeleport?.TeleportAddress || null, minter: info?.ContractTeleport?.MinterAddress || null, url: info?._Explorer?.url || null });
+    } catch (error) {
+      rejected.push({ params, reason: error.message, status: error.status || null, url: error.url || null });
+    }
+  }
+  const result = { ok: false, params: null, info: null, rejected };
+  mainnetProbeCache = { ts: now, result };
+  return result;
+}
+
+async function proxyMainnetMetricsStrict(source, limit) {
+  const probe = await discoverMainnetMetricsParams(limit);
+  if (!probe.ok) {
+    const err = new Error('No valid mainnet full metrics payload found');
+    err.probe = probe;
+    throw err;
+  }
+  if (source === 'info') {
+    return { ...probe.info, ChainOnly: false, DataMode: 'FULL_PROD_METRICS', MetricsProbe: { selectedParams: probe.params, rejected: probe.rejected } };
+  }
+  const payload = await proxyMetrics(NETWORKS.mainnet, source, limit, probe.params);
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    payload.DataMode = 'FULL_PROD_METRICS';
+    payload.MetricsProbe = { selectedParams: probe.params };
+  }
   return payload;
 }
 
@@ -208,7 +290,7 @@ function accountActive(account) {
   return Boolean(body.status === 'active' || body.is_active || body.interfaces || body.balance !== undefined);
 }
 
-async function fallbackData(cfg, source, limit) {
+async function fallbackData(cfg, source, limit, metricsProbe = null) {
   const [jetton, holders, minterAccount, teleportAccount, bitclientAccount, minterEvents, teleportEvents, minterTx, teleportTx, bitcoinHeight, gqlPing] = await Promise.all([
     getTonApi(cfg, `/jettons/${encodeURIComponent(cfg.minter)}`),
     getTonApi(cfg, `/jettons/${encodeURIComponent(cfg.minter)}/holders`, { limit, offset: 0 }),
@@ -263,7 +345,8 @@ async function fallbackData(cfg, source, limit) {
     Fallback: true,
     ChainOnly: true,
     DataMode: 'CHAIN_ONLY_TONAPI',
-    FallbackReason: cfg.id === 'mainnet' ? 'MAINNET_REAL_MODE: prod metrics are ignored because the public prod metrics endpoint can return sandbox/signet data. This screen uses real TON mainnet contract data only; unknown protocol internals are left null, not guessed.' : 'Official full metrics API did not return this source. Data is shown from TON contract data via TonAPI plus public Bitcoin height. Unknown protocol internals are left null, not guessed.',
+    FallbackReason: cfg.id === 'mainnet' ? 'MAINNET_REAL_MODE: app tried the same full metrics API style as testnet, but accepted only payloads that match mainnet contracts/bitcoin chain. If prod metrics returns sandbox/signet or no mainnet markers, it is rejected and this screen falls back to real TON mainnet on-chain data.' : 'Official full metrics API did not return this source. Data is shown from TON contract data via TonAPI plus public Bitcoin height. Unknown protocol internals are left null, not guessed.',
+    MetricsProbe: metricsProbe,
     Environment: cfg.environment,
     MaintenanceMode: cfg.maintenance,
     ReadOnly: cfg.readOnly,
@@ -302,7 +385,8 @@ async function fallbackData(cfg, source, limit) {
     IndexerGraphql: gqlPing,
     Notes: [
       'Mainnet default is read-only while official prod config has MAINTENANCE_MODE=1.',
-      'BTC client lag, DKG, reserve UTXO and service fee require the official full metrics endpoint. They are not guessed in chain-only mode.'
+      'The app now tries prod full metrics first, exactly like testnet, but rejects sandbox/signet payloads so mainnet is not shown incorrectly.',
+      'BTC client lag, DKG, reserve UTXO and service fee require a valid mainnet full metrics endpoint. They are not guessed in chain-only mode.'
     ]
   };
 
@@ -372,14 +456,20 @@ module.exports = async function handler(req, res) {
   if (source === 'config') return res.status(200).json({ success: true, network: cfg.id, config: cfg, networks: NETWORKS });
 
   try {
-    // IMPORTANT: prod metrics endpoint may currently return sandbox/signet payloads.
-    // Mainnet must never display sandbox values. For mainnet we use verified TON mainnet
-    // contract data only (TonAPI + public Bitcoin height) until official prod metrics
-    // exposes matching mainnet internals. Testnet still uses sandbox full metrics.
+    // MAINNET: try to read full prod metrics in the same way as testnet.
+    // Safety rule: never show sandbox/signet as mainnet. If prod metrics returns
+    // sandbox payload, reject it and fall back to real TON mainnet on-chain data.
     if (cfg.id === 'mainnet') {
-      const fallback = await fallbackData(cfg, source, limit);
-      res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=45');
-      return res.status(200).send(JSON.stringify(fallback));
+      try {
+        const payload = await proxyMainnetMetricsStrict(source, limit);
+        const cacheSeconds = ARRAY_SOURCES.has(source) ? 20 : 10;
+        res.setHeader('Cache-Control', `s-maxage=${cacheSeconds}, stale-while-revalidate=40`);
+        return res.status(200).send(JSON.stringify(payload));
+      } catch (mainnetMetricsError) {
+        const fallback = await fallbackData(cfg, source, limit, mainnetMetricsError.probe || null);
+        res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=45');
+        return res.status(200).send(JSON.stringify(fallback));
+      }
     }
 
     try {
