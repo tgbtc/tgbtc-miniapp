@@ -1,14 +1,18 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "1.0.0-mainnet-testnet-full-switch",
+  "version": "1.0.0-v13-mainnet-first-vercel-safe",
   "private": true,
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
     "@ton/core": "^0.63.1"
   },
   "scripts": {
+    "build": "node -e \"console.log('No build step needed: static index.html + Vercel API functions.')\"",
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
-  "description": "tgBTC full explorer with Mainnet/Testnet switch and metrics proxy"
+  "description": "tgBTC full explorer with Mainnet/Testnet switch and metrics proxy",
+  "engines": {
+    "node": ">=20"
+  }
 }
