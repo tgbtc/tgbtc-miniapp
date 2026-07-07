@@ -1,6 +1,6 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "0.9.0-mainnet-testnet-switch",
+  "version": "1.0.0-mainnet-testnet-full-switch",
   "private": true,
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
@@ -10,5 +10,5 @@
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
-  "description": "tgBTC explorer with Mainnet Watch and Sandbox/Testnet Bridge switcher"
+  "description": "tgBTC full explorer with Mainnet/Testnet switch and metrics proxy"
 }

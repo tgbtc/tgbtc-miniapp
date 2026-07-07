@@ -1,20 +1,13 @@
-# tgBTC Explorer v9 — Mainnet + Testnet Switch
+# tgBTC Explorer v10 Full Switch
 
-One deployed URL with two modes:
+Один сайт для `https://tgbtc-miniapp.vercel.app/` с переключателем:
 
-- **Sandbox / Testnet Bridge** — signet BTC + TON testnet bridge testing, pegin/pegout/refund monitor, TonConnect testnet burn.
-- **Mainnet Watch** — read-only TON mainnet monitoring for real tgBTC master and Teleport contracts.
+- Sandbox / Testnet — `https://sandbox.teleport.tg/metrics/api`, signet BTC, TON testnet.
+- Mainnet / Prod — `https://teleport.tg/metrics/api`, Bitcoin mainnet, TON mainnet.
 
-## Mainnet contracts
+## Главные файлы
 
-- tgBTC master: `EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU`
-- Teleport: `EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-`
-
-Mainnet mode is intentionally read-only. It shows supply, holders, account balances, master/teleport events and raw JSON. It does not create real BTC deposit addresses or send mainnet burns.
-
-## Deploy to Vercel
-
-Upload/replace everything in the project root:
+Загружать в GitHub/Vercel прямо в корень проекта:
 
 ```text
 index.html
@@ -24,13 +17,24 @@ tonconnect-manifest.json
 api/
 ```
 
-Open:
+## Mainnet config
 
-```text
-https://tgbtc-miniapp.vercel.app/?mode=testnet
-https://tgbtc-miniapp.vercel.app/?mode=mainnet
+```js
+TON_CENTER_ENDPOINT: "https://toncenter.com"
+INDEXER_GRAPHQL_ENDPOINT: "https://teleport.tg/indexer/graphql"
+TON_CONTRACT_MINTER_ADDR: "EQBmjxpYsJ8yHEraYfTpLdejCekHMoKS2fOErP4lLHCf4SlU"
+TON_CONTRACT_TELEPORT_ADDR: "EQC6o-Ri4Q3R3H1xOTaPawZ964iqha3TzJGAmpi8h4XqcP3-"
+TON_CONTRACT_COORDINATOR: "Ef_q19o4m94xfF-yhYB85Qe6rTHDX-VTSzxBh4XpAfZMaOvk"
+TON_CONTRACT_BITCLIENT_ADDR: "EQC8zTEAt9BjhteymRnOq8hK7AuUnseB1xPNHjreCZswNFj2"
+BITCOIN_RPC_ENDPOINT: "https://bitcoin-rpc.publicnode.com"
+MAINTENANCE_MODE: "1"
 ```
 
-## Optional env
+Mainnet в этом билде показывает данные и риски. Реальная отправка BTC на mainnet не включена, пока официально стоит `MAINTENANCE_MODE=1`.
 
-Set `TONAPI_KEY` in Vercel Environment Variables for more reliable mainnet requests.
+## URL
+
+```text
+/?mode=testnet
+/?mode=mainnet
+```
