@@ -1,13 +1,14 @@
 {
   "name": "tgbtc-miniapp",
-  "version": "0.2.0",
+  "version": "0.9.0-mainnet-testnet-switch",
   "private": true,
   "dependencies": {
     "@noble/secp256k1": "^2.3.0",
-    "@ton/core": "^0.61.0"
+    "@ton/core": "^0.63.1"
   },
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
-  }
+  },
+  "description": "tgBTC explorer with Mainnet Watch and Sandbox/Testnet Bridge switcher"
 }
