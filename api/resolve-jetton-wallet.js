@@ -1,11 +1,55 @@
-const TGBTC_MASTER = "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074";
-const TONAPI = "https://testnet.tonapi.io/v2";
+const { Address } = require("@ton/core");
 
-function formatTgBtc(balance) {
-  const raw = BigInt(String(balance || "0"));
-  const whole = raw / 100000000n;
-  const frac = String(raw % 100000000n).padStart(8, "0").replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : `${whole}`;
+const TGBTC_MASTER_RAW = "0:b120dbb01adb29027ca740729c9e156bd86c1e624459b1b28d5b45ed68738074";
+const DECIMALS = 8;
+
+function asJson(res, code, payload) {
+  res.status(code).json(payload);
+}
+
+function normalizeRaw(value) {
+  if (!value) return "";
+  try {
+    return Address.parse(String(value)).toRawString().toLowerCase();
+  } catch {
+    return String(value).trim().toLowerCase();
+  }
+}
+
+function friendly(value, bounceable = true) {
+  return Address.parse(String(value)).toString({ testOnly: true, bounceable });
+}
+
+function unitsToDecimal(units, decimals = DECIMALS) {
+  const value = BigInt(String(units || "0"));
+  const base = 10n ** BigInt(decimals);
+  const whole = value / base;
+  const frac = String(value % base).padStart(decimals, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
+}
+
+function pickAddress(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (typeof value.address === "string") return value.address;
+    if (value.address && typeof value.address.address === "string") return value.address.address;
+    if (typeof value.account_address === "string") return value.account_address;
+    if (typeof value.wallet_address === "string") return value.wallet_address;
+  }
+  return "";
+}
+
+async function fetchJson(url) {
+  const r = await fetch(url, {
+    cache: "no-store",
+    headers: { "accept": "application/json", "user-agent": "tgbtc-miniapp/0.8" }
+  });
+  const text = await r.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 500) }; }
+  if (!r.ok) throw new Error(`TonAPI HTTP ${r.status}: ${text.slice(0, 160)}`);
+  return json;
 }
 
 module.exports = async function handler(req, res) {
@@ -16,53 +60,81 @@ module.exports = async function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
 
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "GET") return res.status(405).json({ success: false, error: "Method not allowed" });
+  if (req.method !== "GET") return asJson(res, 405, { success: false, error: "Method not allowed" });
 
   try {
-    const owner = String(req.query.owner || "").trim();
-    if (!owner) return res.status(400).json({ success: false, error: "Missing owner address" });
+    const ownerInput = String(req.query.owner || "").trim();
+    if (!ownerInput) throw new Error("Missing owner address");
 
-    const url = `${TONAPI}/accounts/${encodeURIComponent(owner)}/jettons/${encodeURIComponent(TGBTC_MASTER)}`;
-    const upstream = await fetch(url, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "tgbtc-miniapp-resolve-wallet/0.1",
-      },
-    });
-    const payload = await upstream.json().catch(() => ({}));
+    const owner = Address.parse(ownerInput);
+    const ownerRaw = owner.toRawString();
+    const ownerFriendly = owner.toString({ testOnly: true, bounceable: false });
+    const masterRaw = normalizeRaw(TGBTC_MASTER_RAW);
 
-    if (!upstream.ok) {
-      return res.status(upstream.status === 404 ? 200 : upstream.status).json({
-        success: upstream.status === 404,
-        owner,
-        master: TGBTC_MASTER,
-        balance: "0",
-        balanceTgBtc: "0",
-        walletAddress: "",
-        exists: false,
-        warning: upstream.status === 404 ? "No tgBTC jetton wallet found for this owner yet." : "TonAPI error",
-        details: payload,
-      });
+    const attempts = [ownerRaw, ownerFriendly];
+    let lastJson = null;
+    let lastError = null;
+
+    for (const account of attempts) {
+      try {
+        const url = `https://testnet.tonapi.io/v2/accounts/${encodeURIComponent(account)}/jettons`;
+        const json = await fetchJson(url);
+        lastJson = json;
+        const balances = Array.isArray(json.balances) ? json.balances : (Array.isArray(json.jettons) ? json.jettons : []);
+        for (const item of balances) {
+          const jetton = item.jetton || item.jetton_info || item.metadata || {};
+          const jettonAddress = pickAddress(jetton.address) || pickAddress(jetton);
+          const symbol = String(jetton.symbol || item.symbol || "").toLowerCase();
+          const addressMatches = jettonAddress && normalizeRaw(jettonAddress) === masterRaw;
+          const symbolMatches = symbol === "tgbtc";
+          if (!addressMatches && !symbolMatches) continue;
+
+          const walletAddressRaw = pickAddress(item.wallet_address) || pickAddress(item.wallet) || pickAddress(item.jetton_wallet) || pickAddress(item.account);
+          if (!walletAddressRaw) {
+            throw new Error("tgBTC balance found, but TonAPI did not return jetton wallet address");
+          }
+
+          const decimals = Number(jetton.decimals ?? item.decimals ?? DECIMALS) || DECIMALS;
+          const balanceUnits = String(item.balance ?? item.quantity ?? item.amount ?? "0");
+          const jettonWalletAddress = friendly(walletAddressRaw, true);
+
+          // Safety: returned wallet must not be owner or master
+          const walletRaw = normalizeRaw(jettonWalletAddress);
+          if (walletRaw === normalizeRaw(ownerRaw)) throw new Error("Resolved address equals owner wallet; refusing unsafe burn target");
+          if (walletRaw === masterRaw) throw new Error("Resolved address equals tgBTC master; refusing unsafe burn target");
+
+          return asJson(res, 200, {
+            success: true,
+            source: "tonapi-testnet",
+            ownerAddress: friendly(ownerRaw, false),
+            masterAddress: friendly(TGBTC_MASTER_RAW, true),
+            jettonWalletAddress,
+            jettonWalletRaw: walletRaw,
+            balanceUnits,
+            balanceTgBtc: unitsToDecimal(balanceUnits, decimals),
+            decimals,
+            symbol: jetton.symbol || item.symbol || "tgBTC",
+          });
+        }
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    const walletAddress = payload.wallet_address && payload.wallet_address.address;
-    const balance = String(payload.balance || "0");
-
-    return res.status(200).json({
-      success: true,
-      owner,
-      master: TGBTC_MASTER,
-      balance,
-      balanceTgBtc: formatTgBtc(balance),
-      walletAddress: walletAddress || "",
-      exists: Boolean(walletAddress),
-      jetton: payload.jetton || null,
+    return asJson(res, 404, {
+      success: false,
+      error: "tgBTC jetton wallet not found",
+      message: lastError ? lastError.message : "No tgBTC balance found for this wallet in TonAPI testnet index.",
+      hint: "Make sure the connected wallet is testnet and has tgBTC balance. You can still paste the tgBTC jetton wallet manually if you find it in Tonviewer/Tonkeeper.",
+      owner: ownerRaw,
+      sampleKeys: lastJson ? Object.keys(lastJson) : []
     });
   } catch (error) {
-    return res.status(500).json({
+    return asJson(res, 400, {
       success: false,
-      error: "Resolve jetton wallet error",
+      error: "Cannot resolve tgBTC jetton wallet",
       message: error.message,
+      hint: "Connect TON testnet wallet first. The address must be a TON testnet account address."
     });
   }
 };
