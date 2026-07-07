@@ -60,7 +60,7 @@ function selectNetwork(value) {
 function headers(extra = {}) {
   return {
     accept: 'application/json',
-    'user-agent': 'tgbtc-mainnet-default-explorer/1.1',
+    'user-agent': 'tgbtc-mainnet-real-first-explorer/1.2',
     ...extra,
   };
 }
@@ -131,7 +131,7 @@ async function postGraphql(cfg, query) {
 async function getBitcoinHeight(cfg) {
   try {
     const url = `${cfg.btcExplorer}/api/blocks/tip/height`;
-    const { response, text } = await fetchText(url, 8000, { headers: { accept: 'text/plain', 'user-agent': 'tgbtc-switch-height/1.1' } });
+    const { response, text } = await fetchText(url, 8000, { headers: { accept: 'text/plain', 'user-agent': 'tgbtc-switch-height/1.2' } });
     if (!response.ok) return null;
     const h = Number.parseInt(text, 10);
     return Number.isFinite(h) ? h : null;
@@ -263,7 +263,7 @@ async function fallbackData(cfg, source, limit) {
     Fallback: true,
     ChainOnly: true,
     DataMode: 'CHAIN_ONLY_TONAPI',
-    FallbackReason: 'Official full metrics API did not return this source. Mainnet is shown from real TON mainnet contract data via TonAPI plus public Bitcoin height. Unknown protocol internals are left null, not guessed.',
+    FallbackReason: cfg.id === 'mainnet' ? 'MAINNET_REAL_MODE: prod metrics are ignored because the public prod metrics endpoint can return sandbox/signet data. This screen uses real TON mainnet contract data only; unknown protocol internals are left null, not guessed.' : 'Official full metrics API did not return this source. Data is shown from TON contract data via TonAPI plus public Bitcoin height. Unknown protocol internals are left null, not guessed.',
     Environment: cfg.environment,
     MaintenanceMode: cfg.maintenance,
     ReadOnly: cfg.readOnly,
@@ -334,6 +334,7 @@ async function fallbackData(cfg, source, limit) {
 
   const alerts = [
     { level: 'warn', message: `${cfg.label}: official prod config maintenance=${cfg.maintenance}; bridge sending is disabled in this app.` },
+    ...(cfg.id === 'mainnet' ? [{ level: 'info', message: 'Mainnet is forced to real on-chain mode. Sandbox/signet metrics are ignored so the screen does not show false mainnet values.' }] : []),
     ...(fullMetricsMissing ? [{ level: 'info', message: 'Full protocol internals not exposed by this source; visible values are on-chain mainnet data.' }] : [])
   ];
 
@@ -371,6 +372,16 @@ module.exports = async function handler(req, res) {
   if (source === 'config') return res.status(200).json({ success: true, network: cfg.id, config: cfg, networks: NETWORKS });
 
   try {
+    // IMPORTANT: prod metrics endpoint may currently return sandbox/signet payloads.
+    // Mainnet must never display sandbox values. For mainnet we use verified TON mainnet
+    // contract data only (TonAPI + public Bitcoin height) until official prod metrics
+    // exposes matching mainnet internals. Testnet still uses sandbox full metrics.
+    if (cfg.id === 'mainnet') {
+      const fallback = await fallbackData(cfg, source, limit);
+      res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=45');
+      return res.status(200).send(JSON.stringify(fallback));
+    }
+
     try {
       const payload = await proxyMetrics(cfg, source, limit);
       const cacheSeconds = ARRAY_SOURCES.has(source) ? 20 : 10;
